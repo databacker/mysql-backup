@@ -80,6 +80,9 @@ Examples:
 2. Restore from an SMB file: `docker run  -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.sql.gz deitch/mysql-backup`
 
 
+### Automated Build
+This gituhub repo is the source for the mysql-backup image. The actual image is stored on the docker hub at `deitch/mysql-backup`, and is triggered with each commit to the source by automated build via Webhooks.
+
 ## License
 Released under the MIT License. 
 Copyright Avi Deitcher https://github.com/deitch
