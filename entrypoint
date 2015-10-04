@@ -1,0 +1,109 @@
+#!/bin/bash
+
+if [[ -n "$DB_DUMP_DEBUG" ]]; then
+  set -x
+fi
+
+# set our defaults
+# DB_DUMP_FREQ = how often to run a backup in minutes, i.e. how long to wait from the most recently completed to the next
+DB_DUMP_FREQ=${DB_DUMP_FREQ:-1440}
+# DB_DUMP_BEGIN = what time to start the first backup upon execution. If starts with '+' it means, "in x minutes"
+DB_DUMP_BEGIN=${DB_DUMP_BEGIN:-+0}
+# DB_DUMP_TARGET = where to place the backup file. Can be URL (e.g. smb://server/share/path) or just file path /foo
+DB_DUMP_TARGET=${DB_DUMP_TARGET:-/backup}
+# login credentials
+DBUSER=${DB_USER:-cattle}
+DBPASS=${DB_PASS:-cattle}
+
+# database server
+DBSERVER=db
+
+# temporary dump dir
+TMPDIR=/tmp/backups
+TMPRESTORE=/tmp/restorefile
+
+# determine target proto
+if [[ ${DB_DUMP_TARGET:0:1} == "/" ]]; then
+  PROTO="file"
+elif [[ $DB_DUMP_TARGET =~ ^smb://([^/]*)/([^/]*)(.*) ]]; then
+  PROTO="smb"
+  SMB_SERVER=${BASH_REMATCH[1]}
+  SMB_SHARE=${BASH_REMATCH[2]}
+  SMB_REMOTE_DIR=${BASH_REMATCH[3]}
+else
+  PROTO="file"
+fi
+
+
+if [[ -n "$DB_RESTORE_TARGET" ]]; then
+  if [[ ${DB_RESTORE_TARGET:0:1} == "/" ]]; then
+    PROTO="file"
+    cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
+  elif [[ $DB_DUMP_TARGET =~ ^smb://([^/]*)/([^/]*)(.*) ]]; then
+    PROTO="smb"
+    SMB_SERVER=${BASH_REMATCH[1]}
+    SMB_SHARE=${BASH_REMATCH[2]}
+    SMB_REMOTE_DIR=${BASH_REMATCH[3]}
+    smbclient -N //${SMB_SERVER}/${SMB_SHARE} -c "get ${SMB_REMOTE_DIR} ${TMPRESTORE}"
+  fi
+  # did we get a file?
+  if [[ -f "$TMPRESTORE" ]]; then
+    gunzip < $TMPRESTORE | mysql -h $DBSERVER -u $DBUSER -p$DBPASS
+    /bin/rm -f $TMPRESTORE
+    exit 0
+  else
+    echo "Could not find restore file $DB_RESTORE_TARGET"
+    exit 1
+  fi
+else
+  # wait for the next time to start a backup
+  # for debugging
+  echo Starting at $(date)
+  current_time=$(date +"%s")
+  # get the begin time on our date
+  # REMEMBER: we are using the basic date package in alpine
+  today=$(date +"%Y%m%d")
+  # could be a delay in minutes or an absolute time of day
+  if [[ $DB_DUMP_BEGIN =~ ^\+(.*)$ ]]; then
+    waittime=$(( ${BASH_REMATCH[1]} * 60 ))
+  else
+    target_time=$(date --date="${today}${DB_DUMP_BEGIN}" +"%s")
+
+    if [[ "$target_time" < "$current_time" ]]; then
+      target_time=$(($target_time + 24*60*60))
+    fi
+
+    waittime=$(($target_time - $current_time))
+  fi
+
+  sleep $waittime
+
+  # enter the loop
+  while true; do
+    # make sure the directory exists
+    mkdir -p $TMPDIR
+
+    # what is the name of our target?
+    now=$(date -u +"%Y%M%d%H%M%S")
+    TARGET=db_backup_${now}.gz
+
+    # make the dump
+    mysqldump -A -h $DBSERVER -u$DBUSER -p$DBPASS | gzip > ${TMPDIR}/${TARGET}
+
+    # what kind of target do we have? Plain filesystem? smb?
+    case "$PROTO" in
+      "file")
+        mkdir -p $DB_DUMP_TARGET
+        mv ${TMPDIR}/${TARGET} ${DB_DUMP_TARGET}/${TARGET}
+        ;;
+      "smb")
+        smbclient -N //${SMB_SERVER}/${SMB_SHARE} -c "put ${TMPDIR}/${TARGET} ${SMB_REMOTE_DIR}/${TARGET}"
+        /bin/rm ${TMPDIR}/${TARGET}
+       ;;
+    esac
+
+    # wait
+    sleep $(($DB_DUMP_FREQ*60))
+  done
+fi
+
