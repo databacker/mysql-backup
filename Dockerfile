@@ -1,5 +1,5 @@
 # rancher server backup image
-FROM alpine
+FROM alpine:3.2
 MAINTAINER software@tradertools.com
 
 # install the necessary client
