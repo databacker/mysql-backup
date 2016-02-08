@@ -22,29 +22,85 @@ DBSERVER=db
 TMPDIR=/tmp/backups
 TMPRESTORE=/tmp/restorefile
 
-# determine target proto
-if [[ ${DB_DUMP_TARGET:0:1} == "/" ]]; then
-  PROTO="file"
-elif [[ $DB_DUMP_TARGET =~ ^smb://([^/]*)/([^/]*)(.*) ]]; then
-  PROTO="smb"
-  SMB_SERVER=${BASH_REMATCH[1]}
-  SMB_SHARE=${BASH_REMATCH[2]}
-  SMB_REMOTE_DIR=${BASH_REMATCH[3]}
-else
-  PROTO="file"
-fi
+
+
+#
+# URI parsing function
+#
+# The function creates global variables with the parsed results.
+# It returns 0 if parsing was successful or non-zero otherwise.
+#
+# [schema://][user[:password]@]host[:port][/path][?[arg1=val1]...][#fragment]
+#
+function uri_parser() {
+  uri=()
+  # uri capture
+  full="$@"
+
+    # safe escaping
+    full="${full//\`/%60}"
+    full="${full//\"/%22}"
+
+		# URL that begins with '/' is like 'file:///'
+		if [[ "${full:0:1}" == "/" ]]; then
+			full="file://localhost${full}"
+		fi
+		# file:/// should be file://localhost/
+		if [[ "${full:0:8}" == "file:///" ]]; then
+			full="${full/file:\/\/\//file://localhost/}"
+		fi
+		
+    # top level parsing
+    pattern='^(([a-z]{3,5})://)?((([^:\/]+)(:([^@\/]*))?@)?([^:\/?]+)(:([0-9]+))?)(\/[^?]*)?(\?[^#]*)?(#.*)?$'
+    [[ "$full" =~ $pattern ]] || return 1;
+
+    # component extraction
+    full=${BASH_REMATCH[0]}
+		uri[uri]="$full"
+    uri[schema]=${BASH_REMATCH[2]}
+    uri[address]=${BASH_REMATCH[3]}
+    uri[user]=${BASH_REMATCH[5]}
+    uri[password]=${BASH_REMATCH[7]}
+    uri[host]=${BASH_REMATCH[8]}
+    uri[port]=${BASH_REMATCH[10]}
+    uri[path]=${BASH_REMATCH[11]}
+    uri[query]=${BASH_REMATCH[12]}
+    uri[fragment]=${BASH_REMATCH[13]}
+		if [[ ${uri[schema]} == "smb" && ${uri[path]} =~ ^/([^/]*)(/?.*)$ ]]; then
+			uri[share]=${BASH_REMATCH[1]}
+			uri[sharepath]=${BASH_REMATCH[2]}
+		fi
+		
+		# does the user have a domain?
+		if [[ -n ${uri[user]} && ${uri[user]} =~ ^([^;]+);(.+)$ ]]; then
+			uri[userdomain]=${BASH_REMATCH[1]}
+			uri[user]=${BASH_REMATCH[2]}
+		fi
+		return 0
+}
+
 
 
 if [[ -n "$DB_RESTORE_TARGET" ]]; then
-  if [[ ${DB_RESTORE_TARGET:0:1} == "/" ]]; then
-    PROTO="file"
+	uri_parser ${DB_RESTORE_TARGET}
+	PROTO=uri[schema]
+  if [[ "$PROTO" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
-  elif [[ $DB_DUMP_TARGET =~ ^smb://([^/]*)/([^/]*)(.*) ]]; then
-    PROTO="smb"
-    SMB_SERVER=${BASH_REMATCH[1]}
-    SMB_SHARE=${BASH_REMATCH[2]}
-    SMB_REMOTE_DIR=${BASH_REMATCH[3]}
-    smbclient -N //${SMB_SERVER}/${SMB_SHARE} -c "get ${SMB_REMOTE_DIR} ${TMPRESTORE}"
+	elif [[ "$PROTO" == "smb" ]]; then
+		SMB_SERVER=uri[address]
+		SMB_SHARE=uri[share]
+		SMB_REMOTE_DIR=uri[sharepath]
+		if [[ -n "${uri[user]}" ]]; then
+			UPASS="-U ${uri[user]}%${uri[password]}"
+		else
+			UPASS=
+		fi
+		if [[ -n "${uri[userdomain]}" ]]; then
+			UDOM="-W ${uri[userdomain]}"
+		else
+			UDOM=
+		fi
+    smbclient -N //${SMB_SERVER}/${SMB_SHARE} ${UPASS} ${UDOM} -c "get ${SMB_REMOTE_DIR} ${TMPRESTORE}"
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
@@ -56,6 +112,13 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     exit 1
   fi
 else
+	# determine target proto
+	uri_parser ${DB_DUMP_TARGET}
+	PROTO=uri[schema]
+	SMB_SERVER=uri[address]
+	SMB_SHARE=uri[share]
+	SMB_REMOTE_DIR=uri[sharepath]
+
   # wait for the next time to start a backup
   # for debugging
   echo Starting at $(date)
@@ -97,7 +160,18 @@ else
         mv ${TMPDIR}/${TARGET} ${DB_DUMP_TARGET}/${TARGET}
         ;;
       "smb")
-        smbclient -N //${SMB_SERVER}/${SMB_SHARE} -c "put ${TMPDIR}/${TARGET} ${SMB_REMOTE_DIR}/${TARGET}"
+        if [[ -n "${uri[user]}" ]]; then
+          UPASS="-U ${uri[user]}%${uri[password]}"
+        else
+          UPASS=
+        fi
+        if [[ -n "${uri[userdomain]}" ]]; then
+          UDOM="-W ${uri[userdomain]}"
+        else
+          UDOM=
+        fi
+
+        smbclient -N //${SMB_SERVER}/${SMB_SHARE} ${UPASS} ${UDOM} -c "put ${TMPDIR}/${TARGET} ${SMB_REMOTE_DIR}/${TARGET}"
         /bin/rm ${TMPDIR}/${TARGET}
        ;;
     esac

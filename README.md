@@ -64,6 +64,12 @@ The dump target is the location where the dump should be placed, defaults to `/b
 
 If you use a URL like `smb://host/share/path`, you can have it save to an SMB server. If you need loging credentials, use `smb://user:pass@host/share/path`.
 
+Note that for smb, if the username includes a domain, e.g. your user is `mydom\myuser`, then you should use the samb convention of replacing the '\' with a ';'. In other words
+
+    smb://mydom;myuser:pass@host/share/path
+
+
+
 ### Dump Restore
 If you wish to run a restore to an existing database, you can use mysql-backup to do a restore.
 
