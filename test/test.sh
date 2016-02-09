@@ -10,6 +10,7 @@ TESTS=$2
 [[ -n "$TESTS" ]] && TESTS=all
 
 RWD=${PWD}
+MYSQLUSER=user
 MYSQLPW=abcdefg
 MYSQLDUMP=/tmp/source/backup.gz
 
@@ -23,11 +24,11 @@ declare -A proto
 # localhost is not going to work, because it is across containers!!
 # fill in with a var
 targets=(
-"/backups/data"
-"file:///backups/data"
-"smb://smb/noauth/backups/SEQ/data"
-"smb://user:pass@smb/auth/backups/SEQ/data"
-#"smb://domain;user:pass@smb/domauth/backups/SEQ/data"
+"/backups/SEQ/data"
+"file:///backups/SEQ/data"
+"smb://smb/noauth/SEQ/data"
+"smb://user:pass@smb/auth/SEQ/data"
+#"smb://CONF;user:pass@smb/auth/SEQ/data"
 )
 
 
@@ -71,7 +72,7 @@ function uri_parser() {
 		fi
 		
 		# does the user have a domain?
-		if [[ -n ${uri[user]} && ${uri[user]} =~ ^([^;]+);(.+)$ ]]; then
+		if [[ -n ${uri[user]} && ${uri[user]} =~ ^([^\;]+)\;(.+)$ ]]; then
 			uri[userdomain]=${BASH_REMATCH[1]}
 			uri[user]=${BASH_REMATCH[2]}
 		fi
@@ -87,20 +88,36 @@ function runtest() {
 	# clear the target
 	# replace SEQ if needed
 	t2=${t/SEQ/${seqno}}
-	mkdir -p /tmp/backups/${seq}
+	mkdir -p /tmp/backups/${seqno}/data
 	echo "target: ${t2}" >> /tmp/backups/${seqno}/list
 
-	mkdir -p /tmp/backups/${seqno}
+	# if in DEBUG, make sure backup also runs in DEBUG
+	if [[ "$DEBUG" != "0" ]]; then
+		DBDEBUG="-e DB_DUMP_DEBUG=2"
+	else
+		DBDEBUG=
+	fi
+	
 	# change our target
-	cid=$(docker run -d --restart=always -e DB_USER=root -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=$s --link ${mysql_cid}:db backup)	
+	cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb backup)	
 	cids[$seqno]=$cid
 }
 
+# THIS WILL FAIL BECAUSE OF:
+#1c1
+#< -- MySQL dump 10.13  Distrib 5.7.10, for Linux (x86_64)
+#---
+#> -- MySQL dump 10.14  Distrib 5.5.46-MariaDB, for Linux (x86_64)
+#3c3
+#< -- Host: localhost    Database:
+#---
+#> -- Host: db    Database:
 function checktest() {
 	t=$1
 	seqno=$2
 	# where do we expect backups?
-	bdir=/tmp/backups/${seq}		# change our target
+	bdir=/tmp/backups/${seq}/data		# change our target
+	
 	# stop and remove the container
 	[[ "$DEBUG" != "0" ]] && echo "Stopping and removing ${cids[$seq]}"
 	CMD1="docker kill ${cids[$seqno]}"
@@ -112,27 +129,30 @@ function checktest() {
 		$CMD1
 		$CMD2
 	fi
+
 	# check that the expected backups are in the right place
-	# if this was git, we need to clone it
-	if [[ "$DEBUG" == "0" ]]; then
-		$CMD1 > /dev/null 2>&1
-	else
-		$CMD1
-	fi
+	# need temporary places to hold files
+	TMP1=/tmp/backups/check1
+	TMP2=/tmp/backups/check2
 
 	# check for the directory
 	if [[ ! -d "$bdir" ]]; then
-		fail+=("$seqno: $item $t missing $bdir")
+		fail+=("$seqno: $t missing $bdir")
 	elif [[ $(ls -1 $bdir/db_backup_*.gz | wc -l) =~ ^[[:space:]]*0[[:space:]]*$ ]]; then
-		fail+=("$seqno: $item $t missing zip file")
+		fail+=("$seqno: $t missing zip file")
 	else
+		# extract the actual data, but filter out lines we do not care about
+		cat $bdir/db_backup_*.gz | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' > $TMP1
+		cat ${MYSQLDUMP} | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' > $TMP2
+		
 		# check the file contents against the source directory
-		diffout=$(diff $bdir/db_backup_*.gz ${MYSQLDUMP})
+		diffout=$(diff $TMP1 $TMP2)
 		if [[ -z "$diffout" ]]; then
 			pass+=($seqno)
 		else
 			fail+=("$seqno: $item $t tar contents do not match actual dump")
 		fi
+		
 	fi
 }
 
@@ -171,17 +191,17 @@ docker build $QUIET -t smb -f ./Dockerfile_smb .
 
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb and mysql containers"
-smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups smb)
-mysql_cid=$(docker run -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=$MYSQLPW mysql)
+smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups --name=smb smb)
+mysql_cid=$(docker run -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql)
 
+
+# it takes about 4-5 seconds for the database to be ready
+sleep 5s
 
 # initiate the database and do a dump
-docker exec -it $mysql_cid mysql -uroot -p$MYSQLPW << MYSQL_END
-create table t1 (id INT, name VARCHAR(20));
-INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");
-MYSQL_END
+echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | docker exec -i $mysql_cid mysql -uuser -p$MYSQLPW --protocol=tcp -h127.0.0.1 tester
 
-docker exec -it $mysql_cid mysqldump -A -uroot -p$MYSQLPW | gzip > $(MYSQLDUMP)
+docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -uuser -p$MYSQLPW | gzip > ${MYSQLDUMP}
 
 # keep track of the sequence
 seq=0
@@ -203,8 +223,9 @@ done
 total=$seq
 
 # now wait for everything
-[[ "$DEBUG" != "0" ]] && echo "Waiting 30 seconds to complete backup runs"
-sleep 30s
+waittime=10
+[[ "$DEBUG" != "0" ]] && echo "Waiting ${waittime} seconds to complete backup runs"
+sleep ${waittime}s
 
 # now check each result
 [[ "$DEBUG" != "0" ]] && echo "Checking results"

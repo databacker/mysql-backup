@@ -22,6 +22,9 @@ DBSERVER=db
 TMPDIR=/tmp/backups
 TMPRESTORE=/tmp/restorefile
 
+# this is global, so has to be set outside
+declare -A uri
+
 
 
 #
@@ -72,7 +75,7 @@ function uri_parser() {
 		fi
 		
 		# does the user have a domain?
-		if [[ -n ${uri[user]} && ${uri[user]} =~ ^([^;]+);(.+)$ ]]; then
+		if [[ -n ${uri[user]} && ${uri[user]} =~ ^([^\;]+)\;(.+)$ ]]; then
 			uri[userdomain]=${BASH_REMATCH[1]}
 			uri[user]=${BASH_REMATCH[2]}
 		fi
@@ -83,13 +86,9 @@ function uri_parser() {
 
 if [[ -n "$DB_RESTORE_TARGET" ]]; then
 	uri_parser ${DB_RESTORE_TARGET}
-	PROTO=uri[schema]
-  if [[ "$PROTO" == "file" ]]; then
+  if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
-	elif [[ "$PROTO" == "smb" ]]; then
-		SMB_SERVER=uri[address]
-		SMB_SHARE=uri[share]
-		SMB_REMOTE_DIR=uri[sharepath]
+	elif [[ "${uri[schema]}" == "smb" ]]; then
 		if [[ -n "${uri[user]}" ]]; then
 			UPASS="-U ${uri[user]}%${uri[password]}"
 		else
@@ -100,7 +99,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
 		else
 			UDOM=
 		fi
-    smbclient -N //${SMB_SERVER}/${SMB_SHARE} ${UPASS} ${UDOM} -c "get ${SMB_REMOTE_DIR} ${TMPRESTORE}"
+    smbclient -N //${uri[host]}/${uri[share]} ${UPASS} ${UDOM} -c "get ${uri[sharepath]} ${TMPRESTORE}"
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
@@ -114,10 +113,6 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
 else
 	# determine target proto
 	uri_parser ${DB_DUMP_TARGET}
-	PROTO=uri[schema]
-	SMB_SERVER=uri[address]
-	SMB_SHARE=uri[share]
-	SMB_REMOTE_DIR=uri[sharepath]
 
   # wait for the next time to start a backup
   # for debugging
@@ -147,17 +142,17 @@ else
     mkdir -p $TMPDIR
 
     # what is the name of our target?
-    now=$(date -u +"%Y%M%d%H%M%S")
+    now=$(date -u +"%Y%m%d%H%M%S")
     TARGET=db_backup_${now}.gz
 
     # make the dump
     mysqldump -A -h $DBSERVER -u$DBUSER -p$DBPASS | gzip > ${TMPDIR}/${TARGET}
 
     # what kind of target do we have? Plain filesystem? smb?
-    case "$PROTO" in
+    case "${uri[schema]}" in
       "file")
-        mkdir -p $DB_DUMP_TARGET
-        mv ${TMPDIR}/${TARGET} ${DB_DUMP_TARGET}/${TARGET}
+        mkdir -p ${uri[path]}
+        mv ${TMPDIR}/${TARGET} ${uri[path]}/${TARGET}
         ;;
       "smb")
         if [[ -n "${uri[user]}" ]]; then
@@ -171,7 +166,7 @@ else
           UDOM=
         fi
 
-        smbclient -N //${SMB_SERVER}/${SMB_SHARE} ${UPASS} ${UDOM} -c "put ${TMPDIR}/${TARGET} ${SMB_REMOTE_DIR}/${TARGET}"
+        smbclient -N //${uri[host]}/${uri[share]} ${UPASS} ${UDOM} -c "put ${TMPDIR}/${TARGET} ${uri[sharepath]}/${TARGET}"
         /bin/rm ${TMPDIR}/${TARGET}
        ;;
     esac
