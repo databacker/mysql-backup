@@ -28,7 +28,7 @@ targets=(
 "file:///backups/SEQ/data"
 "smb://smb/noauth/SEQ/data"
 "smb://user:pass@smb/auth/SEQ/data"
-#"smb://CONF;user:pass@smb/auth/SEQ/data"
+"smb://CONF;user:pass@smb/auth/SEQ/data"
 )
 
 
@@ -195,8 +195,8 @@ smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups --name=smb smb
 mysql_cid=$(docker run -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql)
 
 
-# it takes about 4-5 seconds for the database to be ready
-sleep 5s
+# it takes about 10 seconds for the database to be ready
+sleep 10s
 
 # initiate the database and do a dump
 echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | docker exec -i $mysql_cid mysql -uuser -p$MYSQLPW --protocol=tcp -h127.0.0.1 tester
