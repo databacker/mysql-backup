@@ -89,6 +89,8 @@ Examples:
 ### Automated Build
 This gituhub repo is the source for the mysql-backup image. The actual image is stored on the docker hub at `deitch/mysql-backup`, and is triggered with each commit to the source by automated build via Webhooks.
 
+There are 2 builds: 1 for version based on the git tag, and another for the particular version number.
+
 ## License
 Released under the MIT License. 
 Copyright Avi Deitcher https://github.com/deitch
