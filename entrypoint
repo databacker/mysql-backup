@@ -166,7 +166,7 @@ else
           UDOM=
         fi
 
-        smbclient -N //${uri[host]}/${uri[share]} ${UPASS} ${UDOM} -c "put ${TMPDIR}/${TARGET} ${uri[sharepath]}/${TARGET}"
+        smbclient -N //${uri[host]}/${uri[share]} ${UPASS} ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${TARGET} ${TARGET}"
         /bin/rm ${TMPDIR}/${TARGET}
        ;;
     esac

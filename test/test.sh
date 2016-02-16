@@ -27,6 +27,7 @@ targets=(
 "/backups/SEQ/data"
 "file:///backups/SEQ/data"
 "smb://smb/noauth/SEQ/data"
+"smb://smb/nopath"
 "smb://user:pass@smb/auth/SEQ/data"
 "smb://CONF;user:pass@smb/auth/SEQ/data"
 )
@@ -91,12 +92,20 @@ function runtest() {
 	mkdir -p /tmp/backups/${seqno}/data
 	echo "target: ${t2}" >> /tmp/backups/${seqno}/list
 
+	# are we working with nopath?
+	if [[ "$t2" =~ nopath ]]; then
+		rm -f /tmp/backups/nopath
+		ln -s ${seqno}/data /tmp/backups/nopath
+	fi
+
+
 	# if in DEBUG, make sure backup also runs in DEBUG
 	if [[ "$DEBUG" != "0" ]]; then
 		DBDEBUG="-e DB_DUMP_DEBUG=2"
 	else
 		DBDEBUG=
 	fi
+
 	
 	# change our target
 	cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb backup)	
@@ -112,6 +121,9 @@ function runtest() {
 #< -- Host: localhost    Database:
 #---
 #> -- Host: db    Database:
+#
+# so we filter those lines out; they are not relevant to the backup anyways
+#
 function checktest() {
 	t=$1
 	seqno=$2
