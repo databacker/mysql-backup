@@ -88,8 +88,8 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
 	uri_parser ${DB_RESTORE_TARGET}
   if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
-    elif [[ "${uri[schema]}" == "s3" ]]; then
-        aws s3 cp $DB_RESTORE_TARGET $TMPRESTORE
+  elif [[ "${uri[schema]}" == "s3" ]]; then
+    aws s3 cp $DB_RESTORE_TARGET $TMPRESTORE
 	elif [[ "${uri[schema]}" == "smb" ]]; then
 		if [[ -n "${uri[user]}" ]]; then
 			UPASS="-U ${uri[user]}%${uri[password]}"
@@ -157,7 +157,9 @@ else
         mv ${TMPDIR}/${TARGET} ${uri[path]}/${TARGET}
         ;;
       "s3")
-        aws s3 cp ${TMPDIR}/${TARGET} ${DB_DUMP_TARGET}/${TARGET}
+        # allow for endpoint url override
+        [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
+        aws ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${TARGET} ${DB_DUMP_TARGET}/${TARGET}
         /bin/rm ${TMPDIR}/${TARGET}
         ;;
       "smb")

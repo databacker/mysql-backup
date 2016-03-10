@@ -30,6 +30,7 @@ targets=(
 "smb://smb/nopath"
 "smb://user:pass@smb/auth/SEQ/data"
 "smb://CONF;user:pass@smb/auth/SEQ/data"
+"s3://mybucket/SEQ/data"
 )
 
 
@@ -52,7 +53,7 @@ function uri_parser() {
 		fi
 		
     # top level parsing
-    pattern='^(([a-z]{3,5})://)?((([^:\/]+)(:([^@\/]*))?@)?([^:\/?]+)(:([0-9]+))?)(\/[^?]*)?(\?[^#]*)?(#.*)?$'
+    pattern='^(([a-z0-9]{2,5})://)?((([^:\/]+)(:([^@\/]*))?@)?([^:\/?]+)(:([0-9]+))?)(\/[^?]*)?(\?[^#]*)?(#.*)?$'
     [[ "$full" =~ $pattern ]] || return 1;
 
     # component extraction
@@ -108,7 +109,7 @@ function runtest() {
 
 	
 	# change our target
-	cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb backup)	
+	cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb --link ${s3_cid}:mybucket.s3.amazonaws.com backup)	
 	cids[$seqno]=$cid
 }
 
@@ -146,15 +147,20 @@ function checktest() {
 	# need temporary places to hold files
 	TMP1=/tmp/backups/check1
 	TMP2=/tmp/backups/check2
+	
+	BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.gz 2>/dev/null)
 
 	# check for the directory
 	if [[ ! -d "$bdir" ]]; then
 		fail+=("$seqno: $t missing $bdir")
-	elif [[ $(ls -1 $bdir/db_backup_*.gz | wc -l) =~ ^[[:space:]]*0[[:space:]]*$ ]]; then
+	elif [[ -z "$BACKUP_FILE" ]]; then
 		fail+=("$seqno: $t missing zip file")
 	else
+		# what if it was s3?
+		[[ -f "${BACKUP_FILE}/.fakes3_metadataFFF/content" ]] && BACKUP_FILE="${BACKUP_FILE}/.fakes3_metadataFFF/content"
+
 		# extract the actual data, but filter out lines we do not care about
-		cat $bdir/db_backup_*.gz | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' > $TMP1
+		cat ${BACKUP_FILE} | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' > $TMP1
 		cat ${MYSQLDUMP} | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' > $TMP2
 		
 		# check the file contents against the source directory
@@ -202,9 +208,10 @@ docker build $QUIET -t backup -f ../Dockerfile ../
 docker build $QUIET -t smb -f ./Dockerfile_smb .
 
 # run the test images we need
-[[ "$DEBUG" != "0" ]] && echo "Running smb and mysql containers"
+[[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
 smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups --name=smb smb)
 mysql_cid=$(docker run -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql)
+s3_cid=$(docker run --name s3 -d -v /tmp/backups:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
 
 
 # it takes about 10 seconds for the database to be ready
@@ -252,8 +259,8 @@ for ((i=0; i< ${#targets[@]}; i++)); do
 done
 
 [[ "$DEBUG" != "0" ]] && echo "Stopping and removing smb and mysql containers"
-CMD1="docker kill $smb_cid $mysql_cid"
-CMD2="docker rm $smb_cid $mysql_cid"
+CMD1="docker kill $smb_cid $mysql_cid $s3_cid"
+CMD2="docker rm $smb_cid $mysql_cid $s3_cid"
 if [[ "$DEBUG" == "0" ]]; then
 	$CMD1 > /dev/null 2>&1
 	$CMD2 > /dev/null 2>&1
