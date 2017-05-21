@@ -19,7 +19,7 @@ To run a backup, launch `mysql-backup` image as a container with the correct par
 For example:
 
 ````bash
-docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db -v /local/file/path:/db deitch/mysql-backup 
+docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db -v /local/file/path:/db deitch/mysql-backup
 ````
 
 The above will run a dump every 60 minutes, beginning at the next 2330 local time, from the database accessible in the container `my-db-container`.
@@ -30,6 +30,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
+* `DB_NAMES`: names of databases to dump; defaults to all databases in the database server
 * `DB_DUMP_FREQ`: How often to do a dump, in minutes. Defaults to 1440 minutes, or once per day.
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
  * Absolute: HHMM, e.g. `2330` or `0415`
@@ -48,7 +49,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 In order to perform the actual dump, `mysql-backup` needs to connect to the database container. You should link to the container by passing the `--link` option to the `mysql-backup` container. The linked container should **always** be aliased to `db`. E.g.:
 
 ````bash
-docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db -v /local/file/path:/db deitch/mysql-backup 
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db -v /local/file/path:/db deitch/mysql-backup
 ````
 
 ### Dump Target
@@ -72,7 +73,7 @@ If you use a URL like `smb://host/share/path`, you can have it save to an SMB se
 
 Note that for smb, if the username includes a domain, e.g. your user is `mydom\myuser`, then you should use the samb convention of replacing the '\' with a ';'. In other words `smb://mydom;myuser:pass@host/share/path`
 
-If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket. 
+If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket.
 
 Note that for s3, you'll need to specify your AWS credentials and default AWS region via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION`
 
@@ -87,7 +88,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PASS`: password for the database
 * `DB_RESTORE_TARGET`: path to the actual restore file, which should be a gzip of an sql dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
 * `DB_DUMP_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
-* To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined. 
+* To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined.
 
 
 Examples:
@@ -103,7 +104,7 @@ This gituhub repo is the source for the mysql-backup image. The actual image is 
 There are 2 builds: 1 for version based on the git tag, and another for the particular version number.
 
 ## License
-Released under the MIT License. 
+Released under the MIT License.
 Copyright Avi Deitcher https://github.com/deitch
 
 Thanks to the kind contributions and support of [TraderTools](http://www.tradertools.com).
