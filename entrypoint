@@ -52,7 +52,7 @@ function uri_parser() {
 		if [[ "${full:0:8}" == "file:///" ]]; then
 			full="${full/file:\/\/\//file://localhost/}"
 		fi
-		
+
     # top level parsing
     pattern='^(([a-z0-9]{2,5})://)?((([^:\/]+)(:([^@\/]*))?@)?([^:\/?]+)(:([0-9]+))?)(\/[^?]*)?(\?[^#]*)?(#.*)?$'
     [[ "$full" =~ $pattern ]] || return 1;
@@ -73,7 +73,7 @@ function uri_parser() {
 			uri[share]=${BASH_REMATCH[1]}
 			uri[sharepath]=${BASH_REMATCH[2]}
 		fi
-		
+
 		# does the user have a domain?
 		if [[ -n ${uri[user]} && ${uri[user]} =~ ^([^\;]+)\;(.+)$ ]]; then
 			uri[userdomain]=${BASH_REMATCH[1]}
@@ -146,9 +146,14 @@ else
     # what is the name of our target?
     now=$(date -u +"%Y%m%d%H%M%S")
     TARGET=db_backup_${now}.gz
+    if [[ -n "$DB_NAMES" ]]; then
+      DB_LIST="--databases $DB_NAMES"
+    else
+      DB_LIST="-A"
+    fi
 
     # make the dump
-    mysqldump -A -h $DBSERVER -u$DBUSER -p$DBPASS | gzip > ${TMPDIR}/${TARGET}
+    mysqldump -h $DBSERVER -u$DBUSER -p$DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
 
     # what kind of target do we have? Plain filesystem? smb?
     case "${uri[schema]}" in
@@ -183,4 +188,3 @@ else
     sleep $(($DB_DUMP_FREQ*60))
   done
 fi
-
