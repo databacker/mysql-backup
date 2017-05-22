@@ -92,8 +92,10 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     aws s3 cp $DB_RESTORE_TARGET $TMPRESTORE
 	elif [[ "${uri[schema]}" == "smb" ]]; then
 		if [[ -n "${uri[user]}" ]]; then
-			UPASS="-U ${uri[user]}%${uri[password]}"
+      UPASSARG="-U"
+			UPASS="${uri[user]}%${uri[password]}"
 		else
+      UPASSARG=
 			UPASS=
 		fi
 		if [[ -n "${uri[userdomain]}" ]]; then
@@ -101,7 +103,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
 		else
 			UDOM=
 		fi
-    smbclient -N //${uri[host]}/${uri[share]} ${UPASS} ${UDOM} -c "get ${uri[sharepath]} ${TMPRESTORE}"
+    smbclient -N //${uri[host]}/${uri[share]} ${UPASSARG} "${UPASS}" ${UDOM} -c "get ${uri[sharepath]} ${TMPRESTORE}"
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
@@ -169,8 +171,10 @@ else
         ;;
       "smb")
         if [[ -n "${uri[user]}" ]]; then
-          UPASS="-U ${uri[user]}%${uri[password]}"
+          UPASSARG="-U"
+          UPASS="${uri[user]}%${uri[password]}"
         else
+          UPASSARG=
           UPASS=
         fi
         if [[ -n "${uri[userdomain]}" ]]; then
@@ -179,7 +183,7 @@ else
           UDOM=
         fi
 
-        smbclient -N //${uri[host]}/${uri[share]} ${UPASS} ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${TARGET} ${TARGET}"
+        smbclient -N //${uri[host]}/${uri[share]} ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${TARGET} ${TARGET}"
         /bin/rm ${TMPDIR}/${TARGET}
        ;;
     esac
