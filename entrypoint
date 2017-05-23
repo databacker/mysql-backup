@@ -89,7 +89,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
   elif [[ "${uri[schema]}" == "s3" ]]; then
-    aws s3 cp $DB_RESTORE_TARGET $TMPRESTORE
+    aws s3 cp "$DB_RESTORE_TARGET" $TMPRESTORE
 	elif [[ "${uri[schema]}" == "smb" ]]; then
 		if [[ -n "${uri[user]}" ]]; then
       UPASSARG="-U"
@@ -103,7 +103,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
 		else
 			UDOM=
 		fi
-    smbclient -N //${uri[host]}/${uri[share]} ${UPASSARG} "${UPASS}" ${UDOM} -c "get ${uri[sharepath]} ${TMPRESTORE}"
+    smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "get ${uri[sharepath]} ${TMPRESTORE}"
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
@@ -166,7 +166,7 @@ else
       "s3")
         # allow for endpoint url override
         [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
-        aws ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${TARGET} ${DB_DUMP_TARGET}/${TARGET}
+        aws ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${TARGET} "${DB_DUMP_TARGET}/${TARGET}"
         /bin/rm ${TMPDIR}/${TARGET}
         ;;
       "smb")
@@ -183,7 +183,7 @@ else
           UDOM=
         fi
 
-        smbclient -N //${uri[host]}/${uri[share]} ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${TARGET} ${TARGET}"
+        smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${TARGET} ${TARGET}"
         /bin/rm ${TMPDIR}/${TARGET}
        ;;
     esac
