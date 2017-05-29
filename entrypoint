@@ -91,7 +91,10 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   elif [[ "${uri[schema]}" == "s3" ]]; then
     aws s3 cp "$DB_RESTORE_TARGET" $TMPRESTORE
 	elif [[ "${uri[schema]}" == "smb" ]]; then
-		if [[ -n "${uri[user]}" ]]; then
+    if [[ -n "$SMB_USER" ]]; then
+      UPASSARG="-U"
+			UPASS="${SMB_USER}%${SMB_PASS}"
+		elif [[ -n "${uri[user]}" ]]; then
       UPASSARG="-U"
 			UPASS="${uri[user]}%${uri[password]}"
 		else
@@ -170,7 +173,10 @@ else
         /bin/rm ${TMPDIR}/${TARGET}
         ;;
       "smb")
-        if [[ -n "${uri[user]}" ]]; then
+        if [[ -n "$SMB_USER" ]]; then
+          UPASSARG="-U"
+    			UPASS="${SMB_USER}%${SMB_PASS}"
+        elif [[ -n "${uri[user]}" ]]; then
           UPASSARG="-U"
           UPASS="${uri[user]}%${uri[password]}"
         else
