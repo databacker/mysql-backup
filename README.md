@@ -33,16 +33,18 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_NAMES`: names of databases to dump; defaults to all databases in the database server
 * `DB_DUMP_FREQ`: How often to do a dump, in minutes. Defaults to 1440 minutes, or once per day.
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
- * Absolute: HHMM, e.g. `2330` or `0415`
- * Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half
+    * Absolute: HHMM, e.g. `2330` or `0415`
+    * Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half
 * `DB_DUMP_DEBUG`: If set to `true`, print copious shell script messages to the container log. Otherwise only basic messages are printed.
 * `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Supports three formats:
- * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
- * SMB: If the value of `DB_DUMP_TARGET` is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
- * S3: If the value of `DB_DUMP_TARGET` is a URL of the format `s3://bucketname/path` then it will connect via awscli.
-  * `AWS_ACCESS_KEY_ID`: AWS Key ID
-  * `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
-  * `AWS_DEFAULT_REGION`: Region in which the bucket resides
+    * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
+    * SMB: If the value of `DB_DUMP_TARGET` is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
+    * S3: If the value of `DB_DUMP_TARGET` is a URL of the format `s3://bucketname/path` then it will connect via awscli.
+* `AWS_ACCESS_KEY_ID`: AWS Key ID
+* `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
+* `AWS_DEFAULT_REGION`: Region in which the bucket resides
+* `SMB_USER`: SMB username. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
+* `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 
 
 ### Database Container
