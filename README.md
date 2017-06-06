@@ -79,6 +79,68 @@ If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket.
 
 Note that for s3, you'll need to specify your AWS credentials and default AWS region via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION`
 
+### Backup post-processing
+
+Any executable script with _.sh_ extension in _/scripts.d/post-backup/_ directory in the container will be executed after the backup dump process has finished, but **before** uploading the backup file to its ultimate target. This is useful if you need to include some files along with the database dump, for example, to backup a _WordPress_ install.
+
+To use them you need to add a host volume that points to the post-backup scripts in the docker host. Start the container like this:
+
+````bash
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db -v /local/file/path:/db -v /path/to/post-backup/scripts:/scripts.d/post-backup deitch/mysql-backup
+````
+
+Or, if you prefer compose:
+
+```yml
+version: '2.1'
+services:
+  backup:
+    image: deitch/mysql-backup
+    restart: always
+    links:
+     - mysql_db:db
+    volumes:
+     - /local/file/path:/db
+     - /path/to/post-backup/scripts:/scripts.d/post-backup
+    env:
+     - DB_DUMP_TARGET=/db
+     - DB_USER=user123
+     - DB_PASS=pass123
+     - DB_DUMP_FREQ=60
+     - DB_DUMP_BEGIN=2330
+  mysql_db:
+    image: mysql
+    ....
+```
+
+The scripts are _executed_ in the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script, which means it has access to all exported environment variables. The following are available, but we are happy to export more as required (just open an issue or better yet, a pull request):
+
+* `DUMPFILE`: full path in the container to the output file
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+
+In addition, all of the environment variables set for the container will be available to the script.
+
+For example, the following script will rename the backup file after the dump is done:
+
+````bash
+#!/bin/bash
+# Rename backup file.
+new_name=${now}.gz
+
+echo "Renaming backup file from ${TARGET} to ${new_name}"
+
+if [ -e ${TMPDIR}/${TARGET} ];
+then
+  mv ${TMPDIR}/${TARGET} ${TMPDIR}/${new_name}
+  TARGET=${new_name}
+else
+  echo "ERROR: Backup file ${TMPDIR}/${TARGET} does not exist!"
+fi
+
+````
+
+You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
+
 ### Dump Restore
 If you wish to run a restore to an existing database, you can use mysql-backup to do a restore.
 
