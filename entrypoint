@@ -194,6 +194,15 @@ else
        ;;
     esac
 
+    # Execute additional scripts. For example, create a new backup file containing
+    # this db backup and a second tar file with the contents of a wordpress install.
+    if [ "$(ls -A /scripts.d/)" ];
+    then
+      for i in $(ls /scripts.d/*.sh);do
+          source $i
+      done
+    fi
+
     # wait
     sleep $(($DB_DUMP_FREQ*60))
   done
