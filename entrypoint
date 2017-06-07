@@ -198,7 +198,7 @@ else
     # this db backup and a second tar file with the contents of a wordpress install.
     if [ "$(ls -A /scripts.d/)" ];
     then
-      for i in $(ls /scripts.d/*.sh);do
+      for i in $(ls /scripts.d/post-backup/*.sh);do
           source $i
       done
     fi
