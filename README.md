@@ -79,6 +79,33 @@ If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket.
 
 Note that for s3, you'll need to specify your AWS credentials and default AWS region via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION`
 
+### Backup post-processing
+
+Any script with _.sh_ extension and execution permissions in _/scripts.d/post-backup/_ directory will be executed after the backup dump process has finished. This is useful if you need to include some files along with the database dump, for example, to backup a _WordPress_ install.
+
+To use them you need to add a host volume that points to the post-backup scripts in the docker host. Start the container like this:
+
+````bash
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db -v /local/file/path:/db -v /path/to/post-backup/scripts:/scripts.d/post-backup deitch/mysql-backup
+````
+
+As the scripts are _sourced_ inside the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script, all variables defined in it are available in the post processing script. For example, the following script will rename the backup file after the dump is done:
+
+````bash
+new_name=${now}.gz
+
+echo "Renaming backup file from ${TARGET} to ${new_name}"
+
+if [ -e ${uri[path]}/${TARGET} ];
+then
+  mv ${uri[path]}/${TARGET} ${uri[path]}/${new_name}
+else
+  echo "ERROR: Backup file ${uri[path]}/${TARGET} does not exist!"
+fi
+````
+
+You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
+
 ### Dump Restore
 If you wish to run a restore to an existing database, you can use mysql-backup to do a restore.
 
