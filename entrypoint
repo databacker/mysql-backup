@@ -160,6 +160,16 @@ else
     # make the dump
     mysqldump -h $DBSERVER -u$DBUSER -p$DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
 
+    # Execute additional scripts for post porcessing. For example, create a new
+    # backup file containing this db backup and a second tar file with the
+    # contents of a wordpress install.
+    if [ "$(ls -A /scripts.d/post-backup/)" ];
+    then
+      for i in $(ls /scripts.d/post-backup/*.sh);do
+          source $i
+      done
+    fi
+
     # what kind of target do we have? Plain filesystem? smb?
     case "${uri[schema]}" in
       "file")
@@ -193,15 +203,6 @@ else
         /bin/rm ${TMPDIR}/${TARGET}
        ;;
     esac
-
-    # Execute additional scripts. For example, create a new backup file containing
-    # this db backup and a second tar file with the contents of a wordpress install.
-    if [ "$(ls -A /scripts.d/)" ];
-    then
-      for i in $(ls /scripts.d/post-backup/*.sh);do
-          source $i
-      done
-    fi
 
     # wait
     sleep $(($DB_DUMP_FREQ*60))

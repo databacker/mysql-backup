@@ -92,16 +92,20 @@ docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_
 As the scripts are _sourced_ inside the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script, all variables defined in it are available in the post processing script. For example, the following script will rename the backup file after the dump is done:
 
 ````bash
+#!/bin/bash
+# Rename backup file.
 new_name=${now}.gz
 
 echo "Renaming backup file from ${TARGET} to ${new_name}"
 
-if [ -e ${uri[path]}/${TARGET} ];
+if [ -e ${TMPDIR}/${TARGET} ];
 then
-  mv ${uri[path]}/${TARGET} ${uri[path]}/${new_name}
+  mv ${TMPDIR}/${TARGET} ${TMPDIR}/${new_name}
+  TARGET=${new_name}
 else
-  echo "ERROR: Backup file ${uri[path]}/${TARGET} does not exist!"
+  echo "ERROR: Backup file ${TMPDIR}/${TARGET} does not exist!"
 fi
+
 ````
 
 You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
