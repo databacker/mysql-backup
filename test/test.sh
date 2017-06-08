@@ -99,6 +99,10 @@ function runtest() {
 		ln -s ${seqno}/data /tmp/backups/nopath
 	fi
 
+  #Create a test script for the post backup processing test
+  mkdir -p /tmp/backups/${seqno}/post-backup
+  echo touch /scripts.d/post-backup/post-backup.txt > /tmp/backups/${seqno}/post-backup/test.sh
+  chmod 755 /tmp/backups/${seqno}/post-backup/test.sh
 
 	# if in DEBUG, make sure backup also runs in DEBUG
 	if [[ "$DEBUG" != "0" ]]; then
@@ -107,10 +111,11 @@ function runtest() {
 		DBDEBUG=
 	fi
 
-	
+
 	# change our target
-	cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb --link ${s3_cid}:mybucket.s3.amazonaws.com backup)	
 	cids[$seqno]=$cid
+  cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/post-backup:/scripts.d/post-backup -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb --link ${s3_cid}:mybucket.s3.amazonaws.com backup)
+
 }
 
 # THIS WILL FAIL BECAUSE OF:
@@ -147,8 +152,9 @@ function checktest() {
 	# need temporary places to hold files
 	TMP1=/tmp/backups/check1
 	TMP2=/tmp/backups/check2
-	
+
 	BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.gz 2>/dev/null)
+  POST_BACKUP_OUT_FILE="/tmp/backups/${seqno}/post-backup/post-backup.txt"
 
 	# check for the directory
 	if [[ ! -d "$bdir" ]]; then
@@ -172,6 +178,13 @@ function checktest() {
 		fi
 		
 	fi
+  if [[ -e "${POST_BACKUP_OUT_FILE}" ]]; then
+    pass+=($seqno)
+    rm -fr ${POST_BACKUP_OUT_FILE}
+  else
+    fail+=("$seqno: $item $t Post-backup script didn't run, output file doesn't exist")
+  fi
+
 }
 
 # we need to run through each each target and test the backup. 
