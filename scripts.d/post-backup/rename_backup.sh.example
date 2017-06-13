@@ -1,0 +1,14 @@
+#!/bin/bash
+# Rename backup file.
+
+new_name=${now}.gz
+
+echo "Renaming backup file from ${TARGET} to ${new_name}"
+
+if [ -e ${TMPDIR}/${TARGET} ];
+then
+  mv ${TMPDIR}/${TARGET} ${TMPDIR}/${new_name}
+  TARGET=${new_name}
+else
+  echo "ERROR: Backup file ${TMPDIR}/${TARGET} does not exist!"
+fi

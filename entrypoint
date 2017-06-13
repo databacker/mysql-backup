@@ -160,6 +160,17 @@ else
     # make the dump
     mysqldump -h $DBSERVER -u$DBUSER -p$DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
 
+    # Execute additional scripts for post porcessing. For example, create a new
+    # backup file containing this db backup and a second tar file with the
+    # contents of a wordpress install.
+    if [ -d /scripts.d/post-backup/ ]; then
+      for i in $(ls /scripts.d/post-backup/*.sh); do
+        if [ -x $i ]; then
+          NOW=${now} DUMPFILE${TMPDIR}/${TARGET} $i
+        fi
+      done
+    fi
+
     # what kind of target do we have? Plain filesystem? smb?
     case "${uri[schema]}" in
       "file")
