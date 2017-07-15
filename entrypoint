@@ -16,7 +16,7 @@ DBUSER=${DB_USER:-cattle}
 DBPASS=${DB_PASS:-cattle}
 
 # database server
-DBSERVER=db
+DBSERVER=${DB_SERVER:-db}
 
 # temporary dump dir
 TMPDIR=/tmp/backups

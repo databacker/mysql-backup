@@ -30,6 +30,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
+* `DB_SERVER`: DNS for the database location
 * `DB_NAMES`: names of databases to dump; defaults to all databases in the database server
 * `DB_DUMP_FREQ`: How often to do a dump, in minutes. Defaults to 1440 minutes, or once per day.
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
