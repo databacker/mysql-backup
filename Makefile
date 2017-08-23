@@ -11,6 +11,7 @@ build:
 push:
 	docker tag $(TARGET) $(IMAGE):latest
 	docker push $(TARGET)
+	docker push $(IMAGE):latest
 
 test:
 	cd test && ./test.sh
