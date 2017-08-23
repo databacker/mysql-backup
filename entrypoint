@@ -12,8 +12,16 @@ DB_DUMP_BEGIN=${DB_DUMP_BEGIN:-+0}
 # DB_DUMP_TARGET = where to place the backup file. Can be URL (e.g. smb://server/share/path) or just file path /foo
 DB_DUMP_TARGET=${DB_DUMP_TARGET:-/backup}
 # login credentials
-DBUSER=${DB_USER:-cattle}
-DBPASS=${DB_PASS:-cattle}
+if [ -n "${DB_USER}" ]; then
+  DBUSER="-u${DB_USER}"
+else
+  DBUSER=
+fi
+if [ -n "${DB_PASS}" ]; then
+  DBPASS="-p${DB_PASS}"
+else
+  DBPASS=
+fi
 
 # database server
 DBSERVER=db
@@ -110,7 +118,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
-    gunzip < $TMPRESTORE | mysql -h $DBSERVER -u $DBUSER -p$DBPASS
+    gunzip < $TMPRESTORE | mysql -h $DBSERVER $DBUSER $DBPASS
     /bin/rm -f $TMPRESTORE
     exit 0
   else
@@ -158,7 +166,7 @@ else
     fi
 
     # make the dump
-    mysqldump -h $DBSERVER -u$DBUSER -p$DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
+    mysqldump -h $DBSERVER $DBUSER $DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
 
     # Execute additional scripts for post porcessing. For example, create a new
     # backup file containing this db backup and a second tar file with the
@@ -166,7 +174,7 @@ else
     if [ -d /scripts.d/post-backup/ ]; then
       for i in $(ls /scripts.d/post-backup/*.sh); do
         if [ -x $i ]; then
-          NOW=${now} DUMPFILE${TMPDIR}/${TARGET} $i
+          NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} $i
         fi
       done
     fi

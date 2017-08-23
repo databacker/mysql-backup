@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 
 DEBUG=${DEBUG:-0}
 [[ -n "$DEBUG" && "$DEBUG" == "verbose" ]] && DEBUG=1
@@ -9,6 +11,9 @@ DEBUG=${DEBUG:-0}
 TESTS=$2
 [[ -n "$TESTS" ]] && TESTS=all
 
+BACKUP_IMAGE=mysqlbackup_backup_test:latest
+SMB_IMAGE=mysqlbackup_smb_test:latest
+
 RWD=${PWD}
 MYSQLUSER=user
 MYSQLPW=abcdefg
@@ -17,9 +22,6 @@ MYSQLDUMP=/tmp/source/backup.gz
 # list of sources and targets
 declare -a targets
 
-# this is global, so has to be set outside
-declare -A uri
-declare -A proto
 
 # localhost is not going to work, because it is across containers!!
 # fill in with a var
@@ -33,59 +35,10 @@ targets=(
 "s3://mybucket/SEQ/data"
 )
 
-
-function uri_parser() {
-  uri=()
-  # uri capture
-  full="$@"
-
-    # safe escaping
-    full="${full//\`/%60}"
-    full="${full//\"/%22}"
-
-		# URL that begins with '/' is like 'file:///'
-		if [[ "${full:0:1}" == "/" ]]; then
-			full="file://localhost${full}"
-		fi
-		# file:/// should be file://localhost/
-		if [[ "${full:0:8}" == "file:///" ]]; then
-			full="${full/file:\/\/\//file://localhost/}"
-		fi
-		
-    # top level parsing
-    pattern='^(([a-z0-9]{2,5})://)?((([^:\/]+)(:([^@\/]*))?@)?([^:\/?]+)(:([0-9]+))?)(\/[^?]*)?(\?[^#]*)?(#.*)?$'
-    [[ "$full" =~ $pattern ]] || return 1;
-
-    # component extraction
-    full=${BASH_REMATCH[0]}
-		uri[uri]="$full"
-    uri[schema]=${BASH_REMATCH[2]}
-    uri[address]=${BASH_REMATCH[3]}
-    uri[user]=${BASH_REMATCH[5]}
-    uri[password]=${BASH_REMATCH[7]}
-    uri[host]=${BASH_REMATCH[8]}
-    uri[port]=${BASH_REMATCH[10]}
-    uri[path]=${BASH_REMATCH[11]}
-    uri[query]=${BASH_REMATCH[12]}
-    uri[fragment]=${BASH_REMATCH[13]}
-		if [[ ${uri[schema]} == "smb" && ${uri[path]} =~ ^/([^/]*)(/?.*)$ ]]; then
-			uri[share]=${BASH_REMATCH[1]}
-			uri[sharepath]=${BASH_REMATCH[2]}
-		fi
-		
-		# does the user have a domain?
-		if [[ -n ${uri[user]} && ${uri[user]} =~ ^([^\;]+)\;(.+)$ ]]; then
-			uri[userdomain]=${BASH_REMATCH[1]}
-			uri[user]=${BASH_REMATCH[2]}
-		fi
-		return 0
-}
-
-
 function runtest() {
-	t=$1
-	seqno=$2
-	# where will we store 
+	local t=$1
+	local seqno=$2
+	# where will we store
 	# create the backups directory
 	# clear the target
 	# replace SEQ if needed
@@ -113,9 +66,8 @@ function runtest() {
 
 
 	# change our target
-	cids[$seqno]=$cid
-  cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/post-backup:/scripts.d/post-backup -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb --link ${s3_cid}:mybucket.s3.amazonaws.com backup)
-
+  cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/post-backup:/scripts.d/post-backup -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+	echo $cid
 }
 
 # THIS WILL FAIL BECAUSE OF:
@@ -131,15 +83,16 @@ function runtest() {
 # so we filter those lines out; they are not relevant to the backup anyways
 #
 function checktest() {
-	t=$1
-	seqno=$2
+	local t=$1
+	local seqno=$2
+	local cid=$3
 	# where do we expect backups?
-	bdir=/tmp/backups/${seq}/data		# change our target
-	
+	bdir=/tmp/backups/${seqno}/data		# change our target
+
 	# stop and remove the container
-	[[ "$DEBUG" != "0" ]] && echo "Stopping and removing ${cids[$seq]}"
-	CMD1="docker kill ${cids[$seqno]}"
-	CMD2="docker rm ${cids[$seqno]}"
+	[[ "$DEBUG" != "0" ]] && echo "Stopping and removing ${cid}"
+	CMD1="docker kill ${cid}"
+	CMD2="docker rm ${cid}"
 	if [[ "$DEBUG" == "0" ]]; then
 		$CMD1 > /dev/null 2>&1
 		$CMD2 > /dev/null 2>&1
@@ -166,17 +119,19 @@ function checktest() {
 		[[ -f "${BACKUP_FILE}/.fakes3_metadataFFF/content" ]] && BACKUP_FILE="${BACKUP_FILE}/.fakes3_metadataFFF/content"
 
 		# extract the actual data, but filter out lines we do not care about
-		cat ${BACKUP_FILE} | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' > $TMP1
-		cat ${MYSQLDUMP} | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' > $TMP2
-		
+		# " | cat " at the end so it returns true because we run "set -e"
+		cat ${BACKUP_FILE} | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' | cat > $TMP1
+		cat ${MYSQLDUMP} | gunzip | grep -v '^-- MySQL' | grep -v '^-- Host:' | grep -v '^-- Dump completed' | cat > $TMP2
+
 		# check the file contents against the source directory
-		diffout=$(diff $TMP1 $TMP2)
+		# " | cat " at the end so it returns true because we run "set -e"
+		diffout=$(diff $TMP1 $TMP2 | cat)
 		if [[ -z "$diffout" ]]; then
 			pass+=($seqno)
 		else
 			fail+=("$seqno: $item $t tar contents do not match actual dump")
 		fi
-		
+
 	fi
   if [[ -e "${POST_BACKUP_OUT_FILE}" ]]; then
     pass+=($seqno)
@@ -187,7 +142,7 @@ function checktest() {
 
 }
 
-# we need to run through each each target and test the backup. 
+# we need to run through each each target and test the backup.
 # before the first run, we:
 # - start the sql database
 # - populate it with a few inserts/creates
@@ -206,49 +161,63 @@ declare -a cids
 /bin/rm -rf /tmp/backups
 mkdir -p /tmp/backups
 chmod -R 0777 /tmp/backups
-setfacl -d -m g::rwx /tmp/backups
-setfacl -d -m o::rwx /tmp/backups
+#setfacl -d -m g::rwx /tmp/backups
+#setfacl -d -m o::rwx /tmp/backups
 
 
 # build the core images
 QUIET="-q"
 [[ "$DEBUG" != "0" ]] && QUIET=""
 [[ "$DEBUG" != "0" ]] && echo "Creating backup image"
-docker build $QUIET -t backup -f ../Dockerfile ../
+docker build $QUIET -t ${BACKUP_IMAGE} -f ../Dockerfile ../
 
 # build the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Creating smb image"
-docker build $QUIET -t smb -f ./Dockerfile_smb .
+docker build $QUIET -t ${SMB_IMAGE} -f ./Dockerfile_smb .
 
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
-smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups -t --name=smb smb)
+smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups -t --name=smb ${SMB_IMAGE})
 mysql_cid=$(docker run -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql)
 s3_cid=$(docker run --name s3 -d -v /tmp/backups:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
 
 
-# it takes about 10 seconds for the database to be ready
-sleep 10s
+# Allow up to 20 seconds for the database to be ready
+db_connect="docker exec -i $mysql_cid mysql -u$MYSQLUSER -p$MYSQLPW --protocol=tcp -h127.0.0.1 --wait --connect_timeout=20 tester"
+retry_count=0
+retryMax=20
+retrySleep=1
+until [[ $retry_count -ge $retryMax ]]; do
+	set +e
+	$db_connect -e 'select 1;'
+	success=$?
+	set -e
+	[[ $success == 0 ]] && break
+	((retry_count  ++)) || true
+	sleep $retrySleep
+done
+# did we succeed?
+if [[ $success != 0 ]]; then
+	echo -n "failed to connect to database after $retryMax tries." >&2
+fi
 
-# initiate the database and do a dump
-echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | docker exec -i $mysql_cid mysql -uuser -p$MYSQLPW --protocol=tcp -h127.0.0.1 tester
-
-docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -uuser -p$MYSQLPW | gzip > ${MYSQLDUMP}
+echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | $db_connect
+docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$MYSQLPW | gzip > ${MYSQLDUMP}
 
 # keep track of the sequence
 seq=0
 
-# 
+#
 
 
-# 
+#
 # do the file tests
 [[ "$DEBUG" != "0" ]] && echo "Doing tests"
 # create each target
 [[ "$DEBUG" != "0" ]] && echo "Running backups for each target"
 for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
-	runtest $t $seq
+	cids[$seq]=$(runtest $t $seq)
 	# increment our counter
 	((seq++))
 done
@@ -266,7 +235,7 @@ declare -a pass
 seq=0
 for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
-	checktest $t $seq
+	checktest $t $seq ${cids[$seq]}
 	# increment our counter
 	((seq++))
 done
@@ -294,4 +263,3 @@ if [[ "${#fail[@]}" != "0" ]]; then
 else
 	exit 0
 fi
-

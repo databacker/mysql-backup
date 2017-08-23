@@ -1,4 +1,4 @@
-# rancher server backup image
+# mysql backup image
 FROM alpine:3.5
 MAINTAINER Avi Deitcher <https://github.com/deitch>
 
