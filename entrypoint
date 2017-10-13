@@ -158,6 +158,7 @@ else
 
   # enter the loop
   while true; do
+    echo Starting the dump at $(date)
     # make sure the directory exists
     mkdir -p $TMPDIR
 
@@ -223,6 +224,7 @@ else
        ;;
     esac
 
+    echo Finished copying the dump at $(date)
     # wait
     sleep $(($DB_DUMP_FREQ*60))
   done
