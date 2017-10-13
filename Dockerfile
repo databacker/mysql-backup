@@ -1,6 +1,6 @@
 # mysql backup image
 FROM alpine:3.5
-MAINTAINER Avi Deitcher <https://github.com/deitch>
+LABEL maintainer="EEA: IDM2 A-Team <eea-edw-a-team-alerts@googlegroups.com>"
 
 # install the necessary client
 RUN apk add --update mysql-client bash python3 samba-client && \
