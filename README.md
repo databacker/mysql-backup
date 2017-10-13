@@ -36,6 +36,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
     * Absolute: HHMM, e.g. `2330` or `0415`
     * Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half
 * `DB_DUMP_DEBUG`: If set to `true`, print copious shell script messages to the container log. Otherwise only basic messages are printed.
+* `DB_DUMP_FILENAME`: If set, will be the name of the dump file, default `db_backup`
+* `DB_DUMP_FILEDATE`: If set to `no`, the name of the dump file will not contain the date and will overwrite the last backup each time, default `yes`
 * `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Supports three formats:
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
     * SMB: If the value of `DB_DUMP_TARGET` is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
@@ -108,6 +110,8 @@ services:
      - DB_PASS=pass123
      - DB_DUMP_FREQ=60
      - DB_DUMP_BEGIN=2330
+     - DB_DUMP_FILENAME=db_backup
+     - DB_DUMP_FILEDATE=yes
   mysql_db:
     image: mysql
     ....
@@ -119,25 +123,6 @@ The scripts are _executed_ in the [entrypoint](https://github.com/deitch/mysql-b
 * `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
 
 In addition, all of the environment variables set for the container will be available to the script.
-
-For example, the following script will rename the backup file after the dump is done:
-
-````bash
-#!/bin/bash
-# Rename backup file.
-new_name=${now}.gz
-
-echo "Renaming backup file from ${TARGET} to ${new_name}"
-
-if [ -e ${TMPDIR}/${TARGET} ];
-then
-  mv ${TMPDIR}/${TARGET} ${TMPDIR}/${new_name}
-  TARGET=${new_name}
-else
-  echo "ERROR: Backup file ${TMPDIR}/${TARGET} does not exist!"
-fi
-
-````
 
 You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
 
