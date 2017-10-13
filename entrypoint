@@ -11,6 +11,11 @@ DB_DUMP_FREQ=${DB_DUMP_FREQ:-1440}
 DB_DUMP_BEGIN=${DB_DUMP_BEGIN:-+0}
 # DB_DUMP_TARGET = where to place the backup file. Can be URL (e.g. smb://server/share/path) or just file path /foo
 DB_DUMP_TARGET=${DB_DUMP_TARGET:-/backup}
+# DB_DUMP_FILENAME = name of the backup file
+DB_DUMP_FILENAME=${DB_DUMP_FILENAME:-db_backup}
+# DB_DUMP_FILEDATE =  if dump filename contains date or not
+DB_DUMP_FILEDATE=${DB_DUMP_FILEDATE:-yes}
+
 # login credentials
 if [ -n "${DB_USER}" ]; then
   DBUSER="-u${DB_USER}"
@@ -158,7 +163,12 @@ else
 
     # what is the name of our target?
     now=$(date -u +"%Y%m%d%H%M%S")
-    TARGET=db_backup_${now}.gz
+    if [[ "${DB_DUMP_FILEDATE}" = "yes" ]];then
+     TARGET=${DB_DUMP_FILENAME}_${now}.gz
+    else
+     TARGET=${DB_DUMP_FILENAME}.gz
+    fi
+
     if [[ -n "$DB_NAMES" ]]; then
       DB_LIST="--databases $DB_NAMES"
     else
