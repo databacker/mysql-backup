@@ -57,6 +57,7 @@ function runtest() {
   #Create a test script for the post backup processing test
   mkdir -p /tmp/backups/${seqno}/post-backup
   echo touch /scripts.d/post-backup/post-backup.txt > /tmp/backups/${seqno}/post-backup/test.sh
+	chmod -R 0777 /tmp/backups/${seqno}
   chmod 755 /tmp/backups/${seqno}/post-backup/test.sh
 
 	# if in DEBUG, make sure backup also runs in DEBUG
@@ -90,6 +91,9 @@ function checktest() {
 	local cid=$3
 	# where do we expect backups?
 	bdir=/tmp/backups/${seqno}/data		# change our target
+	if [[ "$DEBUG" != "0" ]]; then
+		ls -la $bdir
+	fi
 
 	# stop and remove the container
 	[[ "$DEBUG" != "0" ]] && echo "Stopping and removing ${cid}"
@@ -181,6 +185,7 @@ docker build $QUIET -t ${SMB_IMAGE} -f ./Dockerfile_smb .
 
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
+[[ "$DEBUG" != "0" ]] && SMB_IMAGE="$SMB_IMAGE -F -d 25"
 smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups -t --name=smb ${SMB_IMAGE})
 mysql_cid=$(docker run -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql)
 s3_cid=$(docker run --name s3 -d -v /tmp/backups:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
@@ -234,7 +239,7 @@ sleep ${waittime}s
 
 
 # get logs from the tests
-if [[ "$DEBUG" != "0" ]]; then
+if [[ "$DEBUG" == "2" ]]; then
 	echo
 	echo "SMB LOGS:"
 	docker logs $smb_cid
