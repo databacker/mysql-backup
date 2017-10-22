@@ -202,6 +202,7 @@ if [[ $success != 0 ]]; then
 fi
 
 echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | $db_connect
+ls -l $MYSQLDUMP
 docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$MYSQLPW | gzip > ${MYSQLDUMP}
 
 # keep track of the sequence
