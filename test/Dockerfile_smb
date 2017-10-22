@@ -1,6 +1,6 @@
 # rancher server backup image
-FROM alpine
-MAINTAINER software@tradertools.com
+FROM alpine:3.6
+MAINTAINER https://github.com/deitch
 
 # smb port
 EXPOSE 445
@@ -19,4 +19,3 @@ RUN echo user:pass | chpasswd
 # run samba in the foreground
 ENTRYPOINT ["/usr/sbin/smbd"]
 CMD ["-F"]
-

@@ -19,6 +19,8 @@ MYSQLUSER=user
 MYSQLPW=abcdefg
 MYSQLDUMP=/tmp/source/backup.gz
 
+mkdir -p /tmp/source
+
 # list of sources and targets
 declare -a targets
 
