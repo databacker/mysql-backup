@@ -99,6 +99,8 @@ function checktest() {
 		$CMD1 > /dev/null 2>&1
 		$CMD2 > /dev/null 2>&1
 	else
+		# keep the logs
+		docker logs ${cid}
 		$CMD1
 		$CMD2
 	fi
