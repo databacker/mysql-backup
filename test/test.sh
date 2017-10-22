@@ -221,7 +221,7 @@ for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
 	cids[$seq]=$(runtest $t $seq)
 	# increment our counter
-	((seq++))
+	((seq++)) || true
 done
 total=$seq
 
@@ -239,7 +239,7 @@ for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
 	checktest $t $seq ${cids[$seq]}
 	# increment our counter
-	((seq++))
+	((seq++)) || true
 done
 
 [[ "$DEBUG" != "0" ]] && echo "Stopping and removing smb and mysql containers"
