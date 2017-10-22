@@ -232,6 +232,19 @@ waittime=10
 [[ "$DEBUG" != "0" ]] && echo "Waiting ${waittime} seconds to complete backup runs"
 sleep ${waittime}s
 
+
+# get logs from the tests
+if [[ "$DEBUG" != "0" ]]; then
+	echo
+	echo "SMB LOGS:"
+	docker logs $smb_cid
+	echo
+	echo "MYSQL LOGS:"
+	docker logs $mysql_cid
+	echo
+	echo "S3 LOGS:"
+	docker logs $s3_cid
+fi
 # now check each result
 [[ "$DEBUG" != "0" ]] && echo "Checking results"
 declare -a fail
