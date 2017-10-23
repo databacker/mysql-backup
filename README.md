@@ -79,14 +79,23 @@ If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket.
 
 Note that for s3, you'll need to specify your AWS credentials and default AWS region via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION`
 
-### Backup post-processing
+### Backup pre and post processing
 
-Any executable script with _.sh_ extension in _/scripts.d/post-backup/_ directory in the container will be executed after the backup dump process has finished, but **before** uploading the backup file to its ultimate target. This is useful if you need to include some files along with the database dump, for example, to backup a _WordPress_ install.
+Any executable script with _.sh_ extension in _/scripts.d/pre-backup/_ or _/scripts.d/post-backup/_ directories in the container will be executed before
+and after the backup dump process has finished respectively, but **before**
+uploading the backup file to its ultimate target. This is useful if you need to
+include some files along with the database dump, for example, to backup a
+_WordPress_ install.
 
 To use them you need to add a host volume that points to the post-backup scripts in the docker host. Start the container like this:
 
 ````bash
-docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db -v /local/file/path:/db -v /path/to/post-backup/scripts:/scripts.d/post-backup deitch/mysql-backup
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 \
+  -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db \
+  -v /path/to/pre-backup/scripts:/scripts.d/pre-backup \
+  -v /path/to/post-backup/scripts:/scripts.d/post-backup \
+  -v /local/file/path:/db \
+  deitch/mysql-backup
 ````
 
 Or, if you prefer compose:
@@ -101,6 +110,7 @@ services:
      - mysql_db:db
     volumes:
      - /local/file/path:/db
+     - /path/to/pre-backup/scripts:/scripts.d/pre-backup
      - /path/to/post-backup/scripts:/scripts.d/post-backup
     env:
      - DB_DUMP_TARGET=/db
@@ -146,6 +156,7 @@ fi
 
 You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
 
+## Restore
 ### Dump Restore
 If you wish to run a restore to an existing database, you can use mysql-backup to do a restore.
 
@@ -166,6 +177,18 @@ Examples:
 2. Restore from an SMB file: `docker run  -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.sql.gz deitch/mysql-backup`
 3. Restore from an S3 file: `docker run  -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.sql.gz deitch/mysql-backup`
 
+### Restore pre and post processing
+
+As with backups pre and post processing, you can do the same with restore operations.
+Any executable script with _.sh_ extension in _/scripts.d/pre-restore/_ or
+_/scripts.d/post-restore/_ directories in the container will be executed before the restore process starts and after it finishes respectively. This is useful if you need to
+restore a backup file that includes some files along with the database dump.
+
+For example, to restore a _WordPress_ install, you would uncompress a tarball containing
+the db backup and a second tarball with the contents of a WordPress install on
+`pre-restore`. Then on `post-restore`, uncompress the WordPress files on the container's web server root directory.
+
+For an example take a look at the post-backup examples, all variables defined for post-backup scripts are available for pre-processing too. Also don't forget to add the same host volumes for `pre-restore` and `post-restore` directories as described for post-backup processing.
 
 ### Automated Build
 This gituhub repo is the source for the mysql-backup image. The actual image is stored on the docker hub at `deitch/mysql-backup`, and is triggered with each commit to the source by automated build via Webhooks.

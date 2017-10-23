@@ -96,7 +96,7 @@ function uri_parser() {
 if [ -d /scripts.d/pre-restore/ ]; then
   for i in $(ls /scripts.d/pre-restore/*.sh); do
     if [ -x $i ]; then
-      NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DESTDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+      NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
     fi
   done
 fi
@@ -173,7 +173,17 @@ else
   while true; do
     # make sure the directory exists
     mkdir -p $TMPDIR
-
+    # Execute additional scripts for pre processing. For example, uncompress a
+    # backup file containing this db backup and a second tar file with the
+    # contents of a wordpress install so they can be restored.
+    if [ -d /scripts.d/pre-backup/ ]; then
+      for i in $(ls /scripts.d/pre-backup/*.sh); do
+        if [ -x $i ]; then
+          NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+        fi
+      done
+    fi
+    
     # what is the name of our target?
     now=$(date -u +"%Y%m%d%H%M%S")
     TARGET=db_backup_${now}.gz
