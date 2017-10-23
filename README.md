@@ -27,7 +27,7 @@ The above will run a dump every 60 minutes, beginning at the next 2330 local tim
 
 The following are the environment variables for a backup:
 
-__You should consider the [use of `--env-file=`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file) to keep your secrets out of your shell history__
+__You should consider the [use of `--env-file=`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file), [docker secrets](https://docs.docker.com/engine/swarm/secrets/) to keep your secrets out of your shell history__
 
 * `DB_SERVER`: hostname to connect to database. Required.
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
@@ -177,9 +177,25 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 
 Examples:
 
-1. Restore from a local file: `docker run  -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.sql.gz -v /local/path:/backup deitch/mysql-backup`
-2. Restore from an SMB file: `docker run  -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.sql.gz deitch/mysql-backup`
-3. Restore from an S3 file: `docker run  -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.sql.gz deitch/mysql-backup`
+1. Restore from a local file: `docker run -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.sql.gz -v /local/path:/backup deitch/mysql-backup`
+2. Restore from an SMB file: `docker run -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.sql.gz deitch/mysql-backup`
+3. Restore from an S3 file: `docker run -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.sql.gz deitch/mysql-backup`
+
+### Using docker (or rancher) secrets
+Environment variables used in this image can be passed in files as well. This is useful when you are using docker (or rancher) secrets for storing sensitive information.
+
+As you can set environment variable with `-e ENVIRONMENT_VARIABLE=value`, you can also use `-e ENVIRONMENT_VARIABLE_FILE=/path/to/file`. Contents of that file will be assigned to the environment variable.
+
+**Example:**
+
+```bash
+docker run -d \
+  -e DB_HOST_FILE=/run/secrets/DB_HOST \
+  -e DB_USER_FILE=/run/secrets/DB_USER \
+  -e DB_PASS_FILE=/run/secrets/DB_PASS \
+  -v /local/file/path:/db \
+  deitch/mysql-backup
+```
 
 ### Restore pre and post processing
 
@@ -195,7 +211,7 @@ the db backup and a second tarball with the contents of a WordPress install on
 For an example take a look at the post-backup examples, all variables defined for post-backup scripts are available for pre-processing too. Also don't forget to add the same host volumes for `pre-restore` and `post-restore` directories as described for post-backup processing.
 
 ### Automated Build
-This gituhub repo is the source for the mysql-backup image. The actual image is stored on the docker hub at `deitch/mysql-backup`, and is triggered with each commit to the source by automated build via Webhooks.
+This github repo is the source for the mysql-backup image. The actual image is stored on the docker hub at `deitch/mysql-backup`, and is triggered with each commit to the source by automated build via Webhooks.
 
 There are 2 builds: 1 for version based on the git tag, and another for the particular version number.
 
