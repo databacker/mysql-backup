@@ -6,13 +6,43 @@ if [[ -n "$DB_DUMP_DEBUG" ]]; then
   set -x
 fi
 
-# set our defaults
-# DB_DUMP_FREQ = how often to run a backup in minutes, i.e. how long to wait from the most recently completed to the next
-DB_DUMP_FREQ=${DB_DUMP_FREQ:-1440}
-# DB_DUMP_BEGIN = what time to start the first backup upon execution. If starts with '+' it means, "in x minutes"
-DB_DUMP_BEGIN=${DB_DUMP_BEGIN:-+0}
-# DB_DUMP_TARGET = where to place the backup file. Can be URL (e.g. smb://server/share/path) or just file path /foo
-DB_DUMP_TARGET=${DB_DUMP_TARGET:-/backup}
+# usage: file_env VAR [DEFAULT]
+#    ie: file_env 'XYZ_DB_PASSWORD' 'example'
+# (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
+#  "$XYZ_DB_PASSWORD" from a file, especially for Docker's secrets feature
+function file_env() {
+	local var="$1"
+	local fileVar="${var}_FILE"
+	local def="${2:-}"
+	if [ "${!var:-}" ] && [ "${!fileVar:-}" ]; then
+		echo >&2 "error: both $var and $fileVar are set (but are exclusive)"
+		exit 1
+	fi
+	local val="$def"
+	if [ "${!var:-}" ]; then
+		val="${!var}"
+	elif [ "${!fileVar:-}" ]; then
+		val="$(< "${!fileVar}")"
+	fi
+	export "$var"="$val"
+	unset "$fileVar"
+}
+
+# get all variables from environment variables or files (e.g. VARIABLE_NAME_FILE)
+# (setting defaults happens here, too)
+file_env "DB_USER"
+file_env "DB_PASS"
+file_env "DB_NAMES"
+file_env "DB_DUMP_FREQ" "1440"
+file_env "DB_DUMP_BEGIN" "+0"
+file_env "DB_DUMP_DEBUG"
+file_env "DB_DUMP_TARGET" "/backup"
+file_env "AWS_ACCESS_KEY_ID"
+file_env "AWS_SECRET_ACCESS_KEY"
+file_env "AWS_DEFAULT_REGION"
+file_env "SMB_USER"
+file_env "SMB_PASS"
+
 # login credentials
 if [ -n "${DB_USER}" ]; then
   DBUSER="-u${DB_USER}"
