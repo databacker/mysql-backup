@@ -69,7 +69,7 @@ function runtest() {
 
 
 	# change our target
-  cid=$(docker run -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/post-backup:/scripts.d/post-backup -v /tmp/backups:/backups --link ${mysql_cid}:db --link ${smb_cid}:smb --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+  cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/post-backup:/scripts.d/post-backup -v /tmp/backups:/backups -e DBSERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
 	echo $cid
 }
 
@@ -183,12 +183,16 @@ docker build $QUIET -t ${BACKUP_IMAGE} -f ../Dockerfile ../
 [[ "$DEBUG" != "0" ]] && echo "Creating smb image"
 docker build $QUIET -t ${SMB_IMAGE} -f ./Dockerfile_smb .
 
+# create the network we need
+[[ "$DEBUG" != "0" ]] && echo "Creating the test network"
+docker network create mysqltest
+
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
 [[ "$DEBUG" != "0" ]] && SMB_IMAGE="$SMB_IMAGE -F -d 25"
-smb_cid=$(docker run -d -p 445:445 -v /tmp/backups:/share/backups -t --name=smb ${SMB_IMAGE})
-mysql_cid=$(docker run -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql)
-s3_cid=$(docker run --name s3 -d -v /tmp/backups:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
+smb_cid=$(docker run --net mysqltest --name=smb  -d -p 445:445 -v /tmp/backups:/share/backups -t ${SMB_IMAGE})
+mysql_cid=$(docker run --net mysqltest --name mysql -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql)
+s3_cid=$(docker run --net mysqltest --name s3 -d -v /tmp/backups:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
 
 
 # Allow up to 20 seconds for the database to be ready
@@ -272,6 +276,9 @@ else
 	$CMD1
 	$CMD2
 fi
+
+[[ "$DEBUG" != "0" ]] && echo "Removing docker network"
+docker network rm mysqltest
 
 # report results
 echo "Passed: ${#pass[@]}"
