@@ -93,7 +93,7 @@ To use them you need to add a host volume that points to the post-backup scripts
 
 ````bash
 docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 \
-  -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db --link my-db-container:db \
+  -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DBSERVER=my-db-container:db \
   -v /path/to/pre-backup/scripts:/scripts.d/pre-backup \
   -v /path/to/post-backup/scripts:/scripts.d/post-backup \
   -v /local/file/path:/db \
