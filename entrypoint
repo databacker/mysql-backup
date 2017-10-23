@@ -30,18 +30,31 @@ function file_env() {
 
 # get all variables from environment variables or files (e.g. VARIABLE_NAME_FILE)
 # (setting defaults happens here, too)
+file_env "DB_SERVER"
+file_env "DB_PORT"
 file_env "DB_USER"
 file_env "DB_PASS"
 file_env "DB_NAMES"
+
 file_env "DB_DUMP_FREQ" "1440"
 file_env "DB_DUMP_BEGIN" "+0"
 file_env "DB_DUMP_DEBUG"
 file_env "DB_DUMP_TARGET" "/backup"
+
+file_env "DB_RESTORE_TARGET"
+
+file_env "AWS_ENDPOINT_URL"
+file_env "AWS_ENDPOINT_OPT"
 file_env "AWS_ACCESS_KEY_ID"
 file_env "AWS_SECRET_ACCESS_KEY"
 file_env "AWS_DEFAULT_REGION"
+
 file_env "SMB_USER"
 file_env "SMB_PASS"
+
+if [[ -n "$DB_DUMP_DEBUG" ]]; then
+  set -x
+fi
 
 # login credentials
 if [ -n "${DB_USER}" ]; then
