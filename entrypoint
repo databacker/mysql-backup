@@ -63,14 +63,14 @@ done
 
 
 # database server
-if [ -z "${DBSERVER}" ]; then
-  echo "DBSERVER variable is required. Exiting."
+if [ -z "${DB_SERVER}" ]; then
+  echo "DB_SERVER variable is required. Exiting."
   exit 1
 fi
 # database port
-if [ -z "${DBPORT}" ]; then
-  echo "DBPORT not provided, defaulting to 3306"
-  DBPORT=3306
+if [ -z "${DB_PORT}" ]; then
+  echo "DB_PORT not provided, defaulting to 3306"
+  DB_PORT=3306
 fi
 
 
@@ -119,7 +119,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
-    gunzip < $TMPRESTORE | mysql -h $DBSERVER -P $DBPORT $DBUSER $DBPASS
+    gunzip < $TMPRESTORE | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS
     /bin/rm -f $TMPRESTORE
     exit 0
   else
@@ -191,7 +191,7 @@ else
     fi
 
     # make the dump
-    mysqldump -h $DBSERVER -P $DBPORT $DBUSER $DBPASS $DB_LIST $DUMPVARS | gzip > ${TMPDIR}/${TARGET}
+    mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
 
     # Execute additional scripts for post porcessing. For example, create a new
     # backup file containing this db backup and a second tar file with the

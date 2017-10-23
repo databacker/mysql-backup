@@ -20,7 +20,7 @@ To run a backup, launch `mysql-backup` image as a container with the correct par
 For example:
 
 ````bash
-docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DBSERVER=my-db-container -v /local/file/path:/db deitch/mysql-backup
+docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container -v /local/file/path:/db deitch/mysql-backup
 ````
 
 The above will run a dump every 60 minutes, beginning at the next 2330 local time, from the database accessible in the container `my-db-container`.
@@ -29,8 +29,8 @@ The following are the environment variables for a backup:
 
 __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file) to keep your secrets out of your shell history__
 
-* `DBSERVER`: hostname to connect to database. Required.
-* `DBPORT`: port to use to connect to database. Optional, defaults to `3306`
+* `DB_SERVER`: hostname to connect to database. Required.
+* `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
 * `DB_NAMES`: names of databases to dump; defaults to all databases in the database server
@@ -53,10 +53,10 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 In addition, any environment variable that starts with `MYSQLDUMP_` will have the `MYSQLDUMP_` part stripped off, and the rest passed as an option to `mysqldump`. For example, `MYSQLDUMP_max_allowed_packet=123455678` will run `mysqldump --max_allowed_packet=123455678`.
 
 ### Database Container
-In order to perform the actual dump, `mysql-backup` needs to connect to the database container. You **must** pass the database hostname - which can be another container or any database process accessible from the backup container - by passing the environment variable `DBSERVER` with the hostname or IP address of the database. You **may** override the default port of `3306` by passing the environment variable `DBPORT`.
+In order to perform the actual dump, `mysql-backup` needs to connect to the database container. You **must** pass the database hostname - which can be another container or any database process accessible from the backup container - by passing the environment variable `DB_SERVER` with the hostname or IP address of the database. You **may** override the default port of `3306` by passing the environment variable `DB_PORT`.
 
 ````bash
-docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DBSERVER=my-db-container -v /local/file/path:/db deitch/mysql-backup
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container -v /local/file/path:/db deitch/mysql-backup
 ````
 
 ### Dump Target
@@ -96,7 +96,7 @@ To use them you need to add a host volume that points to the post-backup scripts
 
 ````bash
 docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 \
-  -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DBSERVER=my-db-container:db \
+  -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container:db \
   -v /path/to/pre-backup/scripts:/scripts.d/pre-backup \
   -v /path/to/post-backup/scripts:/scripts.d/post-backup \
   -v /local/file/path:/db \
@@ -121,7 +121,7 @@ services:
      - DB_PASS=pass123
      - DB_DUMP_FREQ=60
      - DB_DUMP_BEGIN=2330
-     - DBSERVER=mysql_db
+     - DB_SERVER=mysql_db
   mysql_db:
     image: mysql
     ....
