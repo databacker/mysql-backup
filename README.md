@@ -118,7 +118,7 @@ The scripts are _executed_ in the [entrypoint](https://github.com/deitch/mysql-b
 
 * `DUMPFILE`: full path in the container to the output file
 * `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
-* `DESTDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
+* `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
 
 In addition, all of the environment variables set for the container will be available to the script.
@@ -138,9 +138,9 @@ then
   new_name=db_backup-${now}.gz
   old_name=$(basename ${DUMPFILE})
   echo "Renaming backup file from ${old_name} to ${new_name}"
-  mv ${DUMPFILE} ${DESTDIR}/${new_name}
+  mv ${DUMPFILE} ${DUMPDIR}/${new_name}
 else
-  echo "ERROR: Backup file ${TMPDIR}/${TARGET} does not exist!"
+  echo "ERROR: Backup file ${DUMPFILE} does not exist!"
 fi
 
 ````
