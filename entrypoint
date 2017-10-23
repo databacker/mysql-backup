@@ -24,7 +24,16 @@ else
 fi
 
 # database server
-DBSERVER=db
+if [ -z "${DBSERVER}" ]; then
+  echo "DBSERVER variable is required. Exiting."
+  exit 1
+fi
+# database port
+if [ -z "${DBPORT}" ]; then
+  echo "DBPORT not provided, defaulting to 3306"
+  DBPORT=3306
+fi
+
 
 # temporary dump dir
 TMPDIR=/tmp/backups
@@ -127,7 +136,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
-    gunzip < $TMPRESTORE | mysql -h $DBSERVER $DBUSER $DBPASS
+    gunzip < $TMPRESTORE | mysql -h $DBSERVER -P $DBPORT $DBUSER $DBPASS
     /bin/rm -f $TMPRESTORE
     exit 0
   else
@@ -194,7 +203,7 @@ else
     fi
 
     # make the dump
-    mysqldump -h $DBSERVER $DBUSER $DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
+    mysqldump -h $DBSERVER -P $DBPORT $DBUSER $DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
 
     # Execute additional scripts for post porcessing. For example, create a new
     # backup file containing this db backup and a second tar file with the
@@ -202,7 +211,7 @@ else
     if [ -d /scripts.d/post-backup/ ]; then
       for i in $(ls /scripts.d/post-backup/*.sh); do
         if [ -x $i ]; then
-          NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DESTDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+          NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
         fi
       done
     fi
