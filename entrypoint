@@ -99,18 +99,17 @@ function uri_parser() {
 		return 0
 }
 
-# Execute additional scripts for pre backup restore porcessing. For example,
-# uncompress a tarball that contains the tarballs for the sql dump and a
-# wordpress installation.
-if [ -d /scripts.d/pre-restore/ ]; then
-  for i in $(ls /scripts.d/pre-restore/*.sh); do
-    if [ -x $i ]; then
-      NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
-    fi
-  done
-fi
-
 if [[ -n "$DB_RESTORE_TARGET" ]]; then
+  # Execute additional scripts for pre backup restore porcessing. For example,
+  # uncompress a tarball that contains the tarballs for the sql dump and a
+  # wordpress installation.
+  if [ -d /scripts.d/pre-restore/ ]; then
+    for i in $(ls /scripts.d/pre-restore/*.sh); do
+      if [ -x $i ]; then
+        DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+      fi
+    done
+  fi
 	uri_parser ${DB_RESTORE_TARGET}
   if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
