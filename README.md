@@ -12,6 +12,7 @@ It has the following features:
 * select how often to run a dump
 * select when to start the first dump, whether time of day or relative to container start time
 
+Please see [CONTRIBUTORS.md](./CONTRIBUTORS.md) for a list of contributors.
 
 ## Backup
 To run a backup, launch `mysql-backup` image as a container with the correct parameters. Everything is controlled by environment variables passed to the container.
