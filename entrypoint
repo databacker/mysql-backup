@@ -183,7 +183,7 @@ else
     if [ -d /scripts.d/post-backup/ ]; then
       for i in $(ls /scripts.d/post-backup/*.sh); do
         if [ -x $i ]; then
-          NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} $i
+          NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
         fi
       done
     fi
