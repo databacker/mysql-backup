@@ -147,7 +147,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   if [ -d /scripts.d/post-restore/ ]; then
     for i in $(ls /scripts.d/post-restore/*.sh); do
       if [ -x $i ]; then
-        NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DESTDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+        DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
       fi
     done
   fi
