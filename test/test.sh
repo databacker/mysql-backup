@@ -153,25 +153,26 @@ function checktest() {
   else
     fail+=("$seqno: $item $t Post-backup script didn't run, output file doesn't exist")
   fi
-	if [[ -e "${POST_RESTORE_OUT_FILE}" ]]; then
-    pass+=($seqno)
-    rm -fr ${POST_RESTORE_OUT_FILE}
-  else
-    fail+=("$seqno: $item $t Post-restore script didn't run, output file doesn't exist")
-  fi
 	if [[ -e "${PRE_BACKUP_OUT_FILE}" ]]; then
     pass+=($seqno)
     rm -fr ${PRE_BACKUP_OUT_FILE}
   else
     fail+=("$seqno: $item $t Pre-backup script didn't run, output file doesn't exist")
   fi
-	if [[ -e "${PRE_RESTORE_OUT_FILE}" ]]; then
-    pass+=($seqno)
-    rm -fr ${PRE_RESTORE_OUT_FILE}
-  else
-    fail+=("$seqno: $item $t Pre-restore script didn't run, output file doesn't exist")
-  fi
-
+	if [ -n "$TESTRESTORE" ]; then
+		if [[ -e "${POST_RESTORE_OUT_FILE}" ]]; then
+		  pass+=($seqno)
+		  rm -fr ${POST_RESTORE_OUT_FILE}
+		else
+		  fail+=("$seqno: $item $t Post-restore script didn't run, output file doesn't exist")
+		fi
+		if [[ -e "${PRE_RESTORE_OUT_FILE}" ]]; then
+		  pass+=($seqno)
+		  rm -fr ${PRE_RESTORE_OUT_FILE}
+		else
+		  fail+=("$seqno: $item $t Pre-restore script didn't run, output file doesn't exist")
+		fi
+	fi
 }
 
 # we need to run through each each target and test the backup.
