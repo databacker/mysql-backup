@@ -106,7 +106,12 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   if [ -d /scripts.d/pre-restore/ ]; then
     for i in $(ls /scripts.d/pre-restore/*.sh); do
       if [ -x $i ]; then
-        DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+        #The script must output the name of the sql dump so processing
+        #continues as usual
+        DB_RESTORE_TARGET=$(DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i)
+        if [ $? -gt 0 ]; then
+            echo "pre-restore: script $i failed with exit code: $?" && exit 1
+        fi
       fi
     done
   fi
@@ -191,7 +196,7 @@ else
         fi
       done
     fi
-    
+
     # what is the name of our target?
     now=$(date -u +"%Y%m%d%H%M%S")
     TARGET=db_backup_${now}.gz
