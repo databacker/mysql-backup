@@ -55,10 +55,13 @@ function runtest() {
 	fi
 
   #Create a test script for the post backup processing test
-  mkdir -p /tmp/backups/${seqno}/post-backup
+  mkdir -p /tmp/backups/${seqno}/{pre-backup,post-backup,pre-restore,post-restore}
   echo touch /scripts.d/post-backup/post-backup.txt > /tmp/backups/${seqno}/post-backup/test.sh
+	echo touch /scripts.d/post-restore/post-restore.txt > /tmp/backups/${seqno}/post-restore/test.sh
+	echo touch /scripts.d/pre-backup/pre-backup.txt > /tmp/backups/${seqno}/pre-backup/test.sh
+	echo touch /scripts.d/pre-restore/pre-restore.txt > /tmp/backups/${seqno}/pre-restore/test.sh
 	chmod -R 0777 /tmp/backups/${seqno}
-  chmod 755 /tmp/backups/${seqno}/post-backup/test.sh
+  chmod 755 /tmp/backups/${seqno}/*/test.sh
 
 	# if in DEBUG, make sure backup also runs in DEBUG
 	if [[ "$DEBUG" != "0" ]]; then
@@ -69,7 +72,7 @@ function runtest() {
 
 
 	# change our target
-  cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/post-backup:/scripts.d/post-backup -v /tmp/backups:/backups -e DBSERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+  cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/:/scripts.d/ -v /tmp/backups:/backups -e DBSERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
 	echo $cid
 }
 
@@ -116,6 +119,9 @@ function checktest() {
 
 	BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.gz 2>/dev/null)
   POST_BACKUP_OUT_FILE="/tmp/backups/${seqno}/post-backup/post-backup.txt"
+	PRE_BACKUP_OUT_FILE="/tmp/backups/${seqno}/pre-backup/pre-backup.txt"
+	POST_RESTORE_OUT_FILE="/tmp/backups/${seqno}/post-restore/post-restore.txt"
+	PRE_RESTORE_OUT_FILE="/tmp/backups/${seqno}/pre-restore/pre-restore.txt"
 
 	# check for the directory
 	if [[ ! -d "$bdir" ]]; then
@@ -147,7 +153,26 @@ function checktest() {
   else
     fail+=("$seqno: $item $t Post-backup script didn't run, output file doesn't exist")
   fi
-
+	if [[ -e "${PRE_BACKUP_OUT_FILE}" ]]; then
+    pass+=($seqno)
+    rm -fr ${PRE_BACKUP_OUT_FILE}
+  else
+    fail+=("$seqno: $item $t Pre-backup script didn't run, output file doesn't exist")
+  fi
+	if [ -n "$TESTRESTORE" ]; then
+		if [[ -e "${POST_RESTORE_OUT_FILE}" ]]; then
+		  pass+=($seqno)
+		  rm -fr ${POST_RESTORE_OUT_FILE}
+		else
+		  fail+=("$seqno: $item $t Post-restore script didn't run, output file doesn't exist")
+		fi
+		if [[ -e "${PRE_RESTORE_OUT_FILE}" ]]; then
+		  pass+=($seqno)
+		  rm -fr ${PRE_RESTORE_OUT_FILE}
+		else
+		  fail+=("$seqno: $item $t Pre-restore script didn't run, output file doesn't exist")
+		fi
+	fi
 }
 
 # we need to run through each each target and test the backup.
