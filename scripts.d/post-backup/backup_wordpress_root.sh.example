@@ -1,5 +1,8 @@
 #!/bin/bash
 # Backup a WordPress site (db + files).
+if [[ -n "$DB_DUMP_DEBUG" ]]; then
+  set -x
+fi
 
 NOW=$(date +"%Y-%m-%d-%H_%M")
 
