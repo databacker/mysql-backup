@@ -9,6 +9,7 @@ RUN apk add --update mysql-client bash python3 samba-client && \
     pip3 install awscli
 
 # install the entrypoint
+COPY functions.sh /
 COPY entrypoint /entrypoint
 
 # start
