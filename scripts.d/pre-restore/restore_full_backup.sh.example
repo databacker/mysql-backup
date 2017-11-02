@@ -1,5 +1,5 @@
 #!/bin/bash
-# Backup a WordPress site (db + files).
+# Restore a backup (db + files).
 if [[ -n "$DB_DUMP_DEBUG" ]]; then
   set -x
 fi
