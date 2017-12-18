@@ -122,8 +122,11 @@ else
     waittime=$(($target_time - $current_time))
   fi
 
-  sleep $waittime
-
+  # If RUN_ONCE is set, don't wait
+  if [ -z "${RUN_ONCE}" ]; then
+    sleep $waittime
+  fi
+  
   # enter the loop
   while true; do
     # make sure the directory exists
@@ -196,7 +199,11 @@ else
        ;;
     esac
 
-    # wait
-    sleep $(($DB_DUMP_FREQ*60))
+    # wait, unless RUN_ONCE is set
+    if [ -z "${RUN_ONCE}" ]; then
+     sleep $(($DB_DUMP_FREQ*60))
+    else
+      exit 1;
+    fi
   done
 fi
