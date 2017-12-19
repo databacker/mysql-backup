@@ -203,7 +203,7 @@ else
     if [ -z "${RUN_ONCE}" ]; then
       sleep $(($DB_DUMP_FREQ*60))
     else
-      exit 1;
+      exit 1
     fi
   done
 fi

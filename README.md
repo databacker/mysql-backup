@@ -38,7 +38,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
     * Absolute: HHMM, e.g. `2330` or `0415`
     * Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half
-* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm) and don't want the container to do the scheduling internally. If you use this option, the `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` become obsolete. 
+* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, the `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` become obsolete. 
 * `DB_DUMP_DEBUG`: If set to `true`, print copious shell script messages to the container log. Otherwise only basic messages are printed.
 * `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Supports three formats:
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
