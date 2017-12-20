@@ -8,7 +8,7 @@ TARGET ?= $(IMAGE):$(TAG)
 build:
 	docker build -t $(TARGET) .
 
-push:
+push: build
 	docker tag $(TARGET) $(IMAGE):latest
 	docker push $(TARGET)
 	docker push $(IMAGE):latest
