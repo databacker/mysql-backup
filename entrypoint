@@ -207,7 +207,7 @@ else
       # Calculate how long the previous backup took
       backup_time=$(($current_time - $target_time))
       # Calculate how many times the frequency time was passed during the previous backup.
-      freq_time_count=$(($backup_time % $freq_time))
+      freq_time_count=$(($backup_time / $freq_time))
       # Increment the count with one because we want to wait at least the frequency time once.
       freq_time_count_to_add=$(($freq_time_count + 1))
       # Calculate the extra time to add to the previous target time
