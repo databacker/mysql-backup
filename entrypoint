@@ -106,12 +106,14 @@ else
   # for debugging
   echo Starting at $(date)
   current_time=$(date +"%s")
+  freq_time=$(($DB_DUMP_FREQ*60))
   # get the begin time on our date
   # REMEMBER: we are using the basic date package in alpine
   today=$(date +"%Y%m%d")
   # could be a delay in minutes or an absolute time of day
   if [[ $DB_DUMP_BEGIN =~ ^\+(.*)$ ]]; then
     waittime=$(( ${BASH_REMATCH[1]} * 60 ))
+    target_time=$(($current_time + $waittime))
   else
     target_time=$(date --date="${today}${DB_DUMP_BEGIN}" +"%s")
 
@@ -126,7 +128,7 @@ else
   if [ -z "${RUN_ONCE}" ]; then
     sleep $waittime
   fi
-  
+
   # enter the loop
   while true; do
     # make sure the directory exists
@@ -201,7 +203,20 @@ else
 
     # wait, unless RUN_ONCE is set
     if [ -z "${RUN_ONCE}" ]; then
-      sleep $(($DB_DUMP_FREQ*60))
+      current_time=$(date +"%s")
+      # Calculate how long the previous backup took
+      backup_time=$(($current_time - $target_time))
+      # Calculate how many times the frequency time was passed during the previous backup.
+      freq_time_count=$(($backup_time % $freq_time))
+      # Increment the count with one because we want to wait at least the frequency time once.
+      freq_time_count_to_add=$(($freq_time_count + 1))
+      # Calculate the extra time to add to the previous target time
+      extra_time=$(($freq_time_count_to_add*$freq_time))
+      # Calculate the new target time needed for the next calculation
+      target_time=$(($target_time + $extra_time))
+      # Calculate the wait time
+      waittime=$(($target_time - $current_time))
+      sleep $waittime
     else
       exit 1
     fi
