@@ -25,6 +25,13 @@ else
   DBPASS=
 fi
 
+# capture our var settings
+DUMPVARS=""
+for i in $(env | awk -F_ '/^MYSQLDUMP_/ {print $2}'); do
+  DUMPVARS="${DUMPVARS} --${i}"
+done
+
+
 # database server
 if [ -z "${DBSERVER}" ]; then
   echo "DBSERVER variable is required. Exiting."
@@ -154,7 +161,7 @@ else
     fi
 
     # make the dump
-    mysqldump -h $DBSERVER -P $DBPORT $DBUSER $DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
+    mysqldump -h $DBSERVER -P $DBPORT $DBUSER $DBPASS $DB_LIST $DUMPVARS | gzip > ${TMPDIR}/${TARGET}
 
     # Execute additional scripts for post porcessing. For example, create a new
     # backup file containing this db backup and a second tar file with the
