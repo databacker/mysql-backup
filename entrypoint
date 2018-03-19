@@ -6,28 +6,6 @@ if [[ -n "$DB_DUMP_DEBUG" ]]; then
   set -x
 fi
 
-# usage: file_env VAR [DEFAULT]
-#    ie: file_env 'XYZ_DB_PASSWORD' 'example'
-# (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
-#  "$XYZ_DB_PASSWORD" from a file, especially for Docker's secrets feature
-function file_env() {
-	local var="$1"
-	local fileVar="${var}_FILE"
-	local def="${2:-}"
-	if [ "${!var:-}" ] && [ "${!fileVar:-}" ]; then
-		echo >&2 "error: both $var and $fileVar are set (but are exclusive)"
-		exit 1
-	fi
-	local val="$def"
-	if [ "${!var:-}" ]; then
-		val="${!var}"
-	elif [ "${!fileVar:-}" ]; then
-		val="$(< "${!fileVar}")"
-	fi
-	export "$var"="$val"
-	unset "$fileVar"
-}
-
 # get all variables from environment variables or files (e.g. VARIABLE_NAME_FILE)
 # (setting defaults happens here, too)
 file_env "DB_SERVER"
@@ -107,27 +85,27 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
       fi
     done
   fi
-	uri_parser ${DB_RESTORE_TARGET}
+  uri_parser ${DB_RESTORE_TARGET}
   if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
   elif [[ "${uri[schema]}" == "s3" ]]; then
     aws s3 cp "$DB_RESTORE_TARGET" $TMPRESTORE
-	elif [[ "${uri[schema]}" == "smb" ]]; then
+  elif [[ "${uri[schema]}" == "smb" ]]; then
     if [[ -n "$SMB_USER" ]]; then
       UPASSARG="-U"
-			UPASS="${SMB_USER}%${SMB_PASS}"
-		elif [[ -n "${uri[user]}" ]]; then
+      UPASS="${SMB_USER}%${SMB_PASS}"
+    elif [[ -n "${uri[user]}" ]]; then
       UPASSARG="-U"
-			UPASS="${uri[user]}%${uri[password]}"
-		else
+      UPASS="${uri[user]}%${uri[password]}"
+    else
       UPASSARG=
-			UPASS=
-		fi
-		if [[ -n "${uri[userdomain]}" ]]; then
-			UDOM="-W ${uri[userdomain]}"
-		else
-			UDOM=
-		fi
+      UPASS=
+    fi
+    if [[ -n "${uri[userdomain]}" ]]; then
+      UDOM="-W ${uri[userdomain]}"
+    else
+      UDOM=
+    fi
     smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "get ${uri[sharepath]} ${TMPRESTORE}"
   fi
   # did we get a file?
@@ -149,8 +127,8 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     done
   fi
 else
-	# determine target proto
-	uri_parser ${DB_DUMP_TARGET}
+  # determine target proto
+  uri_parser ${DB_DUMP_TARGET}
 
   # wait for the next time to start a backup
   # for debugging
@@ -232,7 +210,7 @@ else
       "smb")
         if [[ -n "$SMB_USER" ]]; then
           UPASSARG="-U"
-    			UPASS="${SMB_USER}%${SMB_PASS}"
+          UPASS="${SMB_USER}%${SMB_PASS}"
         elif [[ -n "${uri[user]}" ]]; then
           UPASSARG="-U"
           UPASS="${uri[user]}%${uri[password]}"
