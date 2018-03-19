@@ -6,13 +6,34 @@ if [[ -n "$DB_DUMP_DEBUG" ]]; then
   set -x
 fi
 
-# set our defaults
-# DB_DUMP_FREQ = how often to run a backup in minutes, i.e. how long to wait from the most recently completed to the next
-DB_DUMP_FREQ=${DB_DUMP_FREQ:-1440}
-# DB_DUMP_BEGIN = what time to start the first backup upon execution. If starts with '+' it means, "in x minutes"
-DB_DUMP_BEGIN=${DB_DUMP_BEGIN:-+0}
-# DB_DUMP_TARGET = where to place the backup file. Can be URL (e.g. smb://server/share/path) or just file path /foo
-DB_DUMP_TARGET=${DB_DUMP_TARGET:-/backup}
+# get all variables from environment variables or files (e.g. VARIABLE_NAME_FILE)
+# (setting defaults happens here, too)
+file_env "DB_SERVER"
+file_env "DB_PORT"
+file_env "DB_USER"
+file_env "DB_PASS"
+file_env "DB_NAMES"
+
+file_env "DB_DUMP_FREQ" "1440"
+file_env "DB_DUMP_BEGIN" "+0"
+file_env "DB_DUMP_DEBUG"
+file_env "DB_DUMP_TARGET" "/backup"
+
+file_env "DB_RESTORE_TARGET"
+
+file_env "AWS_ENDPOINT_URL"
+file_env "AWS_ENDPOINT_OPT"
+file_env "AWS_ACCESS_KEY_ID"
+file_env "AWS_SECRET_ACCESS_KEY"
+file_env "AWS_DEFAULT_REGION"
+
+file_env "SMB_USER"
+file_env "SMB_PASS"
+
+if [[ -n "$DB_DUMP_DEBUG" ]]; then
+  set -x
+fi
+
 # login credentials
 if [ -n "${DB_USER}" ]; then
   DBUSER="-u${DB_USER}"
@@ -33,14 +54,14 @@ done
 
 
 # database server
-if [ -z "${DBSERVER}" ]; then
-  echo "DBSERVER variable is required. Exiting."
+if [ -z "${DB_SERVER}" ]; then
+  echo "DB_SERVER variable is required. Exiting."
   exit 1
 fi
 # database port
-if [ -z "${DBPORT}" ]; then
-  echo "DBPORT not provided, defaulting to 3306"
-  DBPORT=3306
+if [ -z "${DB_PORT}" ]; then
+  echo "DB_PORT not provided, defaulting to 3306"
+  DB_PORT=3306
 fi
 
 
@@ -64,32 +85,32 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
       fi
     done
   fi
-	uri_parser ${DB_RESTORE_TARGET}
+  uri_parser ${DB_RESTORE_TARGET}
   if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
   elif [[ "${uri[schema]}" == "s3" ]]; then
     aws s3 cp "$DB_RESTORE_TARGET" $TMPRESTORE
-	elif [[ "${uri[schema]}" == "smb" ]]; then
+  elif [[ "${uri[schema]}" == "smb" ]]; then
     if [[ -n "$SMB_USER" ]]; then
       UPASSARG="-U"
-			UPASS="${SMB_USER}%${SMB_PASS}"
-		elif [[ -n "${uri[user]}" ]]; then
+      UPASS="${SMB_USER}%${SMB_PASS}"
+    elif [[ -n "${uri[user]}" ]]; then
       UPASSARG="-U"
-			UPASS="${uri[user]}%${uri[password]}"
-		else
+      UPASS="${uri[user]}%${uri[password]}"
+    else
       UPASSARG=
-			UPASS=
-		fi
-		if [[ -n "${uri[userdomain]}" ]]; then
-			UDOM="-W ${uri[userdomain]}"
-		else
-			UDOM=
-		fi
+      UPASS=
+    fi
+    if [[ -n "${uri[userdomain]}" ]]; then
+      UDOM="-W ${uri[userdomain]}"
+    else
+      UDOM=
+    fi
     smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "get ${uri[sharepath]} ${TMPRESTORE}"
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
-    gunzip < $TMPRESTORE | mysql -h $DBSERVER -P $DBPORT $DBUSER $DBPASS
+    gunzip < $TMPRESTORE | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS
     /bin/rm -f $TMPRESTORE
     exit 0
   else
@@ -106,8 +127,8 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     done
   fi
 else
-	# determine target proto
-	uri_parser ${DB_DUMP_TARGET}
+  # determine target proto
+  uri_parser ${DB_DUMP_TARGET}
 
   # wait for the next time to start a backup
   # for debugging
@@ -161,7 +182,7 @@ else
     fi
 
     # make the dump
-    mysqldump -h $DBSERVER -P $DBPORT $DBUSER $DBPASS $DB_LIST $DUMPVARS | gzip > ${TMPDIR}/${TARGET}
+    mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST | gzip > ${TMPDIR}/${TARGET}
 
     # Execute additional scripts for post porcessing. For example, create a new
     # backup file containing this db backup and a second tar file with the
@@ -189,7 +210,7 @@ else
       "smb")
         if [[ -n "$SMB_USER" ]]; then
           UPASSARG="-U"
-    			UPASS="${SMB_USER}%${SMB_PASS}"
+          UPASS="${SMB_USER}%${SMB_PASS}"
         elif [[ -n "${uri[user]}" ]]; then
           UPASSARG="-U"
           UPASS="${uri[user]}%${uri[password]}"
