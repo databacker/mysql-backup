@@ -181,6 +181,12 @@ Examples:
 2. Restore from an SMB file: `docker run -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.sql.gz deitch/mysql-backup`
 3. Restore from an S3 file: `docker run -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.sql.gz deitch/mysql-backup`
 
+### Restore when using docker-compose
+`docker-compose` automagically creates a network when started. `docker run` simply attaches to the bridge network. If you are trying to communicate with a mysql container started by docker-compose, you'll need to specify the network in your command arguments. You can use `docker network ls` to see what network is being used, or you can declare a network in your docker-compose.yml.
+
+#### Example:
+`docker run -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.sql.gz -v /local/path:/backup --network="skynet" deitch/mysql-backup`
+
 ### Using docker (or rancher) secrets
 Environment variables used in this image can be passed in files as well. This is useful when you are using docker (or rancher) secrets for storing sensitive information.
 
