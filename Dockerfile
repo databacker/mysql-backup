@@ -1,5 +1,5 @@
 # mysql backup image
-FROM alpine:3.6
+FROM alpine:3.7
 MAINTAINER Avi Deitcher <https://github.com/deitch>
 
 # install the necessary client
