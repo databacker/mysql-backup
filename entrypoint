@@ -112,7 +112,6 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   if [[ -f "$TMPRESTORE" ]]; then
     gunzip < $TMPRESTORE | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS
     /bin/rm -f $TMPRESTORE
-    exit 0
   else
     echo "Could not find restore file $DB_RESTORE_TARGET"
     exit 1
