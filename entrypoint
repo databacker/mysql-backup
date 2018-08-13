@@ -245,7 +245,7 @@ else
       waittime=$(($target_time - $current_time))
       sleep $waittime
     else
-      exit 1
+      exit 0
     fi
   done
 fi
