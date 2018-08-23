@@ -84,6 +84,22 @@ If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket.
 
 Note that for s3, you'll need to specify your AWS credentials and default AWS region via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION`
 
+#### Custom backup file name
+There may be use-cases where you need to modify the name of the backup file **before** it gets uploaded to the dump target. 
+An example is uploading a backup to a date stamped object key path in S3, i.e. ```s3://bucket/2018/08/23/path```.
+To do that, place an executable file called ```target.sh``` in the following path:
+
+      /scripts.d/target.sh
+
+Whatever your script returns to _stdout_ will be used as the name for the backup file.
+
+The following exported environment variables will be available to the script above:
+
+* `DUMPFILE`: full path in the container to the output file
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
+* `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
+
 ### Backup pre and post processing
 
 Any executable script with _.sh_ extension in _/scripts.d/pre-backup/_ or _/scripts.d/post-backup/_ directories in the container will be executed before
