@@ -84,8 +84,15 @@ If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket.
 
 Note that for s3, you'll need to specify your AWS credentials and default AWS region via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION`
 
-#### Custom backup file name
-There may be use-cases where you need to modify the name of the backup file **before** it gets uploaded to the dump target. 
+#### Custom backup source file name
+There may be use-cases where you need to modify the source path of the backup file **before** it gets uploaded to the dump target. 
+An example is combining multiple compressed files into one and giving it a new name, i.e. ```db-other-files-combined.tar.gz```.
+To do that, place an executable file called ```source.sh``` in the following path:
+
+      /scripts.d/source.sh
+
+#### Custom backup target file name
+There may be use-cases where you need to modify the target upload path of the backup file **before** it gets uploaded. 
 An example is uploading a backup to a date stamped object key path in S3, i.e. ```s3://bucket/2018/08/23/path```.
 To do that, place an executable file called ```target.sh``` in the following path:
 
