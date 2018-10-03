@@ -201,14 +201,12 @@ else
     # Execute a script to modify the name of the source file path before uploading to the dump target
     # For example, modifying the name of the source dump file from the default, e.g. db-other-files-combined.tar.gz
     if [ -f /scripts.d/source.sh ] && [ -x /scripts.d/source.sh ]; then
-        SOURCE=$(NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} /scripts.d/source.sh | tr -d '\040\011\012\015' )
+        SOURCE=$(NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${uri[path]} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} /scripts.d/source.sh | tr -d '\040\011\012\015')
 
         if [ -z "${SOURCE}" ]; then
             echo "Your source script located at /scripts.d/source.sh must return a value to stdout"
             exit 1
         fi
-
-        S
     fi
 
     # Execute a script to modify the name of the target file before uploading to the dump target.
