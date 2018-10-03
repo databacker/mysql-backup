@@ -87,9 +87,31 @@ Note that for s3, you'll need to specify your AWS credentials and default AWS re
 #### Custom backup source file name
 There may be use-cases where you need to modify the source path of the backup file **before** it gets uploaded to the dump target. 
 An example is combining multiple compressed files into one and giving it a new name, i.e. ```db-other-files-combined.tar.gz```.
-To do that, place an executable file called ```source.sh``` in the following path:
+To do that, place an executable file called `source.sh` in the following path:
 
       /scripts.d/source.sh
+
+Whatever your script returns to _stdout_ will be used as the source name for the backup file.
+
+The following exported environment variables will be available to the script above:
+
+* `DUMPFILE`: full path in the container to the output file
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
+* `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
+      
+**Example run:**
+
+      NOW=20180930151304 DUMPFILE=/tmp/backups/db_backup_201809301513.gz DUMPDIR=/backup DB_DUMP_DEBUG=true /scripts.d/source.sh
+      
+**Example custom source script:**
+  
+```bash
+  #!/bin/bash
+  
+  # Rename source file
+  echo -n "db-plus-wordpress_${NOW}.gz"
+```           
 
 #### Custom backup target file name
 There may be use-cases where you need to modify the target upload path of the backup file **before** it gets uploaded. 
@@ -106,6 +128,19 @@ The following exported environment variables will be available to the script abo
 * `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
+
+**Example run:**
+
+      NOW=20180930151304 DUMPFILE=/tmp/backups/db_backup_201809301513.gz DUMPDIR=/backup DB_DUMP_DEBUG=true /scripts.d/target.sh
+      
+**Example custom target script:**
+  
+```bash
+  #!/bin/bash
+  
+  # Rename target file
+  echo -n "db-plus-wordpress-uploaded_${NOW}.gz"
+``` 
 
 ### Backup pre and post processing
 
