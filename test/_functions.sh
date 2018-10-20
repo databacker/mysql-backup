@@ -25,7 +25,3 @@ function configure_backup_directory_target() {
 function get_default_source() {
     echo "db_backup_*.gz"
 }
-
-function get_default_target() {
-    $(get_default_source)
-}

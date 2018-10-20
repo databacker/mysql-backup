@@ -14,4 +14,7 @@ push: build
 	docker push $(IMAGE):latest
 
 test:
-	cd test && ./test.sh && ./test_source_target.sh
+	cd test && ./test.sh
+
+test_source_target:
+	cd test && ./test_source_target.sh

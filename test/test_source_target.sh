@@ -45,7 +45,7 @@ function run_default_source_target_test() {
 	fi
 
     # change our target
-    cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/:/scripts.d/ -v /tmp/backups:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+    cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v ${BACKUP_DIRECTORY_BASE}/${seqno}/:/scripts.d/ -v ${BACKUP_DIRECTORY_BASE}:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
 	echo $cid
 }
 
@@ -58,7 +58,7 @@ function checktest() {
 	local TARGET_FILE=$5
 
 	# where do we expect backups?
-	bdir=/tmp/backups/${seqno}/data		# change our target
+	bdir=${BACKUP_DIRECTORY_BASE}/${seqno}/data		# change our target
 	if [[ "$DEBUG" != "0" ]]; then
 		ls -la $bdir
 	fi
@@ -91,9 +91,11 @@ function checktest() {
 	    pass+=($seqno)
 	fi
 
-	[[ "$DEBUG" != "0" ]] && echo "Checking target backup filename matches expected ${t}"
-
-	[[ ${BACKUP_FILE##*/} == ${TARGET_FILE} ]] && pass+=($seqno) || fail+=("$seqno: $t uploaded target file name does not match expected")
+    if [[ ! -z ${TARGET_FILE} ]]; then
+        [[ "$DEBUG" != "0" ]] && echo "Checking target backup filename matches expected ${t}"
+        local BACKUP_FILE_BASENAME = ${BACKUP_FILE##*/}
+        [[ ${BACKUP_FILE_BASENAME} == ${TARGET_FILE} ]] && pass+=($seqno) || fail+=("${seqno}: ${t} uploaded target file name does not match expected. Found: ${BACKUP_FILE_BASENAME}")
+    fi
 }
 
 # we need to run through each each target and test the backup.
@@ -112,9 +114,9 @@ declare -a cids
 
 [[ "$DEBUG" != "0" ]] && echo "Resetting backups directory"
 
-/bin/rm -rf /tmp/backups
-mkdir -p /tmp/backups
-chmod -R 0777 /tmp/backups
+/bin/rm -rf ${BACKUP_DIRECTORY_BASE}
+mkdir -p ${BACKUP_DIRECTORY_BASE}
+chmod -R 0777 ${BACKUP_DIRECTORY_BASE}
 
 # build the core images
 QUIET="-q"
@@ -133,10 +135,9 @@ docker network create mysqltest
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
 [[ "$DEBUG" != "0" ]] && SMB_IMAGE="$SMB_IMAGE -F -d 25"
-smb_cid=$(docker run --net mysqltest --name=smb  -d -p 445:445 -v /tmp/backups:/share/backups -t ${SMB_IMAGE})
-mysql_cid=$(docker run --net mysqltest --name mysql -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:5.7)
-s3_cid=$(docker run --net mysqltest --name s3 -d -v /tmp/backups:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
-
+smb_cid=$(docker run --net mysqltest --name=smb  -d -p 445:445 -v ${BACKUP_DIRECTORY_BASE}:/share/backups:z -t ${SMB_IMAGE})
+mysql_cid=$(docker run --net mysqltest --name mysql -d -v /tmp/source:/tmp/source:z -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:5.7)
+s3_cid=$(docker run --net mysqltest --name s3 -d -v ${BACKUP_DIRECTORY_BASE}:/fakes3_root/s3/mybucket:z lphoward/fake-s3 -r /fakes3_root -p 443)
 
 # Allow up to 20 seconds for the database to be ready
 db_connect="docker exec -i $mysql_cid mysql -u$MYSQLUSER -p$MYSQLPW --wait --connect_timeout=20 tester"
@@ -163,10 +164,6 @@ docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$M
 # keep track of the sequence
 seq=0
 
-#
-
-
-#
 # do the file tests
 [[ "$DEBUG" != "0" ]] && echo "Doing tests"
 # create each target
@@ -205,7 +202,7 @@ declare -a pass
 seq=0
 for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
-	checktest $t $seq ${cids[$seq]} $(get_default_source) $(get_default_target)
+	checktest $t $seq ${cids[$seq]} $(get_default_source)
 	# increment our counter
 	((seq++)) || true
 done
