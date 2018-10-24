@@ -11,6 +11,7 @@ function configure_backup_directory_target() {
 	# replace SEQ if needed
 	t2=${t/SEQ/${seqno}}
 	mkdir -p ${BACKUP_DIRECTORY_BASE}/${seqno}/data
+	chmod -R 0777 ${BACKUP_DIRECTORY_BASE}/${seqno}
 	echo "target: ${t2}" >> ${BACKUP_DIRECTORY_BASE}/${seqno}/list
 
 	# are we working with nopath?
