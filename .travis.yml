@@ -1,8 +1,16 @@
 sudo: required
 
 services:
-  - docker
+- docker
 
-script:
-- make build
-- make test
+jobs:
+  include:
+  - stage: "Tests"
+    name: "core-test"
+    script:
+    - make build
+    - make test
+  - script:
+    - make build
+    - make test_source_target
+    name: "source-target-test"

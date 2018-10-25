@@ -15,3 +15,7 @@ push: build
 
 test:
 	cd test && ./test.sh
+
+test_source_target:
+	cd test && ./test_source_target.sh
+	

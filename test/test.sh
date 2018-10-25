@@ -291,7 +291,7 @@ for ((i=0; i< ${#targets[@]}; i++)); do
 	((seq++)) || true
 done
 
-[[ "$DEBUG" != "0" ]] && echo "Stopping and removing smb and mysql containers"
+[[ "$DEBUG" != "0" ]] && echo "Stopping and removing smb, mysql and s3 containers"
 CMD1="docker kill $smb_cid $mysql_cid $s3_cid"
 CMD2="docker rm $smb_cid $mysql_cid $s3_cid"
 if [[ "$DEBUG" == "0" ]]; then
