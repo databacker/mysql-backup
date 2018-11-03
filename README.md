@@ -52,6 +52,17 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 
 In addition, any environment variable that starts with `MYSQLDUMP_` will have the `MYSQLDUMP_` part stripped off, and the rest passed as an option to `mysqldump`. For example, `MYSQLDUMP_max_allowed_packet=123455678` will run `mysqldump --max_allowed_packet=123455678`.
 
+### Permissions
+By default, the backup/restore process does **not** run as root (UID O). Whenever possible, you should run processes (not just in containers) as users other than root. In this case, it runs as username `appuser` with UID/GID `1005`.
+
+In most scenarios, this will not affect your backup process negatively. However, if you are usingn the "Local" dump target, i.e. your `DB_DUMP_TARGET` starts with `/` - and, most likely, is a volume mounted into the container - you can run into permissions issues. For example, if your mounted directory is owned by root on the host, then the backup process will be unable to write to it.
+
+In this case, you have two options:
+
+* Run the container as root, `docker run --user 0 ... ` or, in i`docker-compose.yml`, `user: "0"`
+* Ensure your mounted directory is writable as UID or GID `1005`. 
+
+
 ### Database Container
 In order to perform the actual dump, `mysql-backup` needs to connect to the database container. You **must** pass the database hostname - which can be another container or any database process accessible from the backup container - by passing the environment variable `DB_SERVER` with the hostname or IP address of the database. You **may** override the default port of `3306` by passing the environment variable `DB_PORT`.
 
