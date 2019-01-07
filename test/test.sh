@@ -35,44 +35,56 @@ targets=(
 "smb://user:pass@smb/auth/SEQ/data"
 "smb://CONF;user:pass@smb/auth/SEQ/data"
 "s3://mybucket/SEQ/data"
+"file:///backups/SEQ/data file:///backups/SEQ/data"
 )
 
 function runtest() {
 	local t=$1
-	local seqno=$2
-	# where will we store
-	# create the backups directory
-	# clear the target
-	# replace SEQ if needed
-	t2=${t/SEQ/${seqno}}
-	mkdir -p /tmp/backups/${seqno}/data
-	echo "target: ${t2}" >> /tmp/backups/${seqno}/list
+	local sequence=$2
+        local subseq=0
+        local allTargets=
+        # we might have multiple targets
+        for target in $t ; do
+          seqno="${sequence}-${subseq}"
+	  # where will we store
+  	  # create the backups directory
+	  # clear the target
+	  # replace SEQ if needed
+	  t2=${target/SEQ/${seqno}}
+	  allTargets="${allTargets} ${t2}"
+	  mkdir -p /tmp/backups/${seqno}/data
+	  chmod 0777 /tmp/backups/${seqno}/data
+	  echo "target: ${t2}" >> /tmp/backups/${seqno}/list
 
-	# are we working with nopath?
-	if [[ "$t2" =~ nopath ]]; then
+	  # are we working with nopath?
+	  if [[ "$t2" =~ nopath ]]; then
 		rm -f /tmp/backups/nopath
 		ln -s ${seqno}/data /tmp/backups/nopath
-	fi
+	  fi
 
-  #Create a test script for the post backup processing test
-  mkdir -p /tmp/backups/${seqno}/{pre-backup,post-backup,pre-restore,post-restore}
-  echo touch /scripts.d/post-backup/post-backup.txt > /tmp/backups/${seqno}/post-backup/test.sh
-	echo touch /scripts.d/post-restore/post-restore.txt > /tmp/backups/${seqno}/post-restore/test.sh
-	echo touch /scripts.d/pre-backup/pre-backup.txt > /tmp/backups/${seqno}/pre-backup/test.sh
-	echo touch /scripts.d/pre-restore/pre-restore.txt > /tmp/backups/${seqno}/pre-restore/test.sh
-	chmod -R 0777 /tmp/backups/${seqno}
-  chmod 755 /tmp/backups/${seqno}/*/test.sh
+	  ((subseq++)) || true
+        done
 
-	# if in DEBUG, make sure backup also runs in DEBUG
+        #Create a test script for the post backup processing test
+        mkdir -p /tmp/backups/${sequence}/{pre-backup,post-backup,pre-restore,post-restore}
+        echo touch /scripts.d/post-backup/post-backup.txt > /tmp/backups/${sequence}/post-backup/test.sh
+        echo touch /scripts.d/post-restore/post-restore.txt > /tmp/backups/${sequence}/post-restore/test.sh
+        echo touch /scripts.d/pre-backup/pre-backup.txt > /tmp/backups/${sequence}/pre-backup/test.sh
+        echo touch /scripts.d/pre-restore/pre-restore.txt > /tmp/backups/${sequence}/pre-restore/test.sh
+        chmod -R 0777 /tmp/backups/${sequence}
+        chmod 755 /tmp/backups/${sequence}/*/test.sh
+
+  	# if in DEBUG, make sure backup also runs in DEBUG
 	if [[ "$DEBUG" != "0" ]]; then
 		DBDEBUG="-e DB_DUMP_DEBUG=2"
 	else
 		DBDEBUG=
 	fi
 
-
 	# change our target
-  cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${seqno}/:/scripts.d/ -v /tmp/backups:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+        # ensure that we remove leading whitespace from targets
+        allTargets=$(echo $allTargets | awk '{$1=$1;print}')
+  cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${sequence}/:/scripts.d/ -v /tmp/backups:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
 	echo $cid
 }
 
@@ -90,14 +102,9 @@ function runtest() {
 #
 function checktest() {
 	local t=$1
-	local seqno=$2
+	local sequence=$2
 	local cid=$3
-	# where do we expect backups?
-	bdir=/tmp/backups/${seqno}/data		# change our target
-	if [[ "$DEBUG" != "0" ]]; then
-		ls -la $bdir
-	fi
-
+	
 	# stop and remove the container
 	[[ "$DEBUG" != "0" ]] && echo "Stopping and removing ${cid}"
 	CMD1="docker kill ${cid}"
@@ -112,23 +119,47 @@ function checktest() {
 		$CMD2
 	fi
 
-	# check that the expected backups are in the right place
-	# need temporary places to hold files
-	TMP1=/tmp/backups/check1
-	TMP2=/tmp/backups/check2
+        POST_BACKUP_OUT_FILE="/tmp/backups/${sequence}/post-backup/post-backup.txt"
+	PRE_BACKUP_OUT_FILE="/tmp/backups/${sequence}/pre-backup/pre-backup.txt"
+	POST_RESTORE_OUT_FILE="/tmp/backups/${sequence}/post-restore/post-restore.txt"
+	PRE_RESTORE_OUT_FILE="/tmp/backups/${sequence}/pre-restore/pre-restore.txt"
+        if [[ -e "${POST_BACKUP_OUT_FILE}" ]]; then
+          pass+=($sequence)
+          rm -fr ${POST_BACKUP_OUT_FILE}
+        else
+          fail+=("$sequence: $item $t Post-backup script didn't run, output file doesn't exist")
+        fi
+	if [[ -e "${PRE_BACKUP_OUT_FILE}" ]]; then
+          pass+=($sequence)
+          rm -fr ${PRE_BACKUP_OUT_FILE}
+        else
+          fail+=("$sequence: $item $t Pre-backup script didn't run, output file doesn't exist")
+        fi
 
-	BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.gz 2>/dev/null)
-  POST_BACKUP_OUT_FILE="/tmp/backups/${seqno}/post-backup/post-backup.txt"
-	PRE_BACKUP_OUT_FILE="/tmp/backups/${seqno}/pre-backup/pre-backup.txt"
-	POST_RESTORE_OUT_FILE="/tmp/backups/${seqno}/post-restore/post-restore.txt"
-	PRE_RESTORE_OUT_FILE="/tmp/backups/${seqno}/pre-restore/pre-restore.txt"
+        # we might have multiple targets
+        local subseq=0
+        for target in $t ; do
+          seqno="${sequence}-${subseq}"
+	  # where do we expect backups?
+	  bdir=/tmp/backups/${seqno}/data		# change our target
+	  if [[ "$DEBUG" != "0" ]]; then
+  		ls -la $bdir
+  	  fi
 
-	# check for the directory
-	if [[ ! -d "$bdir" ]]; then
+
+	  # check that the expected backups are in the right place
+	  # need temporary places to hold files
+	  TMP1=/tmp/backups/check1
+	  TMP2=/tmp/backups/check2
+
+	  BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.gz 2>/dev/null)
+
+	  # check for the directory
+	  if [[ ! -d "$bdir" ]]; then
 		fail+=("$seqno: $t missing $bdir")
-	elif [[ -z "$BACKUP_FILE" ]]; then
+	  elif [[ -z "$BACKUP_FILE" ]]; then
 		fail+=("$seqno: $t missing zip file")
-	else
+	  else
 		# what if it was s3?
 		[[ -f "${BACKUP_FILE}/.fakes3_metadataFFF/content" ]] && BACKUP_FILE="${BACKUP_FILE}/.fakes3_metadataFFF/content"
 
@@ -146,20 +177,8 @@ function checktest() {
 			fail+=("$seqno: $item $t tar contents do not match actual dump")
 		fi
 
-	fi
-  if [[ -e "${POST_BACKUP_OUT_FILE}" ]]; then
-    pass+=($seqno)
-    rm -fr ${POST_BACKUP_OUT_FILE}
-  else
-    fail+=("$seqno: $item $t Post-backup script didn't run, output file doesn't exist")
-  fi
-	if [[ -e "${PRE_BACKUP_OUT_FILE}" ]]; then
-    pass+=($seqno)
-    rm -fr ${PRE_BACKUP_OUT_FILE}
-  else
-    fail+=("$seqno: $item $t Pre-backup script didn't run, output file doesn't exist")
-  fi
-	if [ -n "$TESTRESTORE" ]; then
+	  fi
+	  if [ -n "$TESTRESTORE" ]; then
 		if [[ -e "${POST_RESTORE_OUT_FILE}" ]]; then
 		  pass+=($seqno)
 		  rm -fr ${POST_RESTORE_OUT_FILE}
@@ -172,7 +191,9 @@ function checktest() {
 		else
 		  fail+=("$seqno: $item $t Pre-restore script didn't run, output file doesn't exist")
 		fi
-	fi
+	  fi
+	  ((subseq++)) || true
+        done
 }
 
 # we need to run through each each target and test the backup.
@@ -255,7 +276,7 @@ seq=0
 [[ "$DEBUG" != "0" ]] && echo "Running backups for each target"
 for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
-	cids[$seq]=$(runtest $t $seq)
+	cids[$seq]=$(runtest "$t" $seq)
 	# increment our counter
 	((seq++)) || true
 done
@@ -286,7 +307,7 @@ declare -a pass
 seq=0
 for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
-	checktest $t $seq ${cids[$seq]}
+	checktest "$t" $seq ${cids[$seq]}
 	# increment our counter
 	((seq++)) || true
 done
