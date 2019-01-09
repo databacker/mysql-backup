@@ -49,6 +49,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `AWS_DEFAULT_REGION`: Region in which the bucket resides
 * `SMB_USER`: SMB username. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
+* `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
 
 In addition, any environment variable that starts with `MYSQLDUMP_` will have the `MYSQLDUMP_` part stripped off, and the rest passed as an option to `mysqldump`. For example, `MYSQLDUMP_max_allowed_packet=123455678` will run `mysqldump --max_allowed_packet=123455678`.
 
@@ -71,9 +72,9 @@ docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_
 ````
 
 ### Dump Target
-The dump target is where you want the backup files to be saved. The backup file *always* is a gzipped file the following format:
+The dump target is where you want the backup files to be saved. The backup file *always* is a compressed file the following format:
 
-`db_backup_YYYYMMDDHHmm.gz`
+`db_backup_YYYYMMDDHHmm.<compression>`
 
 Where:
 
@@ -82,6 +83,7 @@ Where:
 * DD = date for 01-31
 * HH = hour from 00-23
 * mm = minute from 00-59
+* compression = appropriate file ending for selected compression, one of: `gz` (gzip, default); `bz2` (bzip2)
 
 The time used is UTC time at the moment the dump begins.
 
@@ -241,7 +243,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
-* `DB_RESTORE_TARGET`: path to the actual restore file, which should be a gzip of an sql dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
+* `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
 * `DB_DUMP_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
 * To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined.
 

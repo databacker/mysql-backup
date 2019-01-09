@@ -30,6 +30,8 @@ file_env "AWS_DEFAULT_REGION"
 file_env "SMB_USER"
 file_env "SMB_PASS"
 
+file_env "COMPRESSION" "gzip"
+
 if [[ -n "$DB_DUMP_DEBUG" ]]; then
   set -x
 fi
@@ -63,6 +65,26 @@ if [ -z "${DB_PORT}" ]; then
   echo "DB_PORT not provided, defaulting to 3306"
   DB_PORT=3306
 fi
+
+#
+# set compress and decompress commands
+COMPRESS=
+UNCOMPRESS=
+case $COMPRESSION in
+  gzip)
+    COMPRESS="gzip"
+    UNCOMPRESS="gunzip"
+    EXTENSION="gz"
+    ;;
+  bzip2)
+    COMPRESS="bzip2"
+    UNCOMPRESS="bzip2 -d"
+    EXTENSION="bz2"
+    ;;
+  *)
+    echo "Unknown compression requested: $COMPRESSION" >&2
+    exit 1
+esac
 
 
 # temporary dump dir
@@ -110,7 +132,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
-    gunzip < $TMPRESTORE | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS
+    $UNCOMPRESS < $TMPRESTORE | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS
     /bin/rm -f $TMPRESTORE
   else
     echo "Could not find restore file $DB_RESTORE_TARGET"

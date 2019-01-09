@@ -94,7 +94,7 @@ function do_dump() {
   now=$(date -u +"%Y%m%d%H%M%S")
   # SOURCE: file that the uploader looks for when performing the upload
   # TARGET: the remote file that is actually uploaded
-  SOURCE=db_backup_${now}.gz
+  SOURCE=db_backup_${now}.$EXTENSION
   TARGET=${SOURCE}
 
   # Execute additional scripts for pre processing. For example, uncompress a
@@ -115,7 +115,7 @@ function do_dump() {
   fi
 
   # do the dump
-  mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $DUMPVARS | gzip > ${TMPDIR}/${SOURCE}
+  mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $DUMPVARS | $COMPRESS > ${TMPDIR}/${SOURCE}
 
   # Execute additional scripts for post processing. For example, create a new
   # backup file containing this db backup and a second tar file with the
@@ -129,7 +129,7 @@ function do_dump() {
   fi
 
   # Execute a script to modify the name of the source file path before uploading to the dump target
-  # For example, modifying the name of the source dump file from the default, e.g. db-other-files-combined.tar.gz
+  # For example, modifying the name of the source dump file from the default, e.g. db-other-files-combined.tar.$EXTENSION
   if [ -f /scripts.d/source.sh ] && [ -x /scripts.d/source.sh ]; then
       SOURCE=$(NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} /scripts.d/source.sh | tr -d '\040\011\012\015')
 
