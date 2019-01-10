@@ -19,3 +19,10 @@ test:
 test_source_target:
 	cd test && ./test_source_target.sh
 	
+
+clean-test:
+	docker kill $(docker ps | awk '/mysql/ {print $1}')
+	docker rm $(docker ps -a | awk '/mysql/ {print $1}')
+	docker kill s3 && docker rm s3
+	docker network rm mysqltest
+
