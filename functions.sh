@@ -108,14 +108,28 @@ function do_dump() {
     done
   fi
 
-  if [[ -n "$DB_NAMES" ]]; then
-    DB_LIST="--databases $DB_NAMES"
-  else
-    DB_LIST="-A"
-  fi
-
   # do the dump
-  mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $DUMPVARS | $COMPRESS > ${TMPDIR}/${SOURCE}
+  workdir=/tmp/backup.$$
+  rm -rf $workdir
+  mkdir -p $workdir
+  # if we asked to do by schema, then we need to get a list of all of the databases, take each, and then tar and zip them
+  if [ -n "$DB_DUMP_BY_SCHEMA" -a "$DB_DUMP_BY_SCHEMA" = "true" ]; then
+    if [[ -z "$DB_NAMES" ]]; then
+      DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
+    fi
+    for onedb in $DB_NAMES; do
+      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases $onedb $DUMPVARS > $workdir/$onedb.sql
+    done
+  else
+    # just a single command
+    if [[ -n "$DB_NAMES" ]]; then
+      DB_LIST="--databases $DB_NAMES"
+    else
+      DB_LIST="-A"
+    fi
+    mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $DUMPVARS > $workdir/backup.sql
+  fi
+  tar -C $workdir -O . | $COMPRESS > ${TMPDIR}/${SOURCE}
 
   # Execute additional scripts for post processing. For example, create a new
   # backup file containing this db backup and a second tar file with the

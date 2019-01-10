@@ -16,7 +16,7 @@ BACKUP_DIRECTORY_BASE=/tmp/backups
 RWD=${PWD}
 MYSQLUSER=user
 MYSQLPW=abcdefg
-MYSQLDUMP=/tmp/source/backup.gz
+MYSQLDUMP=/tmp/source/backup.tgz
 
 mkdir -p /tmp/source
 
@@ -158,8 +158,7 @@ if [[ $success != 0 ]]; then
 	echo -n "failed to connect to database after $retryMax tries." >&2
 fi
 
-echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | $db_connect
-docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$MYSQLPW | gzip > ${MYSQLDUMP}
+create_backup_file $MYSQLDUMP
 
 # keep track of the sequence
 seq=0

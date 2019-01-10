@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+source ./_functions.sh
 
 DEBUG=${DEBUG:-0}
 [[ -n "$DEBUG" && "$DEBUG" == "verbose" ]] && DEBUG=1
@@ -17,7 +18,7 @@ SMB_IMAGE=mysqlbackup_smb_test:latest
 RWD=${PWD}
 MYSQLUSER=user
 MYSQLPW=abcdefg
-MYSQLDUMP=/tmp/source/backup.gz
+MYSQLDUMP=/tmp/source/backup.tgz
 
 mkdir -p /tmp/source
 
@@ -152,7 +153,7 @@ function checktest() {
 	  TMP1=/tmp/backups/check1
 	  TMP2=/tmp/backups/check2
 
-	  BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.gz 2>/dev/null)
+	  BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.tgz 2>/dev/null)
 
 	  # check for the directory
 	  if [[ ! -d "$bdir" ]]; then
@@ -260,8 +261,7 @@ if [[ $success != 0 ]]; then
 	echo -n "failed to connect to database after $retryMax tries." >&2
 fi
 
-echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | $db_connect
-docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$MYSQLPW | gzip > ${MYSQLDUMP}
+create_backup_file $MYSQLDUMP
 
 # keep track of the sequence
 seq=0
