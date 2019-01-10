@@ -18,6 +18,7 @@ file_env "DB_DUMP_FREQ" "1440"
 file_env "DB_DUMP_BEGIN" "+0"
 file_env "DB_DUMP_DEBUG"
 file_env "DB_DUMP_TARGET" "/backup"
+file_env "DB_DUMP_BY_SCHEMA"
 
 file_env "DB_RESTORE_TARGET"
 
@@ -74,12 +75,12 @@ case $COMPRESSION in
   gzip)
     COMPRESS="gzip"
     UNCOMPRESS="gunzip"
-    EXTENSION="gz"
+    EXTENSION="tgz"
     ;;
   bzip2)
     COMPRESS="bzip2"
     UNCOMPRESS="bzip2 -d"
-    EXTENSION="bz2"
+    EXTENSION="tbz2"
     ;;
   *)
     echo "Unknown compression requested: $COMPRESSION" >&2

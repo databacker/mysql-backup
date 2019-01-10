@@ -1,6 +1,19 @@
 #!/bin/bash
 set -e
 
+# create a tmp backupfile
+function create_backup_file() {
+  local target=$1 
+  echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | $db_connect
+  tmpdumpdir=/tmp/backup.$$
+  rm -rf $tmpdumpdir
+  mkdir $tmpdumpdir
+  tmpdumpfile=backup.sql
+  docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$MYSQLPW > $tmpdumpdir/$tmpdumpfile
+  tar -C $tmpdumpdir cvf - $tmpdumpfile | gzip > ${target}
+  rm -rf $tmpdumpdir
+}
+
 # Configure backup directory
 function configure_backup_directory_target() {
     local t=$1
@@ -24,5 +37,5 @@ function configure_backup_directory_target() {
 }
 
 function get_default_source() {
-    echo "db_backup_*.gz"
+    echo "db_backup_*.tgz"
 }
