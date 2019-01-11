@@ -19,6 +19,7 @@ file_env "DB_DUMP_BEGIN" "+0"
 file_env "DB_DUMP_DEBUG"
 file_env "DB_DUMP_TARGET" "/backup"
 file_env "DB_DUMP_BY_SCHEMA"
+file_env "DB_DUMP_KEEP_PERMISSIONS" "true"
 
 file_env "DB_RESTORE_TARGET"
 

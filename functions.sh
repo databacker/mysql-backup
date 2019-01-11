@@ -178,7 +178,9 @@ function backup_target() {
   case "${uri[schema]}" in
     "file")
       mkdir -p ${uri[path]}
-      cp -a ${TMPDIR}/${SOURCE} ${uri[path]}/${TARGET}
+      cpOpts="-a"
+      [ -n "$DB_DUMP_KEEP_PERMISSIONS" -a "$DB_DUMP_KEEP_PERMISSIONS" = "false" ] && cpOpts=""
+      cp $cpOpts ${TMPDIR}/${SOURCE} ${uri[path]}/${TARGET}
       ;;
     "s3")
       # allow for endpoint url override
