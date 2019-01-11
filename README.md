@@ -51,6 +51,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
 * `DB_DUMP_BY_SCHEMA`: Whether to use separate files per schema in the compressed file (`true`), or a single dump file (`false`). Defaults to `false`.
+* `DB_DUMP_KEEP_PERMISSIONS`: Whether to keep permissions for a file target. By default, `mysql-backup` copies the backup compressed file to the target with `cp -a`. In certain filesystems with certain permissions, this may cause errors. You can disable the `-a` flag by setting `DB_DUMP_KEEP_PERMISSIONS=false`. Defaults to `true`.
 
 In addition, any environment variable that starts with `MYSQLDUMP_` will have the `MYSQLDUMP_` part stripped off, and the rest passed as an option to `mysqldump`. For example, `MYSQLDUMP_max_allowed_packet=123455678` will run `mysqldump --max_allowed_packet=123455678`.
 
