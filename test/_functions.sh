@@ -10,7 +10,7 @@ function create_backup_file() {
   mkdir $tmpdumpdir
   tmpdumpfile=backup.sql
   docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$MYSQLPW > $tmpdumpdir/$tmpdumpfile
-  tar -C $tmpdumpdir cvf - $tmpdumpfile | gzip > ${target}
+  tar -C $tmpdumpdir -cvf - $tmpdumpfile | gzip > ${target}
   rm -rf $tmpdumpdir
 }
 
