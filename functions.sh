@@ -118,7 +118,7 @@ function do_dump() {
       DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
     fi
     for onedb in $DB_NAMES; do
-      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases $onedb $DUMPVARS > $workdir/$onedb.sql
+      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases $onedb $DUMPVARS > $workdir/$onedb_${now}.sql
     done
   else
     # just a single command
@@ -127,7 +127,7 @@ function do_dump() {
     else
       DB_LIST="-A"
     fi
-    mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $DUMPVARS > $workdir/backup.sql
+    mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $DUMPVARS > $workdir/backup_${now}.sql
   fi
   tar -C $workdir -O . | $COMPRESS > ${TMPDIR}/${SOURCE}
 
