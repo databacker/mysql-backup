@@ -129,7 +129,8 @@ function do_dump() {
     fi
     mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $DUMPVARS > $workdir/backup_${now}.sql
   fi
-  tar -C $workdir -O . | $COMPRESS > ${TMPDIR}/${SOURCE}
+  tar -C $workdir -cvf - . | $COMPRESS > ${TMPDIR}/${SOURCE}
+  rm -rf $workdir
 
   # Execute additional scripts for post processing. For example, create a new
   # backup file containing this db backup and a second tar file with the
