@@ -118,7 +118,7 @@ function do_dump() {
       DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
     fi
     for onedb in $DB_NAMES; do
-      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases $onedb $DUMPVARS > $workdir/$onedb_${now}.sql
+      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $DUMPVARS > $workdir/${onedb}_${now}.sql
     done
   else
     # just a single command
