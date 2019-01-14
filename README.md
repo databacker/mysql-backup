@@ -52,8 +52,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
 * `DB_DUMP_BY_SCHEMA`: Whether to use separate files per schema in the compressed file (`true`), or a single dump file (`false`). Defaults to `false`.
 * `DB_DUMP_KEEP_PERMISSIONS`: Whether to keep permissions for a file target. By default, `mysql-backup` copies the backup compressed file to the target with `cp -a`. In certain filesystems with certain permissions, this may cause errors. You can disable the `-a` flag by setting `DB_DUMP_KEEP_PERMISSIONS=false`. Defaults to `true`.
+* `MYSQLDUMP_OPTS`: A string of options to pass to `mysqldump`, e.g. `MYSQLDUMP_OPTS="--opt abc --param def --max_allowed_packet=123455678"` will run `mysqldump --opt abc --param def --max_allowed_packet=123455678`
 
-In addition, any environment variable that starts with `MYSQLDUMP_` will have the `MYSQLDUMP_` part stripped off, and the rest passed as an option to `mysqldump`. For example, `MYSQLDUMP_max_allowed_packet=123455678` will run `mysqldump --max_allowed_packet=123455678`.
 
 ### Permissions
 By default, the backup/restore process does **not** run as root (UID O). Whenever possible, you should run processes (not just in containers) as users other than root. In this case, it runs as username `appuser` with UID/GID `1005`.

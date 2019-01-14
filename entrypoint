@@ -38,6 +38,9 @@ if [[ -n "$DB_DUMP_DEBUG" ]]; then
   set -x
 fi
 
+# ensure it is defined
+MYSQLDUMP_OPTS=${MYSQLDUMP_OPTS:-}
+
 # login credentials
 if [ -n "${DB_USER}" ]; then
   DBUSER="-u${DB_USER}"
@@ -49,13 +52,6 @@ if [ -n "${DB_PASS}" ]; then
 else
   DBPASS=
 fi
-
-# capture our var settings
-DUMPVARS=""
-for i in $(env | awk -F_ '/^MYSQLDUMP_/ {print $2}'); do
-  DUMPVARS="${DUMPVARS} --${i}"
-done
-
 
 # database server
 if [ -z "${DB_SERVER}" ]; then
