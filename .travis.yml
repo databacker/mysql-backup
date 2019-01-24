@@ -10,7 +10,3 @@ jobs:
     script:
     - make build
     - make test
-  - script:
-    - make build
-    - make test_source_target
-    name: "source-target-test"

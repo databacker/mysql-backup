@@ -15,10 +15,12 @@ TESTS=$2
 BACKUP_IMAGE=mysqlbackup_backup_test:latest
 SMB_IMAGE=mysqlbackup_smb_test:latest
 
+
 RWD=${PWD}
 MYSQLUSER=user
 MYSQLPW=abcdefg
 MYSQLDUMP=/tmp/source/backup.tgz
+TMPBACKUPDIR=/tmp/backup.$$
 
 mkdir -p /tmp/source
 
@@ -53,27 +55,27 @@ function runtest() {
 	  # replace SEQ if needed
 	  t2=${target/SEQ/${seqno}}
 	  allTargets="${allTargets} ${t2}"
-	  mkdir -p /tmp/backups/${seqno}/data
-	  chmod 0777 /tmp/backups/${seqno}/data
-	  echo "target: ${t2}" >> /tmp/backups/${seqno}/list
+	  mkdir -p ${TMPBACKUPDIR}/${seqno}/data
+	  chmod 0777 ${TMPBACKUPDIR}/${seqno}/data
+	  echo "target: ${t2}" >> ${TMPBACKUPDIR}/${seqno}/list
 
 	  # are we working with nopath?
 	  if [[ "$t2" =~ nopath ]]; then
-		rm -f /tmp/backups/nopath
-		ln -s ${seqno}/data /tmp/backups/nopath
+		rm -f ${TMPBACKUPDIR}/nopath
+		ln -s ${seqno}/data ${TMPBACKUPDIR}/nopath
 	  fi
 
 	  ((subseq++)) || true
         done
 
         #Create a test script for the post backup processing test
-        mkdir -p /tmp/backups/${sequence}/{pre-backup,post-backup,pre-restore,post-restore}
-        echo touch /scripts.d/post-backup/post-backup.txt > /tmp/backups/${sequence}/post-backup/test.sh
-        echo touch /scripts.d/post-restore/post-restore.txt > /tmp/backups/${sequence}/post-restore/test.sh
-        echo touch /scripts.d/pre-backup/pre-backup.txt > /tmp/backups/${sequence}/pre-backup/test.sh
-        echo touch /scripts.d/pre-restore/pre-restore.txt > /tmp/backups/${sequence}/pre-restore/test.sh
-        chmod -R 0777 /tmp/backups/${sequence}
-        chmod 755 /tmp/backups/${sequence}/*/test.sh
+        mkdir -p ${TMPBACKUPDIR}/${sequence}/{pre-backup,post-backup,pre-restore,post-restore}
+        echo touch /scripts.d/post-backup/post-backup.txt > ${TMPBACKUPDIR}/${sequence}/post-backup/test.sh
+        echo touch /scripts.d/post-restore/post-restore.txt > ${TMPBACKUPDIR}/${sequence}/post-restore/test.sh
+        echo touch /scripts.d/pre-backup/pre-backup.txt > ${TMPBACKUPDIR}/${sequence}/pre-backup/test.sh
+        echo touch /scripts.d/pre-restore/pre-restore.txt > ${TMPBACKUPDIR}/${sequence}/pre-restore/test.sh
+        chmod -R 0777 ${TMPBACKUPDIR}/${sequence}
+        chmod 755 ${TMPBACKUPDIR}/${sequence}/*/test.sh
 
   	# if in DEBUG, make sure backup also runs in DEBUG
 	if [[ "$DEBUG" != "0" ]]; then
@@ -85,7 +87,7 @@ function runtest() {
 	# change our target
         # ensure that we remove leading whitespace from targets
         allTargets=$(echo $allTargets | awk '{$1=$1;print}')
-  cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v /tmp/backups/${sequence}/:/scripts.d/ -v /tmp/backups:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+  cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v ${TMPBACKUPDIR}/${sequence}/:/scripts.d/ -v ${TMPBACKUPDIR}:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
 	echo $cid
 }
 
@@ -120,10 +122,10 @@ function checktest() {
 		$CMD2
 	fi
 
-        POST_BACKUP_OUT_FILE="/tmp/backups/${sequence}/post-backup/post-backup.txt"
-	PRE_BACKUP_OUT_FILE="/tmp/backups/${sequence}/pre-backup/pre-backup.txt"
-	POST_RESTORE_OUT_FILE="/tmp/backups/${sequence}/post-restore/post-restore.txt"
-	PRE_RESTORE_OUT_FILE="/tmp/backups/${sequence}/pre-restore/pre-restore.txt"
+        POST_BACKUP_OUT_FILE="${TMPBACKUPDIR}/${sequence}/post-backup/post-backup.txt"
+	PRE_BACKUP_OUT_FILE="${TMPBACKUPDIR}/${sequence}/pre-backup/pre-backup.txt"
+	POST_RESTORE_OUT_FILE="${TMPBACKUPDIR}/${sequence}/post-restore/post-restore.txt"
+	PRE_RESTORE_OUT_FILE="${TMPBACKUPDIR}/${sequence}/pre-restore/pre-restore.txt"
         if [[ -e "${POST_BACKUP_OUT_FILE}" ]]; then
           pass+=($sequence)
           rm -fr ${POST_BACKUP_OUT_FILE}
@@ -142,7 +144,7 @@ function checktest() {
         for target in $t ; do
           seqno="${sequence}-${subseq}"
 	  # where do we expect backups?
-	  bdir=/tmp/backups/${seqno}/data		# change our target
+	  bdir=${TMPBACKUPDIR}/${seqno}/data		# change our target
 	  if [[ "$DEBUG" != "0" ]]; then
   		ls -la $bdir
   	  fi
@@ -150,8 +152,8 @@ function checktest() {
 
 	  # check that the expected backups are in the right place
 	  # need temporary places to hold files
-	  TMP1=/tmp/backups/check1
-	  TMP2=/tmp/backups/check2
+	  TMP1=${TMPBACKUPDIR}/check1
+	  TMP2=${TMPBACKUPDIR}/check2
 
 	  BACKUP_FILE=$(ls -d1 $bdir/db_backup_*.tgz 2>/dev/null)
 
@@ -213,11 +215,11 @@ declare -a cids
 
 [[ "$DEBUG" != "0" ]] && echo "Resetting backups directory"
 
-/bin/rm -rf /tmp/backups
-mkdir -p /tmp/backups
-chmod -R 0777 /tmp/backups
-#setfacl -d -m g::rwx /tmp/backups
-#setfacl -d -m o::rwx /tmp/backups
+/bin/rm -rf ${TMPBACKUPDIR}
+mkdir -p ${TMPBACKUPDIR}
+chmod -R 0777 ${TMPBACKUPDIR}
+#setfacl -d -m g::rwx ${TMPBACKUPDIR}
+#setfacl -d -m o::rwx ${TMPBACKUPDIR}
 
 
 # build the core images
@@ -236,10 +238,9 @@ docker network create mysqltest
 
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
-[[ "$DEBUG" != "0" ]] && SMB_IMAGE="$SMB_IMAGE -F -d 25"
-smb_cid=$(docker run --net mysqltest --name=smb  -d -p 445:445 -v /tmp/backups:/share/backups -t ${SMB_IMAGE})
+smb_cid=$(docker run --net mysqltest --name=smb  -d -p 445:445 -v ${TMPBACKUPDIR}:/share/backups -t ${SMB_IMAGE})
 mysql_cid=$(docker run --net mysqltest --name mysql -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:5.7)
-s3_cid=$(docker run --net mysqltest --name s3 -d -v /tmp/backups:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
+s3_cid=$(docker run --net mysqltest --name s3 -d -v ${TMPBACKUPDIR}:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
 
 
 # Allow up to 20 seconds for the database to be ready

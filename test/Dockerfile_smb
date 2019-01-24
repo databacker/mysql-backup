@@ -17,5 +17,4 @@ RUN adduser user -D -H
 RUN echo user:pass | chpasswd
 
 # run samba in the foreground
-ENTRYPOINT ["/usr/sbin/smbd"]
-CMD ["-F"]
+CMD /usr/sbin/smbd -F -S -d 4 < /dev/null
