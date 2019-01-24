@@ -11,6 +11,8 @@ RUN apk add --update mysql-client bash python3 samba-client shadow && \
 # set us up to run as non-root user
 RUN groupadd -g 1005 appuser && \
     useradd -r -u 1005 -g appuser appuser
+# ensure smb stuff works correctly
+RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba
 USER appuser
 
 # install the entrypoint

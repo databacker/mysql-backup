@@ -5,7 +5,7 @@ set -e
 function create_backup_file() {
   local target=$1 
   echo 'use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");' | $db_connect
-  tmpdumpdir=/tmp/backup.$$
+  tmpdumpdir=/tmp/backup_holder.$$
   rm -rf $tmpdumpdir
   mkdir $tmpdumpdir
   tmpdumpfile=backup.sql

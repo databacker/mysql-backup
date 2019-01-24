@@ -13,12 +13,16 @@ push: build
 	docker push $(TARGET)
 	docker push $(IMAGE):latest
 
-test:
-	cd test && DEBUG=$(DEBUG) ./test.sh
+test_dump:
+	cd test && DEBUG=$(DEBUG) ./test_dump.sh
+
+test_cron:
+	docker run --rm -e DEBUG=$(DEBUG) -v $(PWD):/data alpine:3.8 sh -c "apk --update add bash; cd /data/test; ./test_cron.sh"
 
 test_source_target:
 	cd test && ./test_source_target.sh
-	
+
+test: test_dump test_cron test_source_target	
 
 clean-test:
 	docker kill $(docker ps | awk '/mysql/ {print $1}')

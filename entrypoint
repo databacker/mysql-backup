@@ -158,12 +158,15 @@ else
   freq_time=$(($DB_DUMP_FREQ*60))
   # get the begin time on our date
   # REMEMBER: we are using the basic date package in alpine
-  today=$(date +"%Y%m%d")
   # could be a delay in minutes or an absolute time of day
-  if [[ $DB_DUMP_BEGIN =~ ^\+(.*)$ ]]; then
+  if [ -n "$DB_DUMP_CRON" ]; then
+    # calculate how long until the next cron instance is met
+    waittime=$(wait_for_cron "$DB_DUMP_CRON")
+  elif [[ $DB_DUMP_BEGIN =~ ^\+(.*)$ ]]; then
     waittime=$(( ${BASH_REMATCH[1]} * 60 ))
     target_time=$(($current_time + $waittime))
   else
+    today=$(date +"%Y%m%d")
     target_time=$(date --date="${today}${DB_DUMP_BEGIN}" +"%s")
 
     if [[ "$target_time" < "$current_time" ]]; then
@@ -191,7 +194,11 @@ else
     /bin/rm ${TMPDIR}/${SOURCE}
 
     # wait, unless RUN_ONCE is set
-    if [ -z "${RUN_ONCE}" ]; then
+    if [ -n "${RUN_ONCE}" ]; then
+      exit 0
+    elif [ -n "${DB_DUMP_CRON}" ]; then
+      waittime=$(wait_for_cron "${DB_DUMP_CRON}")
+    else
       current_time=$(date +"%s")
       # Calculate how long the previous backup took
       backup_time=$(($current_time - $target_time))
@@ -205,9 +212,7 @@ else
       target_time=$(($target_time + $extra_time))
       # Calculate the wait time
       waittime=$(($target_time - $current_time))
-      sleep $waittime
-    else
-      exit 0
     fi
+    sleep $waittime
   done
 fi

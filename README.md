@@ -38,7 +38,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
     * Absolute: HHMM, e.g. `2330` or `0415`
     * Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half
-* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, the `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` become obsolete. 
+* `DB_DUMP_CRON`: Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line. 
+* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, all other scheduling options, like `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` and `DB_DUMP_CRON`, become obsolete. 
 * `DB_DUMP_DEBUG`: If set to `true`, print copious shell script messages to the container log. Otherwise only basic messages are printed.
 * `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Can have multiple targets separated by whitespace. Supports three formats:
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
@@ -53,6 +54,32 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_DUMP_BY_SCHEMA`: Whether to use separate files per schema in the compressed file (`true`), or a single dump file (`false`). Defaults to `false`.
 * `DB_DUMP_KEEP_PERMISSIONS`: Whether to keep permissions for a file target. By default, `mysql-backup` copies the backup compressed file to the target with `cp -a`. In certain filesystems with certain permissions, this may cause errors. You can disable the `-a` flag by setting `DB_DUMP_KEEP_PERMISSIONS=false`. Defaults to `true`.
 * `MYSQLDUMP_OPTS`: A string of options to pass to `mysqldump`, e.g. `MYSQLDUMP_OPTS="--opt abc --param def --max_allowed_packet=123455678"` will run `mysqldump --opt abc --param def --max_allowed_packet=123455678`
+
+### Scheduling
+There are several options for scheduling how often a backup should run:
+
+* `RUN_ONCE`: run just once and exit.
+* `DB_DUMP_FREQ` and `DB_DUMP_BEGIN`: run every x minutes, and run the first one at a particular time.
+* `DB_DUMP_CRON`: run on a schedule.
+
+#### Cron Scheduling
+If a cron-scheduled backup takes longer than the beginning of the next backup window, it will be skipped. For example, if your cron line is scheduled to backup every hour, as follows:
+
+```
+0 * * * *
+```
+
+And the backup that runs at 13:00 finishes at 14:05, the next backup will not be immediate, but rather at 15:00.
+
+The cron algorithm is as follows: after each backup run, calculate the next time that the cron statement will be true and schedule the backup then.
+
+#### Order of Priority
+The scheduling options have an order of priority:
+
+1. `RUN_ONCE` runs once, immediately, and exits, ignoring everything else.
+2. `DB_DUMP_CRON`: runs according to the cron schedule, ignoring `DB_DUMP_FREQ` and `DB_DUMP_BEGIN`.
+3. `DB_DUMP_FREQ` and `DB_DUMP_BEGIN`: if nothing else is set.
+
 
 
 ### Permissions
