@@ -133,7 +133,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     workdir=/tmp/restore.$$
     rm -rf $workdir
     mkdir -p $workdir
-    $UNCOMPRESS < $TMPRESTORE | tar -C $workdir xvf -
+    $UNCOMPRESS < $TMPRESTORE | tar -C $workdir -xvf -
     cat $workdir/* | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS
     rm -rf $workdir
     /bin/rm -f $TMPRESTORE
