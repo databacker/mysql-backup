@@ -239,7 +239,7 @@ docker network create mysqltest
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
 smb_cid=$(docker run --net mysqltest --name=smb  -d -p 445:445 -v ${TMPBACKUPDIR}:/share/backups -t ${SMB_IMAGE})
-mysql_cid=$(docker run --net mysqltest --name mysql -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:5.7)
+mysql_cid=$(docker run --net mysqltest --name mysql -d -v /tmp/source:/tmp/source -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:8.0)
 s3_cid=$(docker run --net mysqltest --name s3 -d -v ${TMPBACKUPDIR}:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
 
 

@@ -1,9 +1,9 @@
 # mysql backup image
-FROM alpine:3.8
+FROM alpine:3.9
 MAINTAINER Avi Deitcher <https://github.com/deitch>
 
 # install the necessary client
-RUN apk add --update mysql-client bash python3 samba-client shadow && \
+RUN apk add --update mysql-client mariadb-connector-c bash python3 samba-client shadow && \
     rm -rf /var/cache/apk/* && \
     touch /etc/samba/smb.conf && \
     pip3 install awscli
