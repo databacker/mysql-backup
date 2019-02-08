@@ -216,7 +216,15 @@ function backup_target() {
 function wait_for_cron() {
   local cron="$1"
   local compare="$2"
-  local comparesec=$(date --date="$compare" +"%s")
+  local last_run="$3"
+  # we keep a copy of the actual compare time, because we might shift the compare time in a moment
+  local comparesec=$compare
+  # there must be at least 60 seconds between last run and next run, so if it is less than 60 seconds,
+  #   add 60 seconds to $compare
+  local compareDiff=$(($compare - $last_run))
+  if [ $compareDiff -lt 60 ]; then
+    compare=$(($compare+$compareDiff))
+  fi
 
   # reminder, cron format is:
   # minute(0-59)
@@ -233,12 +241,12 @@ function wait_for_cron() {
   local success=1
 
   # when is the next time we hit that month?
-  local next_minute=$(date --date="$compare" +"%-M")
-  local next_hour=$(date --date="$compare" +"%-H")
-  local next_dom=$(date --date="$compare" +"%-d")
-  local next_month=$(date --date="$compare" +"%-m")
-  local next_dow=$(date --date="$compare" +"%-u")
-  local next_year=$(date --date="$compare" +"%-Y")
+  local next_minute=$(date --date="@$compare" +"%-M")
+  local next_hour=$(date --date="@$compare" +"%-H")
+  local next_dom=$(date --date="@$compare" +"%-d")
+  local next_month=$(date --date="@$compare" +"%-m")
+  local next_dow=$(date --date="@$compare" +"%-u")
+  local next_year=$(date --date="@$compare" +"%-Y")
 
   # date returns DOW as 1-7/Mon-Sun, we need 0-6/Sun-Sat
   next_dow=$(( $next_dow % 7 ))
