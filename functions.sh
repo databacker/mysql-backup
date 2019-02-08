@@ -223,7 +223,7 @@ function wait_for_cron() {
   #   add 60 seconds to $compare
   local compareDiff=$(($compare - $last_run))
   if [ $compareDiff -lt 60 ]; then
-    compare=$(($compare+$compareDiff))
+    compare=$(($compare + $(( 60-$compareDiff )) ))
   fi
 
   # reminder, cron format is:
