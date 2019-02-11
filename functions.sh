@@ -226,6 +226,14 @@ function wait_for_cron() {
     compare=$(($compare + $(( 60-$compareDiff )) ))
   fi
 
+  # cron only works in minutes, so we want to round down to the current minute
+  # e.g. if we are at 20:06:25, we need to treat it as 20:06:00, or else our waittime will be -25
+  # on the other hand, if we are at 20:06:00, do not round it down
+  local current_seconds=$(date --date="@$compare" +"%-S")
+  if [ $current_seconds -ne 0 ]; then
+    compare=$(( $compare - $current_seconds ))
+  fi
+
   # reminder, cron format is:
   # minute(0-59)
   #   hour(0-23)
