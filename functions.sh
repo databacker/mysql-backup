@@ -220,7 +220,7 @@ function wait_for_cron() {
   # we keep a copy of the actual compare time, because we might shift the compare time in a moment
   local comparesec=$compare
   # there must be at least 60 seconds between last run and next run, so if it is less than 60 seconds,
-  #   add 60 seconds to $compare
+  #   add differential seconds to $compare
   local compareDiff=$(($compare - $last_run))
   if [ $compareDiff -lt 60 ]; then
     compare=$(($compare + $(( 60-$compareDiff )) ))
@@ -229,9 +229,9 @@ function wait_for_cron() {
   # cron only works in minutes, so we want to round down to the current minute
   # e.g. if we are at 20:06:25, we need to treat it as 20:06:00, or else our waittime will be -25
   # on the other hand, if we are at 20:06:00, do not round it down
-  local current_seconds=$(date --date="@$compare" +"%-S")
+  local current_seconds=$(date --date="@$comparesec" +"%-S")
   if [ $current_seconds -ne 0 ]; then
-    compare=$(( $compare - $current_seconds ))
+    comparesec=$(( $comparesec - $current_seconds ))
   fi
 
   # reminder, cron format is:
