@@ -1,4 +1,5 @@
 # mysql-backup
+Back up mysql databases to... anywhere!
 
 ## Overview
 mysql-backup is a simple way to do MySQL database backups and restores when the database is running in a container.
@@ -14,13 +15,17 @@ It has the following features:
 
 Please see [CONTRIBUTORS.md](./CONTRIBUTORS.md) for a list of contributors.
 
+## Support
+
+Support is available at the Slack channel https://databack.slack.com. We accept issues here and general support questions on Slack.
+
 ## Backup
 To run a backup, launch `mysql-backup` image as a container with the correct parameters. Everything is controlled by environment variables passed to the container.
 
 For example:
 
 ````bash
-docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container -v /local/file/path:/db deitch/mysql-backup
+docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container -v /local/file/path:/db databack/mysql-backup
 ````
 
 The above will run a dump every 60 minutes, beginning at the next 2330 local time, from the database accessible in the container `my-db-container`.
@@ -97,7 +102,7 @@ In this case, you have two options:
 In order to perform the actual dump, `mysql-backup` needs to connect to the database container. You **must** pass the database hostname - which can be another container or any database process accessible from the backup container - by passing the environment variable `DB_SERVER` with the hostname or IP address of the database. You **may** override the default port of `3306` by passing the environment variable `DB_PORT`.
 
 ````bash
-docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container -v /local/file/path:/db deitch/mysql-backup
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container -v /local/file/path:/db databack/mysql-backup
 ````
 
 ### Dump Target
@@ -200,7 +205,7 @@ docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_
   -v /path/to/pre-backup/scripts:/scripts.d/pre-backup \
   -v /path/to/post-backup/scripts:/scripts.d/post-backup \
   -v /local/file/path:/db \
-  deitch/mysql-backup
+  databack/mysql-backup
 ````
 
 Or, if you prefer compose:
@@ -209,7 +214,7 @@ Or, if you prefer compose:
 version: '2.1'
 services:
   backup:
-    image: deitch/mysql-backup
+    image: databack/mysql-backup
     restart: always
     volumes:
      - /local/file/path:/db
@@ -227,7 +232,7 @@ services:
     ....
 ```
 
-The scripts are _executed_ in the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script, which means it has access to all exported environment variables. The following are available, but we are happy to export more as required (just open an issue or better yet, a pull request):
+The scripts are _executed_ in the [entrypoint](https://github.com/databack/mysql-backup/blob/master/entrypoint) script, which means it has access to all exported environment variables. The following are available, but we are happy to export more as required (just open an issue or better yet, a pull request):
 
 * `DUMPFILE`: full path in the container to the output file
 * `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
@@ -258,7 +263,7 @@ fi
 
 ````
 
-You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/deitch/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
+You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/databack/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
 
 ## Restore
 ### Dump Restore
@@ -279,15 +284,15 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 
 Examples:
 
-1. Restore from a local file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -v /local/path:/backup deitch/mysql-backup`
-2. Restore from an SMB file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.gz deitch/mysql-backup`
-3. Restore from an S3 file: `docker run -e DB_SERVER=gotodb.example.com -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.gz deitch/mysql-backup`
+1. Restore from a local file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -v /local/path:/backup databack/mysql-backup`
+2. Restore from an SMB file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.gz databack/mysql-backup`
+3. Restore from an S3 file: `docker run -e DB_SERVER=gotodb.example.com -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.gz databack/mysql-backup`
 
 ### Restore when using docker-compose
 `docker-compose` automagically creates a network when started. `docker run` simply attaches to the bridge network. If you are trying to communicate with a mysql container started by docker-compose, you'll need to specify the network in your command arguments. You can use `docker network ls` to see what network is being used, or you can declare a network in your docker-compose.yml.
 
 #### Example:
-`docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -v /local/path:/backup --network="skynet" deitch/mysql-backup`
+`docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -v /local/path:/backup --network="skynet" databack/mysql-backup`
 
 ### Using docker (or rancher) secrets
 Environment variables used in this image can be passed in files as well. This is useful when you are using docker (or rancher) secrets for storing sensitive information.
@@ -302,7 +307,7 @@ docker run -d \
   -e DB_USER_FILE=/run/secrets/DB_USER \
   -e DB_PASS_FILE=/run/secrets/DB_PASS \
   -v /local/file/path:/db \
-  deitch/mysql-backup
+  databack/mysql-backup
 ```
 
 ### Restore pre and post processing
@@ -319,12 +324,10 @@ the db backup and a second tarball with the contents of a WordPress install on
 For an example take a look at the post-backup examples, all variables defined for post-backup scripts are available for pre-processing too. Also don't forget to add the same host volumes for `pre-restore` and `post-restore` directories as described for post-backup processing.
 
 ### Automated Build
-This github repo is the source for the mysql-backup image. The actual image is stored on the docker hub at `deitch/mysql-backup`, and is triggered with each commit to the source by automated build via Webhooks.
+This github repo is the source for the mysql-backup image. The actual image is stored on the docker hub at `databack/mysql-backup`, and is triggered with each commit to the source by automated build via Webhooks.
 
 There are 2 builds: 1 for version based on the git tag, and another for the particular version number.
 
 ## License
 Released under the MIT License.
 Copyright Avi Deitcher https://github.com/deitch
-
-Thanks to the kind contributions and support of [TraderTools](http://www.tradertools.com).
