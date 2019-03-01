@@ -9,4 +9,4 @@ jobs:
     name: "core-test"
     script:
     - make build
-    - make test
+    - make test DEBUG=debug
