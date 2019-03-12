@@ -24,9 +24,18 @@ test_source_target:
 
 test: test_dump test_cron test_source_target	
 
-clean-test:
-	docker kill $(docker ps | awk '/mysql/ {print $1}')
-	docker rm $(docker ps -a | awk '/mysql/ {print $1}')
-	docker kill s3 && docker rm s3
-	docker network rm mysqltest
+.PHONY: clean-test-stop clean-test-remove clean-test
+clean-test-stop:
+	$(eval IDS:=$(strip $(shell docker ps --filter label=mysqltest -q)))
+	@if [ -n "$(IDS)" ]; then docker kill $(IDS); fi
+
+clean-test-remove:
+	$(eval IDS:=$(shell docker ps -a --filter label=mysqltest -q))
+	@if [ -n "$(IDS)" ]; then docker rm $(IDS); fi
+
+clean-test-network:
+	$(eval IDS:=$(shell docker network ls --filter label=mysqltest -q))
+	@if [ -n "$(IDS)" ]; then docker network rm $(IDS); fi
+
+clean-test: clean-test-stop clean-test-remove clean-test-network
 
