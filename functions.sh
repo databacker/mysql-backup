@@ -301,10 +301,10 @@ function wait_for_cron() {
     cron_next=$(next_cron_expression "$cron_dow" "$next_dow")
     if [ "$cron_next" != "$next_dow" ]; then
       dowDiff=$(( $cron_next - $next_dow ))
-      if [ "$domDiff" -lt "0" ]; then
-        domDiff=$(( $domDiff + 7 ))
+      if [ "$dowDiff" -lt "0" ]; then
+        dowDiff=$(( $dowDiff + 7 ))
       fi
-      next_dom=$(( $next_dom + $domDiff ))
+      next_dom=$(( $next_dom + $dowDiff ))
       next_hour=0
       next_minute=0
     fi
