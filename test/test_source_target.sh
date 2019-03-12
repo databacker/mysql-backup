@@ -45,7 +45,7 @@ function run_default_source_target_test() {
 	fi
 
     # change our target
-    cid=$(docker run --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v ${BACKUP_DIRECTORY_BASE}/${seqno}/:/scripts.d/ -v ${BACKUP_DIRECTORY_BASE}:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+    cid=$(docker run --label mysqltest --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET=${t2} -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v ${BACKUP_DIRECTORY_BASE}/${seqno}/:/scripts.d/ -v ${BACKUP_DIRECTORY_BASE}:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
 	echo $cid
 }
 
@@ -130,13 +130,13 @@ docker build $QUIET -t ${SMB_IMAGE} -f ./Dockerfile_smb .
 
 # create the network we need
 [[ "$DEBUG" != "0" ]] && echo "Creating the test network"
-docker network create mysqltest
+docker network create mysqltest --label mysqltest
 
 # run the test images we need
 [[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
-smb_cid=$(docker run --net mysqltest --name=smb  -d -p 445:445 -v ${BACKUP_DIRECTORY_BASE}:/share/backups:z -t ${SMB_IMAGE})
-mysql_cid=$(docker run --net mysqltest --name mysql -d -v /tmp/source:/tmp/source:z -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:8.0)
-s3_cid=$(docker run --net mysqltest --name s3 -d -v ${BACKUP_DIRECTORY_BASE}:/fakes3_root/s3/mybucket:z lphoward/fake-s3 -r /fakes3_root -p 443)
+smb_cid=$(docker run --label mysqltest --net mysqltest --name=smb  -d -p 445:445 -v ${BACKUP_DIRECTORY_BASE}:/share/backups:z -t ${SMB_IMAGE})
+mysql_cid=$(docker run --label mysqltest --net mysqltest --name mysql -d -v /tmp/source:/tmp/source:z -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:8.0)
+s3_cid=$(docker run --label mysqltest --net mysqltest --name s3 -d -v ${BACKUP_DIRECTORY_BASE}:/fakes3_root/s3/mybucket:z lphoward/fake-s3 -r /fakes3_root -p 443)
 
 # Allow up to 20 seconds for the database to be ready
 db_connect="docker exec -i $mysql_cid mysql -u$MYSQLUSER -p$MYSQLPW --wait --connect_timeout=20 tester"
