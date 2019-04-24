@@ -53,6 +53,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `AWS_ACCESS_KEY_ID`: AWS Key ID
 * `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
 * `AWS_DEFAULT_REGION`: Region in which the bucket resides
+* `AWS_ENDPOINT_URL`: Specify an alternative endpoint for s3 interopable systems e.g. Digitalocean 
 * `SMB_USER`: SMB username. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
@@ -130,6 +131,8 @@ Note that for smb, if the username includes a domain, e.g. your user is `mydom\m
 If you use a URL like `s3://bucket/path`, you can have it save to an S3 bucket.
 
 Note that for s3, you'll need to specify your AWS credentials and default AWS region via `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION`
+
+Also note that if you are using an s3 interopable storage system like DigitalOcean you can use that as the target by setting `AWS_ENDPOINT_URL` to `${REGION_NAME}.digitaloceanspaces.com` and setting `DB_DUMP_TARGET` to `s3://bucketname/path`.   
 
 #### Custom backup source file name
 There may be use-cases where you need to modify the source path of the backup file **before** it gets uploaded to the dump target. 
