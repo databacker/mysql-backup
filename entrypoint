@@ -184,13 +184,16 @@ else
   fi
 
   # enter the loop
+  exit_code=0
   while true; do
     # make sure the directory exists
     mkdir -p $TMPDIR
     do_dump
+    [ $? -ne 0 ] && exit_code=1
     # we can have multiple targets
     for target in ${DB_DUMP_TARGET}; do
       backup_target ${target}
+      [ $? -ne 0 ] && exit_code=1
     done
     # remove lingering file
     /bin/rm ${TMPDIR}/${SOURCE}
@@ -198,7 +201,7 @@ else
     # wait, unless RUN_ONCE is set
     current_time=$(date +"%s")
     if [ -n "${RUN_ONCE}" ]; then
-      exit 0
+      exit $exit_code
     elif [ -n "${DB_DUMP_CRON}" ]; then
       waittime=$(wait_for_cron "${DB_DUMP_CRON}" "$current_time" $last_run)
     else

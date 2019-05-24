@@ -104,6 +104,7 @@ function do_dump() {
     for i in $(ls /scripts.d/pre-backup/*.sh); do
       if [ -x $i ]; then
         NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+        [ $? -ne 0 ] && return 1
       fi
     done
   fi
@@ -116,9 +117,11 @@ function do_dump() {
   if [ -n "$DB_DUMP_BY_SCHEMA" -a "$DB_DUMP_BY_SCHEMA" = "true" ]; then
     if [[ -z "$DB_NAMES" ]]; then
       DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
+      [ $? -ne 0 ] && return 1
     fi
     for onedb in $DB_NAMES; do
       mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
+      [ $? -ne 0 ] && return 1
     done
   else
     # just a single command
@@ -128,9 +131,12 @@ function do_dump() {
       DB_LIST="-A"
     fi
     mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
+    [ $? -ne 0 ] && return 1
   fi
   tar -C $workdir -cvf - . | $COMPRESS > ${TMPDIR}/${SOURCE}
+  [ $? -ne 0 ] && return 1
   rm -rf $workdir
+  [ $? -ne 0 ] && return 1
 
   # Execute additional scripts for post processing. For example, create a new
   # backup file containing this db backup and a second tar file with the
@@ -139,6 +145,7 @@ function do_dump() {
     for i in $(ls /scripts.d/post-backup/*.sh); do
       if [ -x $i ]; then
         NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+        [ $? -ne 0 ] && return 1
       fi
     done
   fi
@@ -147,6 +154,7 @@ function do_dump() {
   # For example, modifying the name of the source dump file from the default, e.g. db-other-files-combined.tar.$EXTENSION
   if [ -f /scripts.d/source.sh ] && [ -x /scripts.d/source.sh ]; then
       SOURCE=$(NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} /scripts.d/source.sh | tr -d '\040\011\012\015')
+      [ $? -ne 0 ] && return 1
 
       if [ -z "${SOURCE}" ]; then
           echo "Your source script located at /scripts.d/source.sh must return a value to stdout"
@@ -157,6 +165,7 @@ function do_dump() {
   # For example, uploading to a date stamped object key path in S3, i.e. s3://bucket/2018/08/23/path
   if [ -f /scripts.d/target.sh ] && [ -x /scripts.d/target.sh ]; then
       TARGET=$(NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} /scripts.d/target.sh | tr -d '\040\011\012\015')
+      [ $? -ne 0 ] && return 1
 
       if [ -z "${TARGET}" ]; then
           echo "Your target script located at /scripts.d/target.sh must return a value to stdout"
@@ -164,7 +173,7 @@ function do_dump() {
       fi
   fi
 
-
+  return 0
 }
 
 #
@@ -208,6 +217,8 @@ function backup_target() {
       smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${SOURCE} ${TARGET}"
      ;;
   esac
+  [ $? -ne 0 ] && return 1
+  return 0
 }
 
 #
