@@ -1,0 +1,54 @@
+version: '3.4'
+volumes:
+  dbmysql:
+  wordpress:
+services:
+  mysql:
+    image: mysql:5.7
+    environment:
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_USER=wordpress
+      - MYSQL_PASSWORD=wordpress
+      - MYSQL_ROOT_PASSWORD=wordpress_root
+    volumes:
+      - dbmysql:/var/lib/mysql
+    command: --datadir=/var/lib/mysql/data --character-set-server=utf8 --collation-server=utf8_bin
+  wordpress:
+    image: wordpress
+    environment:
+      - WORDPRESS_DB_HOST=mysql
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_PASSWORD=wordpress
+      - WORDPRESS_DB_NAME=wordpress
+    volumes: 
+      - wordpress:/var/www/html
+    ports:
+      - "81:80"
+  # mysql-backup:
+  #   image: mysql-backup:1.0
+  #   environment:
+  #     - DB_SERVER=mysql
+  #     - DB_USER=wordpress
+  #     - DB_PASS=wordpress 
+  #     - DB_DUMP_TARGET=s3://dumps/WORDPRESS
+  #     - DB_DUMP_BEGIN=1345
+  #     - AWS_ACCESS_KEY_ID=access
+  #     - AWS_SECRET_ACCESS_KEY=SUPERKEYPOWERSON
+  #     - AWS_ENDPOINT_URL=https://minio.mydomain.local
+  #     - COMPRESSION=bzip2
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime:ro
+  # mysql-restore:
+  #   image: registry.tce.ro.gov.br/mysql-backup:1.0
+  #   environment:
+  #     - DB_SERVER=mysql
+  #     - DB_USER=wordpress
+  #     - DB_PASS=wordpress  
+  #     - COMPRESSION=bzip2
+  #     - DB_DUMP_DEBUG=true
+  #     - DB_RESTORE_TARGET=s3://dumps/WORDPRESS/db_backup_20190603164246.tbz2
+  #     - AWS_ACCESS_KEY_ID=access
+  #     - AWS_SECRET_ACCESS_KEY=SUPERKEYPOWERSON
+  #     - AWS_ENDPOINT_URL=https://minio.mydomain.local
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime:ro
