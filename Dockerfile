@@ -13,7 +13,7 @@ RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 s
 RUN groupadd -g 1005 appuser && \
     useradd -r -u 1005 -g appuser appuser
 # ensure smb stuff works correctly
-RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba
+RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba && chown appuser /var/lib/samba/private
 USER appuser
 
 # install the entrypoint
