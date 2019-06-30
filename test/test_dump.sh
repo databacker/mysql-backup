@@ -87,7 +87,7 @@ function runtest() {
 	# change our target
         # ensure that we remove leading whitespace from targets
         allTargets=$(echo $allTargets | awk '{$1=$1;print}')
-  cid=$(docker run --label mysqltest --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v ${TMPBACKUPDIR}/${sequence}/:/scripts.d/ -v ${TMPBACKUPDIR}:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
+  cid=$(docker run --label mysqltest --name mysqlbackup-${seqno} --net mysqltest -d $DBDEBUG -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -v ${TMPBACKUPDIR}/${sequence}/:/scripts.d/ -v ${TMPBACKUPDIR}:/backups -e DB_SERVER=mysql --link ${s3_cid}:mybucket.s3.amazonaws.com ${BACKUP_IMAGE})
 	echo $cid
 }
 
