@@ -31,11 +31,16 @@ jobs:
       - run:
           name: Add dependencies
           command: apk --update add make docker bash ca-certificates git
+      - setup_remote_docker:
+          docker_layer_caching: true
+          version: 18.06.0-ce
       - attach_workspace:
           at: .
       - run:
           name: push
-          command: make push
+          command: |
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            make push
 
 workflows:
   version: 2
