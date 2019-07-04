@@ -7,7 +7,7 @@ MAINTAINER Avi Deitcher <https://github.com/deitch>
 RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 samba-client shadow && \
     rm -rf /var/cache/apk/* && \
     touch /etc/samba/smb.conf && \
-    pip3 install awscli
+    pip3 install s3cmd
 
 # set us up to run as non-root user
 RUN groupadd -g 1005 appuser && \

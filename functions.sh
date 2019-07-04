@@ -194,8 +194,8 @@ function backup_target() {
       ;;
     "s3")
       # allow for endpoint url override
-      [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
-      aws ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${SOURCE} "${DB_DUMP_TARGET}/${TARGET}"
+      [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--host=$AWS_ENDPOINT_URL"
+      s3cmd ${AWS_ENDPOINT_OPT}   --access_key=${AWS_ACCESS_KEY_ID}   --secret_key=${AWS_SECRET_ACCESS_KEY}  put ${TMPDIR}/${SOURCE} "${DB_DUMP_TARGET}/${TARGET}"
       ;;
     "smb")
       if [[ -n "$SMB_USER" ]]; then
