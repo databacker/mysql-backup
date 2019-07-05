@@ -194,7 +194,7 @@ function backup_target() {
       ;;
     "s3")
       # allow for endpoint url override
-      [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
+      [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="$AWS_ENDPOINT_OPT --endpoint-url $AWS_ENDPOINT_URL"
       aws ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${SOURCE} "${DB_DUMP_TARGET}/${TARGET}"
       ;;
     "smb")
