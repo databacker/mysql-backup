@@ -109,7 +109,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
   elif [[ "${uri[schema]}" == "s3" ]]; then
-    [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--host=$AWS_ENDPOINT_URL"
+    [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="$AWS_ENDPOINT_OPT --host=$AWS_ENDPOINT_URL"
       s3cmd ${AWS_ENDPOINT_OPT}   --access_key=${AWS_ACCESS_KEY_ID}   --secret_key=${AWS_SECRET_ACCESS_KEY}  put "${DB_RESTORE_TARGET}" $TMPRESTORE
   elif [[ "${uri[schema]}" == "smb" ]]; then
     if [[ -n "$SMB_USER" ]]; then
