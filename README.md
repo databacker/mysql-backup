@@ -91,7 +91,7 @@ The scheduling options have an order of priority:
 ### Permissions
 By default, the backup/restore process does **not** run as root (UID O). Whenever possible, you should run processes (not just in containers) as users other than root. In this case, it runs as username `appuser` with UID/GID `1005`.
 
-In most scenarios, this will not affect your backup process negatively. However, if you are usingn the "Local" dump target, i.e. your `DB_DUMP_TARGET` starts with `/` - and, most likely, is a volume mounted into the container - you can run into permissions issues. For example, if your mounted directory is owned by root on the host, then the backup process will be unable to write to it.
+In most scenarios, this will not affect your backup process negatively. However, if you are using the "Local" dump target, i.e. your `DB_DUMP_TARGET` starts with `/` - and, most likely, is a volume mounted into the container - you can run into permissions issues. For example, if your mounted directory is owned by root on the host, then the backup process will be unable to write to it.
 
 In this case, you have two options:
 
