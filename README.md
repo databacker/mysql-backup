@@ -268,6 +268,14 @@ fi
 
 You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/databack/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
 
+### Encrypting the Backup
+
+Post-processing also give you options to encrypt the backup using openssl. The openssl binary is available
+to the processing scripts.
+
+The sample [examples/encrypt.sh](./examples/encrypt.sh) provides a sample post-processing script that you can use
+to encrypt your backup with AES256.
+
 ## Restore
 ### Dump Restore
 If you wish to run a restore to an existing database, you can use mysql-backup to do a restore.
