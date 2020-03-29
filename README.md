@@ -43,8 +43,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
     * Absolute: HHMM, e.g. `2330` or `0415`
     * Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half
-* `DB_DUMP_CRON`: Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line. 
-* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, all other scheduling options, like `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` and `DB_DUMP_CRON`, become obsolete. 
+* `DB_DUMP_CRON`: Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.
+* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, all other scheduling options, like `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` and `DB_DUMP_CRON`, become obsolete.
 * `DB_DUMP_DEBUG`: If set to `true`, print copious shell script messages to the container log. Otherwise only basic messages are printed.
 * `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Can have multiple targets separated by whitespace. Supports three formats:
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
@@ -53,7 +53,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `AWS_ACCESS_KEY_ID`: AWS Key ID
 * `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
 * `AWS_DEFAULT_REGION`: Region in which the bucket resides
-* `AWS_ENDPOINT_URL`: Specify an alternative endpoint for s3 interopable systems e.g. Digitalocean 
+* `AWS_ENDPOINT_URL`: Specify an alternative endpoint for s3 interopable systems e.g. Digitalocean
+* `AWS_CLI_OPTS`: Specify additional options for the `aws s3` command, primarily those from [here](https://docs.aws.amazon.com/cli/latest/reference/#options). _Be careful_, as you can break something!
 * `SMB_USER`: SMB username. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
@@ -96,7 +97,7 @@ In most scenarios, this will not affect your backup process negatively. However,
 In this case, you have two options:
 
 * Run the container as root, `docker run --user 0 ... ` or, in i`docker-compose.yml`, `user: "0"`
-* Ensure your mounted directory is writable as UID or GID `1005`. 
+* Ensure your mounted directory is writable as UID or GID `1005`.
 
 
 ### Database Container
@@ -135,7 +136,7 @@ Note that for s3, you'll need to specify your AWS credentials and default AWS re
 Also note that if you are using an s3 interopable storage system like DigitalOcean you can use that as the target by setting `AWS_ENDPOINT_URL` to `${REGION_NAME}.digitaloceanspaces.com` and setting `DB_DUMP_TARGET` to `s3://bucketname/path`.   
 
 #### Custom backup source file name
-There may be use-cases where you need to modify the source path of the backup file **before** it gets uploaded to the dump target. 
+There may be use-cases where you need to modify the source path of the backup file **before** it gets uploaded to the dump target.
 An example is combining multiple compressed files into one and giving it a new name, i.e. ```db-other-files-combined.tar.gz```.
 To do that, place an executable file called `source.sh` in the following path:
 
@@ -149,22 +150,22 @@ The following exported environment variables will be available to the script abo
 * `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
-      
+
 **Example run:**
 
       NOW=20180930151304 DUMPFILE=/tmp/backups/db_backup_201809301513.gz DUMPDIR=/backup DB_DUMP_DEBUG=true /scripts.d/source.sh
-      
+
 **Example custom source script:**
-  
+
 ```bash
   #!/bin/bash
-  
+
   # Rename source file
   echo -n "db-plus-wordpress_${NOW}.gz"
 ```           
 
 #### Custom backup target file name
-There may be use-cases where you need to modify the target upload path of the backup file **before** it gets uploaded. 
+There may be use-cases where you need to modify the target upload path of the backup file **before** it gets uploaded.
 An example is uploading a backup to a date stamped object key path in S3, i.e. ```s3://bucket/2018/08/23/path```.
 To do that, place an executable file called ```target.sh``` in the following path:
 
@@ -182,15 +183,15 @@ The following exported environment variables will be available to the script abo
 **Example run:**
 
       NOW=20180930151304 DUMPFILE=/tmp/backups/db_backup_201809301513.gz DUMPDIR=/backup DB_DUMP_DEBUG=true /scripts.d/target.sh
-      
+
 **Example custom target script:**
-  
+
 ```bash
   #!/bin/bash
-  
+
   # Rename target file
   echo -n "db-plus-wordpress-uploaded_${NOW}.gz"
-``` 
+```
 
 ### Backup pre and post processing
 

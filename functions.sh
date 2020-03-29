@@ -195,7 +195,7 @@ function backup_target() {
     "s3")
       # allow for endpoint url override
       [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
-      aws ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${SOURCE} "${DB_DUMP_TARGET}/${TARGET}"
+      aws ${AWS_CLI_OPTS} ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${SOURCE} "${DB_DUMP_TARGET}/${TARGET}"
       ;;
     "smb")
       if [[ -n "$SMB_USER" ]]; then
@@ -303,7 +303,7 @@ function wait_for_cron() {
       next_hour=$cron_next
       next_minute=0
     fi
-  
+
     # weekday:
     # if weekday matches, move to next step
     # if weekday does not match:
@@ -319,11 +319,11 @@ function wait_for_cron() {
       next_hour=0
       next_minute=0
     fi
-  
+
     # dom:
     # if dom matches, move to next step
     # if dom does not match:
-    #   if "next" dom is ahead of cron dom OR "next" month does not have crom dom (e.g. crom dom = 30 in Feb), 
+    #   if "next" dom is ahead of cron dom OR "next" month does not have crom dom (e.g. crom dom = 30 in Feb),
     #       increment "next" month, reset "next" day to 1, reset "next" minute to 0, reset "next" hour to 0, return to beginning of loop
     #   else set "next" day to cron day, reset "next" minute to 0, reset "next" hour to 0, return to beginning of loop
     maxDom=$(max_day_in_month $next_month $next_year)
@@ -338,7 +338,7 @@ function wait_for_cron() {
       next_hour=0
       next_minute=0
     fi
- 
+
     # month:
     # if month matches, move to next step
     # if month does not match:
@@ -355,14 +355,14 @@ function wait_for_cron() {
       next_minute=0
       next_hour=0
     fi
-  
+
     success=0
   done
   # success: "next" is now set to the next match!
 
   local future=$(date --date="${next_year}.${next_month}.${next_dom}-${next_hour}:${next_minute}:00" +"%s")
   local futurediff=$(($future - $comparesec))
-  echo $futurediff  
+  echo $futurediff
 }
 
 function next_cron_expression() {
@@ -395,7 +395,7 @@ function next_cron_expression() {
   done
 
   # sort for deduplication and ordering
-  allvalid=$(echo $allvalid | tr ' ' '\n' | sort -n -u | tr '\n' ' ') 
+  allvalid=$(echo $allvalid | tr ' ' '\n' | sort -n -u | tr '\n' ' ')
   local bestmatch=${allvalid%% *}
   for i in $allvalid; do
     if [ "$i" = "$num" ]; then
@@ -407,7 +407,7 @@ function next_cron_expression() {
     fi
   done
 
-  echo $bestmatch 
+  echo $bestmatch
 }
 
 function max_day_in_month() {
@@ -436,4 +436,3 @@ function max_day_in_month() {
       ;;
   esac
 }
-
