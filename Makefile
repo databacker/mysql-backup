@@ -2,16 +2,16 @@
 
 TAG ?= $(shell git log -n 1 --pretty=format:"%H")
 IMAGE ?= databack/mysql-backup
+BUILDIMAGE ?= $(IMAGE):build
 TARGET ?= $(IMAGE):$(TAG)
 
 
 build:
-	docker build -t $(TARGET) .
+	docker build -t $(BUILDIMAGE) .
 
 push: build
-	docker tag $(TARGET) $(IMAGE):latest
+	docker tag $(BUILDIMAGE) $(TARGET)
 	docker push $(TARGET)
-	docker push $(IMAGE):latest
 
 test_dump:
 	cd test && DEBUG=$(DEBUG) ./test_dump.sh
@@ -23,7 +23,7 @@ test_cron:
 test_source_target:
 	cd test && ./test_source_target.sh
 
-test: test_dump test_cron test_source_target	
+test: test_dump test_cron test_source_target
 
 .PHONY: clean-test-stop clean-test-remove clean-test
 clean-test-stop:
@@ -49,4 +49,3 @@ clean-test-network:
 	@echo
 
 clean-test: clean-test-stop clean-test-remove clean-test-network
-
