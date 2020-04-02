@@ -1,10 +1,12 @@
 name: Continuous Integration
 on:
- pull_request:
-   types: [opened, synchronize, reopened]
- push:
-   branches:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
      - master
+    tags:
+      - '*'
 
 jobs:
   report:
