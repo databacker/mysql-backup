@@ -54,7 +54,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
 * `AWS_DEFAULT_REGION`: Region in which the bucket resides
 * `AWS_ENDPOINT_URL`: Specify an alternative endpoint for s3 interopable systems e.g. Digitalocean
-* `AWS_CLI_OPTS`: Specify additional options for the `aws s3` command, primarily those from [here](https://docs.aws.amazon.com/cli/latest/reference/#options). _Be careful_, as you can break something!
+* `AWS_CLI_OPTS`: Additional arguments to be passed to the `aws` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/#options) for a list. _Be careful_, as you can break something!
+* `AWS_CLI_S3_CP_OPTS`: Additional arguments to be passed to the `s3 cp` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/s3/cp.html#options) for a list. If you are using AWS KMS, `sse`, `sse-kms-key-id`, etc., may be of interest.
 * `SMB_USER`: SMB username. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
