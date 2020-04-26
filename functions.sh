@@ -119,7 +119,18 @@ function do_dump() {
       DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
       [ $? -ne 0 ] && return 1
     fi
+    if [[ -n "$DB_NAMES_EXCLUDE" ]]; then
+      # exclude databases if specificied
+      DB_NAMES_EXCLUDE=(`echo $DB_NAMES_EXCLUDE`)
+    else
+      # if not -> exclude the default ones
+      DB_NAMES_EXCLUDE=(information_schema performance_schema)
+    fi
     for onedb in $DB_NAMES; do
+      if [[ " ${DB_NAMES_EXCLUDE[@]} " =~ " ${onedb} " ]]; then
+      	# skip database if on exclude list
+        continue
+      fi
       mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
       [ $? -ne 0 ] && return 1
     done
