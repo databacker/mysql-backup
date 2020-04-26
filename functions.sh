@@ -124,7 +124,7 @@ function do_dump() {
       DB_NAMES_EXCLUDE=(`echo $DB_NAMES_EXCLUDE`)
     else
       # if not -> exclude the default ones
-      DB_NAMES_EXCLUDE=(information_schema performance_schema)
+      DB_NAMES_EXCLUDE=(information_schema performance_schema mysql sys)
     fi
     for onedb in $DB_NAMES; do
       if [[ " ${DB_NAMES_EXCLUDE[@]} " =~ " ${onedb} " ]]; then
