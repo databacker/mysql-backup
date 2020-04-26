@@ -50,6 +50,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
     * SMB: If the value of `DB_DUMP_TARGET` is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
     * S3: If the value of `DB_DUMP_TARGET` is a URL of the format `s3://bucketname/path` then it will connect via awscli.
+* `DB_DUMP_SAFECHARS`: The dump filename usually includes the character `:` in the date, to comply with RFC3339. Some systems and shells don't like that character. If this environment variable is set, it will replace all `:` with `-`.
 * `AWS_ACCESS_KEY_ID`: AWS Key ID
 * `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
 * `AWS_DEFAULT_REGION`: Region in which the bucket resides
@@ -109,20 +110,29 @@ docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_
 ````
 
 ### Dump Target
+
 The dump target is where you want the backup files to be saved. The backup file *always* is a compressed file the following format:
 
-`db_backup_YYYYMMDDHHmm.<compression>`
+`db_backup_YYYY-MM-DDTHH:mm:ssZ.<compression>`
 
-Where:
+Where the date is RFC3339 date format, excluding the milliseconds portion.
 
 * YYYY = year in 4 digits
 * MM = month number from 01-12
 * DD = date for 01-31
 * HH = hour from 00-23
 * mm = minute from 00-59
+* ss = seconds from 00-59
+* T = literal character `T`, indicating the separation between date and time portions
+* Z = literal character `Z`, indicating that the time provided is UTC, or "Zulu"
 * compression = appropriate file ending for selected compression, one of: `gz` (gzip, default); `bz2` (bzip2)
 
 The time used is UTC time at the moment the dump begins.
+
+Notes on format:
+
+* SMB does not allow for `:` in a filename (depending on server options), so they are replaced with the `-` character when writing to SMB.
+* Some shells do not handle a `:` in the filename gracefully. Although these usually are legitimate characters as far as the _filesystem_ is concerned, your shell may not like it. To avoid this issue, you can set the "no-colons" options with the environment variable `DB_DUMP_SAFECHARS`
 
 The dump target is the location where the dump should be placed, defaults to `/backup` in the container. Of course, having the backup in the container does not help very much, so we very strongly recommend you volume mount it outside somewhere. See the above example.
 
@@ -148,7 +158,7 @@ Whatever your script returns to _stdout_ will be used as the source name for the
 The following exported environment variables will be available to the script above:
 
 * `DUMPFILE`: full path in the container to the output file
-* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
 
@@ -177,7 +187,7 @@ Whatever your script returns to _stdout_ will be used as the name for the backup
 The following exported environment variables will be available to the script above:
 
 * `DUMPFILE`: full path in the container to the output file
-* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
 
@@ -240,7 +250,7 @@ services:
 The scripts are _executed_ in the [entrypoint](https://github.com/databack/mysql-backup/blob/master/entrypoint) script, which means it has access to all exported environment variables. The following are available, but we are happy to export more as required (just open an issue or better yet, a pull request):
 
 * `DUMPFILE`: full path in the container to the output file
-* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
 

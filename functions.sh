@@ -91,9 +91,14 @@ function uri_parser() {
 #
 function do_dump() {
   # what is the name of our source and target?
-  now=$(date -u +"%Y%m%d%H%M%S")
+  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   # SOURCE: file that the uploader looks for when performing the upload
   # TARGET: the remote file that is actually uploaded
+
+  # option to replace
+  if [ -n "$DB_DUMP_SAFECHARS" ]; then
+    now=${now//:/-}
+  fi
   SOURCE=db_backup_${now}.$EXTENSION
   TARGET=${SOURCE}
 
@@ -214,7 +219,9 @@ function backup_target() {
         UDOM=
       fi
 
-      smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${SOURCE} ${TARGET}"
+      # smb has issues with the character `:` in filenames, so replace with `-`
+      smbTargetName=${TARGET//:/-}
+      smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${SOURCE} ${smbTargetName}"
      ;;
   esac
   [ $? -ne 0 ] && return 1
