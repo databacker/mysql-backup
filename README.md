@@ -34,6 +34,7 @@ The following are the environment variables for a backup:
 
 __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file), [docker secrets](https://docs.docker.com/engine/swarm/secrets/) to keep your secrets out of your shell history__
 
+* `TZ`: set the timezone used for backup timestamps, for example `TZ=Europe/Vienna`, defaults to `UTC`
 * `DB_SERVER`: hostname to connect to database. Required.
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database

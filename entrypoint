@@ -8,11 +8,13 @@ fi
 
 # get all variables from environment variables or files (e.g. VARIABLE_NAME_FILE)
 # (setting defaults happens here, too)
+file_env "TZ"
 file_env "DB_SERVER"
 file_env "DB_PORT"
 file_env "DB_USER"
 file_env "DB_PASS"
 file_env "DB_NAMES"
+file_env "DB_NAMES_EXCLUDE"
 
 file_env "DB_DUMP_FREQ" "1440"
 file_env "DB_DUMP_BEGIN" "+0"
