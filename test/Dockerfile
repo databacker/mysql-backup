@@ -1,5 +1,11 @@
+FROM mysql:8.0
+
+## MYSQL
+
+
 FROM alpine:3.17
-LABEL org.opencontainers.image.authors="https://github.com/deitch"
+
+## SAMBA
 
 # smb port
 EXPOSE 445
@@ -15,5 +21,11 @@ COPY *.tdb /var/lib/samba/private/
 RUN adduser user -D -H
 RUN echo user:pass | chpasswd
 
-# run samba in the foreground
-CMD /usr/sbin/smbd -F --debug-stdout -d 4 --no-process-group
+### s3
+RUN apk add --update minio
+
+# start samba
+#CMD /usr/sbin/smbd -F --debug-stdout -d 4 --no-process-group
+
+# start minio
+#RUN minio server /path/to/s3
