@@ -50,7 +50,8 @@ else
   DBUSER=
 fi
 if [ -n "${DB_PASS}" ]; then
-  DBPASS="-p${DB_PASS}"
+  # remove all whitespace in db password (denoted by [:space:] in tr) For eg : " test Passw0rd " will be modified to  "testPassw0rd"
+  DBPASS="-p$(echo ${DB_PASS} | tr -d '[:space:]')"   
 else
   DBPASS=
 fi
