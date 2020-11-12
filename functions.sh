@@ -125,7 +125,11 @@ function do_dump() {
       [ $? -ne 0 ] && return 1
     fi
     for onedb in $DB_NAMES; do
-      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
+      if [[ $NICE ]]; then
+        nice -n19 ionice -c2  mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
+      else
+       mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
+      fi
       [ $? -ne 0 ] && return 1
     done
   else
@@ -135,7 +139,11 @@ function do_dump() {
     else
       DB_LIST="-A"
     fi
-    mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
+    if [[ $NICE ]]; then
+        nice -n19 ionice -c2 mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
+    else
+       mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
+    fi
     [ $? -ne 0 ] && return 1
   fi
   tar -C $workdir -cvf - . | $COMPRESS > ${TMPDIR}/${SOURCE}
