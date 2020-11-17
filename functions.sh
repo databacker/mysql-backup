@@ -118,6 +118,7 @@ function do_dump() {
   workdir=/tmp/backup.$$
   rm -rf $workdir
   mkdir -p $workdir
+  NICE_CMD=
   # if we asked to do by schema, then we need to get a list of all of the databases, take each, and then tar and zip them
   if [ -n "$DB_DUMP_BY_SCHEMA" -a "$DB_DUMP_BY_SCHEMA" = "true" ]; then
     if [[ -z "$DB_NAMES" ]]; then
@@ -125,11 +126,10 @@ function do_dump() {
       [ $? -ne 0 ] && return 1
     fi
     for onedb in $DB_NAMES; do
-      if [[ $NICE ]]; then
-        nice -n19 ionice -c2  mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
-      else
-       mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
+      if [ "$NICE" = "true" ]; then
+         NICE_CMD="nice -n19 ionice -c2"
       fi
+      $NICE_CMD mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
       [ $? -ne 0 ] && return 1
     done
   else
@@ -139,11 +139,10 @@ function do_dump() {
     else
       DB_LIST="-A"
     fi
-    if [[ $NICE ]]; then
-        nice -n19 ionice -c2 mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
-    else
-       mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
+    if [ "$NICE" = "true" ]; then
+      NICE_CMD="nice -n19 ionice -c2"
     fi
+    $NICE_CMD mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
     [ $? -ne 0 ] && return 1
   fi
   tar -C $workdir -cvf - . | $COMPRESS > ${TMPDIR}/${SOURCE}
