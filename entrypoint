@@ -20,6 +20,7 @@ file_env "DB_DUMP_DEBUG"
 file_env "DB_DUMP_TARGET" "/backup"
 file_env "DB_DUMP_BY_SCHEMA"
 file_env "DB_DUMP_KEEP_PERMISSIONS" "true"
+file_env "DB_DUMP_ARCHIVE_DAYS_TO_KEEP"
 
 file_env "DB_RESTORE_TARGET"
 
@@ -221,6 +222,10 @@ else
       target_time=$(($target_time + $extra_time))
       # Calculate the wait time
       waittime=$(($target_time - $current_time))
+    fi
+    if [[ -n "$DB_DUMP_ARCHIVE_DAYS_TO_KEEP" ]]; then
+      echo Removing Archives older than $DB_DUMP_ARCHIVE_DAYS_TO_KEEP days
+      find $DB_DUMP_TARGET -mtime +$DB_DUMP_ARCHIVE_DAYS_TO_KEEP -exec rm {} \;
     fi
     sleep $waittime
     last_run=$(date +"%s")
