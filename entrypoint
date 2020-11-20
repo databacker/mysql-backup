@@ -224,10 +224,7 @@ else
       waittime=$(($target_time - $current_time))
     fi
 	#Deletes backup files that are over X days old. 
-    if [[ -n "$DB_DUMP_ARCHIVE_DAYS_TO_KEEP" ]]; then
-      echo Removing Archives older than $DB_DUMP_ARCHIVE_DAYS_TO_KEEP days
-      find $DB_DUMP_TARGET -mtime +$DB_DUMP_ARCHIVE_DAYS_TO_KEEP -exec rm {} \;
-    fi
+    delete_old_backups
     sleep $waittime
     last_run=$(date +"%s")
   done
