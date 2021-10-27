@@ -17,7 +17,6 @@ test_dump:
 	cd test && DEBUG=$(DEBUG) ./test_dump.sh
 
 test_cron:
-	#docker run --rm -e DEBUG=$(DEBUG) -v $(PWD):/data alpine:3.8 sh -c "apk --update add bash; cd /data/test; ./test_cron.sh"
 	cd test && ./test_cron.sh
 
 test_source_target:
