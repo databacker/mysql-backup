@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 DEBUG=${DEBUG:-0}
 [[ -n "$DEBUG" && "$DEBUG" == "verbose" ]] && DEBUG=1
@@ -6,6 +7,10 @@ DEBUG=${DEBUG:-0}
 
 [[ "$DEBUG" == "2" ]] && set -x
 
+# cron unit tests
+FUNCTIONS=../functions.sh ./ctr/cron_test.sh
+
+# run tests using container
 source ./_functions.sh
 
 make_test_images

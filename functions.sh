@@ -296,7 +296,7 @@ function wait_for_cron() {
     # if minute does not match, move "next" minute to the time that does match in cron
     #   if "next" minute is ahead of cron minute, then increment "next" hour by one
     #   move to hour
-    cron_next=$(next_cron_expression "$cron_minute" "$next_minute")
+    cron_next=$(next_cron_expression "$cron_minute" 59 "$next_minute")
     if [ "$cron_next" != "$next_minute" ]; then
       if [ "$next_minute" -gt "$cron_next" ]; then
         next_hour=$(( $next_hour + 1 ))
@@ -309,7 +309,7 @@ function wait_for_cron() {
     # if hour does not match:
     #   if "next" hour is ahead of cron hour, then increment "next" day by one
     #   set "next" hour to cron hour, set "next" minute to 0, return to beginning of loop
-    cron_next=$(next_cron_expression "$cron_hour" "$next_hour")
+    cron_next=$(next_cron_expression "$cron_hour" 23 "$next_hour")
     if [ "$cron_next" != "$next_hour" ]; then
       if [ "$next_hour" -gt "$cron_next" ]; then
         next_dom=$(( $next_dom + 1 ))
@@ -323,7 +323,7 @@ function wait_for_cron() {
     # if weekday does not match:
     #   move "next" weekday to next matching weekday, accounting for overflow at end of week
     #   reset "next" hour to 0, reset "next" minute to 0, return to beginning of loop
-    cron_next=$(next_cron_expression "$cron_dow" "$next_dow")
+    cron_next=$(next_cron_expression "$cron_dow" 6 "$next_dow")
     if [ "$cron_next" != "$next_dow" ]; then
       dowDiff=$(( $cron_next - $next_dow ))
       if [ "$dowDiff" -lt "0" ]; then
@@ -341,7 +341,7 @@ function wait_for_cron() {
     #       increment "next" month, reset "next" day to 1, reset "next" minute to 0, reset "next" hour to 0, return to beginning of loop
     #   else set "next" day to cron day, reset "next" minute to 0, reset "next" hour to 0, return to beginning of loop
     maxDom=$(max_day_in_month $next_month $next_year)
-    cron_next=$(next_cron_expression "$cron_dom" "$next_dom")
+    cron_next=$(next_cron_expression "$cron_dom" 30 "$next_dom")
     if [ "$cron_next" != "$next_dom" ]; then
       if [ $next_dom -gt $cron_next -o $next_dom -gt $maxDom ]; then
         next_month=$(( $next_month + 1 ))
@@ -359,7 +359,7 @@ function wait_for_cron() {
     #   if "next" month is ahead of cron month, increment "next" year by 1
     #   set "next" month to cron month, set "next" day to 1, set "next" minute to 0, set "next" hour to 0
     #   return to beginning of loop
-    cron_next=$(next_cron_expression "$cron_month" "$next_month")
+    cron_next=$(next_cron_expression "$cron_month" 11 "$next_month")
     if [ "$cron_next" != "$next_month" ]; then
       if [ $next_month -gt $cron_next ]; then
         next_year=$(( $next_year + 1 ))
@@ -374,54 +374,93 @@ function wait_for_cron() {
   done
   # success: "next" is now set to the next match!
 
-  local future=$(date --date="${next_year}.${next_month}.${next_dom}-${next_hour}:${next_minute}:00" +"%s")
+  local future=$(date --date="${next_year}-${next_month}-${next_dom}T${next_hour}:${next_minute}:00" +"%s")
   local futurediff=$(($future - $comparesec))
   echo $futurediff
 }
 
+# next_cron_expression function that takes a cron term, e.g. "3", "4-7", "*", "3,4-7", "*/5", "3-25/5",
+# and calculates the lowest term that fits the cron expression that is equal to or greater than some number.
+# uses the "max" argument to determine the maximum
+# For example, given the arguments, these are the results and why:
+# "*" "60" "4"       -> "4"   4 is the number that is greater than or equal to  "*"
+# "4" "60" "4"       -> "4"   4 is the number that is greater than or equal to  "4"
+# "5" "60" "4"       -> "5"   5 is the next number that matches "5", and is >= 4
+# "3-7" "60" "4"     -> "4"   4 is the number that fits within 3-7
+# "3-7" "60" "9"     -> "3"    no number in the range 3-7 ever is >= 9, so next one will be 3 when we circle back
+# "*/2" "60" "4"     -> "4"   4 is divisible by 2
+# "*/5" "60" "4"     -> "5"   5 is the next number in the range * that is divisible by 5, and is >= 4
+# "0-20/5" "60" "4"  -> "5"   5 is the next number in the range 0-20 that is divisible by 5, and is >= 4
+# "15-30/5" "60" "4" -> "15"  15 is the next number in the range 15-30 that is in increments of 5, and is >= 4
+# "15-30/5" "60" "20"-> "20"  20 is the next number in the range 15-30 that is in increments of 5, and is >= 20
+# "15-30/5" "60" "35"-> "15"    no number in the range 15-30/5 will ever be >=35, so 15 is the first circle back
+# "*/10" "12" "11"   -> "0"    the next match after 11 would be 20, but that would be greater than the maximum, so we circle back to 0
+#
 function next_cron_expression() {
   local crex="$1"
-  local num="$2"
+  local max="$2"
+  local num="$3"
 
-  if [ "$crex" = "*" -o "$crex" = "$num" ]; then
-    echo $num
-    return 0
-  fi
-
-  # expand
+  # expand the list - note that this can handle a single-element list
   local allvalid=""
+  local tmpvalid=""
   # take each comma-separated expression
   local parts=${crex//,/ }
   # replace * with # so that we can handle * as one of comma-separated terms without doing shell expansion
   parts=${parts//\*/#}
   for i in $parts; do
-    # handle a range like 3-7
-    # if it is a *, just add the number
-    if [ "$i" = "#" ]; then
+    # if it is a * or exact match, just add the number
+    if [ "$i" = "#" -o "$i" = "$num" ]; then
       echo $num
       return 0
     fi
-    start=${i%%-*}
-    end=${i##*-}
-    for n in $(seq $start $end); do
-      allvalid="$allvalid $n"
-    done
+
+    # it might be a step function, so we will have to reduce from the total range
+    partstep=${i##*\/}
+    partnum=${i%%\/*}
+    tmpvalid=""
+    local start=
+    local end=
+    if [ "${partnum}" = "#" ]; then
+      # calculate all of the numbers until the max
+      start=0
+      end=$max
+    else
+      # handle a range like 3-7, which includes a single number like 4
+      start=${partnum%%-*}
+      end=${partnum##*-}
+    fi
+    # calculate the valid ones just for this range
+    tmpvalid=$(seq $start $end)
+
+    # it is a step function if the partstep is not the same as the whole thing
+    if [ "$partstep" != "$i" ]; then
+      # add to allvalid only the ones that match the term
+      # there are two possible use cases:
+      # first number is 0: any divisible by the partstep, i.e. j%partstep
+      # first number is not 0: start at first and increment by partstep until we run out
+      #    this latter one is just the equivalent of dropping all numbers by (first) and then seeing if divisible
+      for j in $tmpvalid; do
+        if [ $(( (${j} - ${start}) % ${partstep} )) -eq 0 ]; then
+          allvalid="$allvalid $j"
+        fi
+      done
+    else
+      # if it is not a step function, just add the tmpvalid to the allvalid
+      allvalid="$allvalid $tmpvalid"
+    fi 
   done
 
   # sort for deduplication and ordering
   allvalid=$(echo $allvalid | tr ' ' '\n' | sort -n -u | tr '\n' ' ')
-  local bestmatch=${allvalid%% *}
   for i in $allvalid; do
-    if [ "$i" = "$num" ]; then
-      echo $num
+    if [ "$i" -ge "$num" ]; then
+      echo $i
       return 0
     fi
-    if [ "$i" -gt "$num" -a "$bestmatch" -lt "$num" ]; then
-      bestmatch=$i
-    fi
   done
-
-  echo $bestmatch
+  # if we got here, no number matched, so take the very first one
+  echo ${allvalid%% *}
 }
 
 function max_day_in_month() {
