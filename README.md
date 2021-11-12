@@ -39,6 +39,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
 * `DB_NAMES`: names of databases to dump; defaults to all databases in the database server
+* `SINGLE_DATABASE`: If is set to `true`, mysqldump command will run without `--databases` flag. This avoid `USE <database>;` statement which is useful for the cases in which you want to import the dumpfile into a database with a different name.
 * `DB_DUMP_FREQ`: How often to do a dump, in minutes. Defaults to 1440 minutes, or once per day.
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
     * Absolute: HHMM, e.g. `2330` or `0415`

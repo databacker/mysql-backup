@@ -120,27 +120,26 @@ function do_dump() {
   mkdir -p $workdir
   NICE_CMD=
   # if we asked to do by schema, then we need to get a list of all of the databases, take each, and then tar and zip them
+  if [ "$NICE" = "true" ]; then
+    NICE_CMD="nice -n19 ionice -c2"
+  fi
   if [ -n "$DB_DUMP_BY_SCHEMA" -a "$DB_DUMP_BY_SCHEMA" = "true" ]; then
     if [[ -z "$DB_NAMES" ]]; then
       DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
       [ $? -ne 0 ] && return 1
     fi
     for onedb in $DB_NAMES; do
-      if [ "$NICE" = "true" ]; then
-         NICE_CMD="nice -n19 ionice -c2"
-      fi
       $NICE_CMD mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
       [ $? -ne 0 ] && return 1
     done
   else
     # just a single command
-    if [[ -n "$DB_NAMES" ]]; then
+    if [ "$SINGLE_DATABASE" = "true" ]; then
+      DB_LIST="$DB_NAMES"
+    elif [[ -n "$DB_NAMES" ]]; then
       DB_LIST="--databases $DB_NAMES"
     else
       DB_LIST="-A"
-    fi
-    if [ "$NICE" = "true" ]; then
-      NICE_CMD="nice -n19 ionice -c2"
     fi
     $NICE_CMD mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
     [ $? -ne 0 ] && return 1
