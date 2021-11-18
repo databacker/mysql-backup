@@ -34,6 +34,8 @@ file_env "AWS_DEFAULT_REGION"
 file_env "SMB_USER"
 file_env "SMB_PASS"
 
+file_env "TMP_PATH" "/tmp"
+
 file_env "COMPRESSION" "gzip"
 
 if [[ -n "$DB_DUMP_DEBUG" ]]; then
@@ -88,8 +90,8 @@ esac
 
 
 # temporary dump dir
-TMPDIR=/tmp/backups
-TMPRESTORE=/tmp/restorefile
+TMPDIR="${TMP_PATH}/backups"
+TMPRESTORE="${TMP_PATH}/restorefile"
 
 # this is global, so has to be set outside
 declare -A uri
@@ -133,7 +135,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
-    workdir=/tmp/restore.$$
+    workdir="/${TMP_PATH}/restore.$$"
     rm -rf $workdir
     mkdir -p $workdir
     $UNCOMPRESS < $TMPRESTORE | tar -C $workdir -xvf -

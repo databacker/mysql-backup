@@ -115,7 +115,7 @@ function do_dump() {
   fi
 
   # do the dump
-  workdir=/tmp/backup.$$
+  workdir="/${TMP_PATH}/backup.$$"
   rm -rf $workdir
   mkdir -p $workdir
   NICE_CMD=
