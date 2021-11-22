@@ -65,7 +65,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_DUMP_KEEP_PERMISSIONS`: Whether to keep permissions for a file target. By default, `mysql-backup` copies the backup compressed file to the target with `cp -a`. In certain filesystems with certain permissions, this may cause errors. You can disable the `-a` flag by setting `DB_DUMP_KEEP_PERMISSIONS=false`. Defaults to `true`.
 * `MYSQLDUMP_OPTS`: A string of options to pass to `mysqldump`, e.g. `MYSQLDUMP_OPTS="--opt abc --param def --max_allowed_packet=123455678"` will run `mysqldump --opt abc --param def --max_allowed_packet=123455678`
 * `NICE`: true to perform mysqldump with ionice and nice option:- check for more information :- http://eosrei.net/articles/2013/03/forcing-mysqldump-always-be-nice-cpu-and-io
-* `TMP_PATH`: tmp directory to be used for backup creation (before being moved to `DB_DUMP_TARGET`) and other operations. Useful in case the script runs over a container with very few internal storage. Optional, defaults to `\tmp`
+* `TMP_PATH`: tmp directory to be used during backup creation and other operations. Optional, defaults to `/tmp`
 
 ### Scheduling
 There are several options for scheduling how often a backup should run:
