@@ -20,7 +20,6 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-    steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Set up Docker Buildx
@@ -36,4 +35,4 @@ jobs:
         with:
           push: true
           tags: |
-            ${{env.IMAGE_NAME}}:${{env.GITHUB_REF#refs/tags/}}
+            ${{env.IMAGE_NAME}}:${{ github.ref_name }}
