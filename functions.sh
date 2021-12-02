@@ -342,15 +342,16 @@ function wait_for_cron() {
     maxDom=$(max_day_in_month $next_month $next_year)
     cron_next=$(next_cron_expression "$cron_dom" 30 "$next_dom")
     if [ "$cron_next" != "$next_dom" ]; then
-      if [ $next_dom -gt $cron_next -o $next_dom -gt $maxDom ]; then
-        next_month=$(( $next_month + 1 ))
-        next_dom=1
-      else
-        next_dom=$cron_next
-      fi
       next_hour=0
       next_minute=0
     fi
+    if [ $next_dom -gt $cron_next -o $next_dom -gt $maxDom ]; then
+      next_month=$(( $next_month + 1 ))
+      next_dom=1
+    else
+      next_dom=$cron_next
+    fi
+
 
     # month:
     # if month matches, move to next step

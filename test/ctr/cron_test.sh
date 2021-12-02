@@ -59,6 +59,7 @@ cronline=(
   "1 * * * *"
   "* 1 * * *"
   "1 * * * *"
+  "0 0 * * *"
   #"10 2 10 * *"
 )
 
@@ -67,12 +68,14 @@ nowtime=(
   "2018-10-10T10:00:00Z"
   "2018-10-10T10:00:00Z"
   "2018-10-10T10:01:10Z" # this line tests that we use the current minute, and not wait for "-10"
+  "2021-11-30T10:00:00Z"
 )
 waittime=(
   "0"
   "60"
   "54000"
   "0"
+  "50400"
 )
 
 for ((i=0; i< ${#cronline[@]}; i++)); do
