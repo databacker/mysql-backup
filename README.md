@@ -47,10 +47,11 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_DUMP_CRON`: Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.
 * `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, all other scheduling options, like `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` and `DB_DUMP_CRON`, become obsolete.
 * `DB_DUMP_DEBUG`: If set to `true`, print copious shell script messages to the container log. Otherwise only basic messages are printed.
-* `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Can have multiple targets separated by whitespace. Supports three formats:
+* `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Supports four formats:
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
     * SMB: If the value of `DB_DUMP_TARGET` is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
     * S3: If the value of `DB_DUMP_TARGET` is a URL of the format `s3://bucketname/path` then it will connect via awscli.
+    * Multiple: If the value of `DB_DUMP_TARGET` contains multiple targets, the targets should be separated by a whitespace **and** the value surrounded by quotes, e.g. `"/db s3://bucketname/path"`.
 * `DB_DUMP_SAFECHARS`: The dump filename usually includes the character `:` in the date, to comply with RFC3339. Some systems and shells don't like that character. If this environment variable is set, it will replace all `:` with `-`.
 * `AWS_ACCESS_KEY_ID`: AWS Key ID
 * `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
