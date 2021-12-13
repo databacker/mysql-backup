@@ -347,6 +347,10 @@ function wait_for_cron() {
     fi
     if [ $next_dom -gt $cron_next -o $next_dom -gt $maxDom ]; then
       next_month=$(( $next_month + 1 ))
+      if [ $next_month -gt 12 ]; then
+        next_month=$(( $next_month - 12))
+        next_year=$(( $next_year + 1 ))
+      fi
       next_dom=1
     else
       next_dom=$cron_next
@@ -359,8 +363,13 @@ function wait_for_cron() {
     #   if "next" month is ahead of cron month, increment "next" year by 1
     #   set "next" month to cron month, set "next" day to 1, set "next" minute to 0, set "next" hour to 0
     #   return to beginning of loop
-    cron_next=$(next_cron_expression "$cron_month" 11 "$next_month")
+    cron_next=$(next_cron_expression "$cron_month" 12 "$next_month")
     if [ "$cron_next" != "$next_month" ]; then
+      # must be sure to roll month if needed
+      if [ $cron_next -gt 12 ]; then
+        next_year=$(( $next_year + 1 ))
+        cron_next=$(( $cron_next - 12 ))
+      fi
       if [ $next_month -gt $cron_next ]; then
         next_year=$(( $next_year + 1 ))
       fi

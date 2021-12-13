@@ -173,7 +173,7 @@ else
     target_time=$(($current_time + $waittime))
   else
     today=$(date +"%Y%m%d")
-    target_time=$(date --date="${today}${DB_DUMP_BEGIN}" +"%s")
+    target_time=$(date --date="${today}T${DB_DUMP_BEGIN}" +"%s")
 
     if [[ "$target_time" < "$current_time" ]]; then
       target_time=$(($target_time + 24*60*60))
