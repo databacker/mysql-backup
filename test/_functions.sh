@@ -118,8 +118,8 @@ function start_service_containers() {
 	# Allow up to 20 seconds for the database to be ready
 	db_connect="docker exec -i $mysql_cid mysql -u$MYSQLUSER -p$MYSQLPW --protocol=tcp -h127.0.0.1 --wait --connect_timeout=20 tester"
 	retry_count=0
-	retryMax=20
-	retrySleep=1
+	retryMax=80
+	retrySleep=3
 	until [[ $retry_count -ge $retryMax ]]; do
 		set +e
 		$db_connect -e 'select 1;'
