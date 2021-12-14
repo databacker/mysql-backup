@@ -34,4 +34,4 @@ jobs:
         tags: |
           ${{env.IMAGE_NAME}}:${{github.sha}}
     - name: test
-      run: make test
+      run: make test DEBUG=2
