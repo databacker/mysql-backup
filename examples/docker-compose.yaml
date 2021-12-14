@@ -39,6 +39,22 @@ services:
   #     - NICE=true
   #   volumes:
   #     - /etc/localtime:/etc/localtime:ro
+  # mysql-backup-multiple-targets:
+  #   image: mysql-backup:1.0
+  #   environment:
+  #     - DB_SERVER=mysql
+  #     - DB_USER=wordpress
+  #     - DB_PASS=wordpress
+  #     - DB_DUMP_TARGET="/db s3://dumps/WORDPRESS"
+  #     - DB_DUMP_BEGIN=1345
+  #     - AWS_ACCESS_KEY_ID=access
+  #     - AWS_SECRET_ACCESS_KEY=SUPERKEYPOWERSON
+  #     - AWS_ENDPOINT_URL=https://minio.mydomain.local
+  #     - COMPRESSION=bzip2
+  #     - NICE=true
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime:ro
+  #     - /home/user/mysql/backup:/db
   # mysql-restore:
   #   image: registry.tce.ro.gov.br/mysql-backup:1.0
   #   environment:
