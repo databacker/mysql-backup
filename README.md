@@ -38,7 +38,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
-* `DB_NAMES`: names of databases to dump; defaults to all databases in the database server
+* `DB_NAMES`: names of databases to dump (separated by space); defaults to all databases in the database server
+* `DB_NAMES_EXCLUDE`: names of databases (separated by space) to exclude from the dump; `information_schema`. `performance_schema`, `sys` and `mysql` are excluded by default. This only applies if `DB_DUMP_BY_SCHEMA` is set to `true`. For example, if you set `DB_NAMES_EXCLUDE=database1 db2` and `DB_DUMP_BY_SCHEMA=true` then these two databases will not be dumped by mysqldump
 * `SINGLE_DATABASE`: If is set to `true`, mysqldump command will run without `--databases` flag. This avoid `USE <database>;` statement which is useful for the cases in which you want to import the dumpfile into a database with a different name.
 * `DB_DUMP_FREQ`: How often to do a dump, in minutes. Defaults to 1440 minutes, or once per day.
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
