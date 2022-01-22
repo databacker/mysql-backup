@@ -91,9 +91,14 @@ function uri_parser() {
 #
 function do_dump() {
   # what is the name of our source and target?
-  now=$(date -u +"%Y%m%d%H%M%S")
+  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   # SOURCE: file that the uploader looks for when performing the upload
   # TARGET: the remote file that is actually uploaded
+
+  # option to replace
+  if [ -n "$DB_DUMP_SAFECHARS" ]; then
+    now=${now//:/-}
+  fi
   SOURCE=db_backup_${now}.$EXTENSION
   TARGET=${SOURCE}
 
@@ -110,27 +115,44 @@ function do_dump() {
   fi
 
   # do the dump
-  workdir=/tmp/backup.$$
+  workdir="${TMP_PATH}/backup.$$"
   rm -rf $workdir
   mkdir -p $workdir
+  NICE_CMD=
   # if we asked to do by schema, then we need to get a list of all of the databases, take each, and then tar and zip them
+  if [ "$NICE" = "true" ]; then
+    NICE_CMD="nice -n19 ionice -c2"
+  fi
   if [ -n "$DB_DUMP_BY_SCHEMA" -a "$DB_DUMP_BY_SCHEMA" = "true" ]; then
     if [[ -z "$DB_NAMES" ]]; then
       DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
       [ $? -ne 0 ] && return 1
     fi
+    if [ -z "$DB_NAMES_EXCLUDE" ]; then
+      DB_NAMES_EXCLUDE="information_schema performance_schema mysql sys"
+    fi
+    declare -A exclude_list
+    for i in $DB_NAMES_EXCLUDE; do
+      exclude_list[$i]="true"
+    done
     for onedb in $DB_NAMES; do
-      mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
+      if [ -v exclude_list[$onedb] ]; then
+        # skip db if it is in the exclude list
+        continue
+      fi
+      $NICE_CMD mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS --databases ${onedb} $MYSQLDUMP_OPTS > $workdir/${onedb}_${now}.sql
       [ $? -ne 0 ] && return 1
     done
   else
     # just a single command
-    if [[ -n "$DB_NAMES" ]]; then
+    if [ "$SINGLE_DATABASE" = "true" ]; then
+      DB_LIST="$DB_NAMES"
+    elif [[ -n "$DB_NAMES" ]]; then
       DB_LIST="--databases $DB_NAMES"
     else
       DB_LIST="-A"
     fi
-    mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
+    $NICE_CMD mysqldump -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DB_LIST $MYSQLDUMP_OPTS > $workdir/backup_${now}.sql
     [ $? -ne 0 ] && return 1
   fi
   tar -C $workdir -cvf - . | $COMPRESS > ${TMPDIR}/${SOURCE}
@@ -195,7 +217,7 @@ function backup_target() {
     "s3")
       # allow for endpoint url override
       [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
-      aws ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${SOURCE} "${DB_DUMP_TARGET}/${TARGET}"
+      aws ${AWS_CLI_OPTS} ${AWS_ENDPOINT_OPT} s3 cp ${TMPDIR}/${SOURCE} "${DB_DUMP_TARGET}/${TARGET}"
       ;;
     "smb")
       if [[ -n "$SMB_USER" ]]; then
@@ -214,7 +236,9 @@ function backup_target() {
         UDOM=
       fi
 
-      smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${SOURCE} ${TARGET}"
+      # smb has issues with the character `:` in filenames, so replace with `-`
+      smbTargetName=${TARGET//:/-}
+      smbclient -N "//${uri[host]}/${uri[share]}" ${UPASSARG} "${UPASS}" ${UDOM} -c "cd ${uri[sharepath]}; put ${TMPDIR}/${SOURCE} ${smbTargetName}"
      ;;
   esac
   [ $? -ne 0 ] && return 1
@@ -282,7 +306,7 @@ function wait_for_cron() {
     # if minute does not match, move "next" minute to the time that does match in cron
     #   if "next" minute is ahead of cron minute, then increment "next" hour by one
     #   move to hour
-    cron_next=$(next_cron_expression "$cron_minute" "$next_minute")
+    cron_next=$(next_cron_expression "$cron_minute" 59 "$next_minute")
     if [ "$cron_next" != "$next_minute" ]; then
       if [ "$next_minute" -gt "$cron_next" ]; then
         next_hour=$(( $next_hour + 1 ))
@@ -295,7 +319,7 @@ function wait_for_cron() {
     # if hour does not match:
     #   if "next" hour is ahead of cron hour, then increment "next" day by one
     #   set "next" hour to cron hour, set "next" minute to 0, return to beginning of loop
-    cron_next=$(next_cron_expression "$cron_hour" "$next_hour")
+    cron_next=$(next_cron_expression "$cron_hour" 23 "$next_hour")
     if [ "$cron_next" != "$next_hour" ]; then
       if [ "$next_hour" -gt "$cron_next" ]; then
         next_dom=$(( $next_dom + 1 ))
@@ -303,13 +327,13 @@ function wait_for_cron() {
       next_hour=$cron_next
       next_minute=0
     fi
-  
+
     # weekday:
     # if weekday matches, move to next step
     # if weekday does not match:
     #   move "next" weekday to next matching weekday, accounting for overflow at end of week
     #   reset "next" hour to 0, reset "next" minute to 0, return to beginning of loop
-    cron_next=$(next_cron_expression "$cron_dow" "$next_dow")
+    cron_next=$(next_cron_expression "$cron_dow" 6 "$next_dow")
     if [ "$cron_next" != "$next_dow" ]; then
       dowDiff=$(( $cron_next - $next_dow ))
       if [ "$dowDiff" -lt "0" ]; then
@@ -319,34 +343,44 @@ function wait_for_cron() {
       next_hour=0
       next_minute=0
     fi
-  
+
     # dom:
     # if dom matches, move to next step
     # if dom does not match:
-    #   if "next" dom is ahead of cron dom OR "next" month does not have crom dom (e.g. crom dom = 30 in Feb), 
+    #   if "next" dom is ahead of cron dom OR "next" month does not have crom dom (e.g. crom dom = 30 in Feb),
     #       increment "next" month, reset "next" day to 1, reset "next" minute to 0, reset "next" hour to 0, return to beginning of loop
     #   else set "next" day to cron day, reset "next" minute to 0, reset "next" hour to 0, return to beginning of loop
     maxDom=$(max_day_in_month $next_month $next_year)
-    cron_next=$(next_cron_expression "$cron_dom" "$next_dom")
+    cron_next=$(next_cron_expression "$cron_dom" 30 "$next_dom")
     if [ "$cron_next" != "$next_dom" ]; then
-      if [ $next_dom -gt $cron_next -o $next_dom -gt $maxDom ]; then
-        next_month=$(( $next_month + 1 ))
-        next_dom=1
-      else
-        next_dom=$cron_next
-      fi
       next_hour=0
       next_minute=0
     fi
- 
+    if [ $next_dom -gt $cron_next -o $next_dom -gt $maxDom ]; then
+      next_month=$(( $next_month + 1 ))
+      if [ $next_month -gt 12 ]; then
+        next_month=$(( $next_month - 12))
+        next_year=$(( $next_year + 1 ))
+      fi
+      next_dom=1
+    else
+      next_dom=$cron_next
+    fi
+
+
     # month:
     # if month matches, move to next step
     # if month does not match:
     #   if "next" month is ahead of cron month, increment "next" year by 1
     #   set "next" month to cron month, set "next" day to 1, set "next" minute to 0, set "next" hour to 0
     #   return to beginning of loop
-    cron_next=$(next_cron_expression "$cron_month" "$next_month")
+    cron_next=$(next_cron_expression "$cron_month" 12 "$next_month")
     if [ "$cron_next" != "$next_month" ]; then
+      # must be sure to roll month if needed
+      if [ $cron_next -gt 12 ]; then
+        next_year=$(( $next_year + 1 ))
+        cron_next=$(( $cron_next - 12 ))
+      fi
       if [ $next_month -gt $cron_next ]; then
         next_year=$(( $next_year + 1 ))
       fi
@@ -355,59 +389,98 @@ function wait_for_cron() {
       next_minute=0
       next_hour=0
     fi
-  
+
     success=0
   done
   # success: "next" is now set to the next match!
 
-  local future=$(date --date="${next_year}.${next_month}.${next_dom}-${next_hour}:${next_minute}:00" +"%s")
+  local future=$(date --date="${next_year}-${next_month}-${next_dom}T${next_hour}:${next_minute}:00" +"%s")
   local futurediff=$(($future - $comparesec))
-  echo $futurediff  
+  echo $futurediff
 }
 
+# next_cron_expression function that takes a cron term, e.g. "3", "4-7", "*", "3,4-7", "*/5", "3-25/5",
+# and calculates the lowest term that fits the cron expression that is equal to or greater than some number.
+# uses the "max" argument to determine the maximum
+# For example, given the arguments, these are the results and why:
+# "*" "60" "4"       -> "4"   4 is the number that is greater than or equal to  "*"
+# "4" "60" "4"       -> "4"   4 is the number that is greater than or equal to  "4"
+# "5" "60" "4"       -> "5"   5 is the next number that matches "5", and is >= 4
+# "3-7" "60" "4"     -> "4"   4 is the number that fits within 3-7
+# "3-7" "60" "9"     -> "3"    no number in the range 3-7 ever is >= 9, so next one will be 3 when we circle back
+# "*/2" "60" "4"     -> "4"   4 is divisible by 2
+# "*/5" "60" "4"     -> "5"   5 is the next number in the range * that is divisible by 5, and is >= 4
+# "0-20/5" "60" "4"  -> "5"   5 is the next number in the range 0-20 that is divisible by 5, and is >= 4
+# "15-30/5" "60" "4" -> "15"  15 is the next number in the range 15-30 that is in increments of 5, and is >= 4
+# "15-30/5" "60" "20"-> "20"  20 is the next number in the range 15-30 that is in increments of 5, and is >= 20
+# "15-30/5" "60" "35"-> "15"    no number in the range 15-30/5 will ever be >=35, so 15 is the first circle back
+# "*/10" "12" "11"   -> "0"    the next match after 11 would be 20, but that would be greater than the maximum, so we circle back to 0
+#
 function next_cron_expression() {
   local crex="$1"
-  local num="$2"
+  local max="$2"
+  local num="$3"
 
-  if [ "$crex" = "*" -o "$crex" = "$num" ]; then
-    echo $num
-    return 0
-  fi
-
-  # expand
+  # expand the list - note that this can handle a single-element list
   local allvalid=""
+  local tmpvalid=""
   # take each comma-separated expression
   local parts=${crex//,/ }
   # replace * with # so that we can handle * as one of comma-separated terms without doing shell expansion
   parts=${parts//\*/#}
   for i in $parts; do
-    # handle a range like 3-7
-    # if it is a *, just add the number
-    if [ "$i" = "#" ]; then
+    # if it is a * or exact match, just add the number
+    if [ "$i" = "#" -o "$i" = "$num" ]; then
       echo $num
       return 0
     fi
-    start=${i%%-*}
-    end=${i##*-}
-    for n in $(seq $start $end); do
-      allvalid="$allvalid $n"
-    done
+
+    # it might be a step function, so we will have to reduce from the total range
+    partstep=${i##*\/}
+    partnum=${i%%\/*}
+    tmpvalid=""
+    local start=
+    local end=
+    if [ "${partnum}" = "#" ]; then
+      # calculate all of the numbers until the max
+      start=0
+      end=$max
+    else
+      # handle a range like 3-7, which includes a single number like 4
+      start=${partnum%%-*}
+      end=${partnum##*-}
+    fi
+    # calculate the valid ones just for this range
+    tmpvalid=$(seq $start $end)
+
+    # it is a step function if the partstep is not the same as the whole thing
+    if [ "$partstep" != "$i" ]; then
+      # add to allvalid only the ones that match the term
+      # there are two possible use cases:
+      # first number is 0: any divisible by the partstep, i.e. j%partstep
+      # first number is not 0: start at first and increment by partstep until we run out
+      #    this latter one is just the equivalent of dropping all numbers by (first) and then seeing if divisible
+      for j in $tmpvalid; do
+        if [ $(( (${j} - ${start}) % ${partstep} )) -eq 0 ]; then
+          allvalid="$allvalid $j"
+        fi
+      done
+    else
+      # if it is not a step function, just add the tmpvalid to the allvalid
+      allvalid="$allvalid $tmpvalid"
+    fi 
   done
 
   # sort for deduplication and ordering
-  allvalid=$(echo $allvalid | tr ' ' '\n' | sort -n -u | tr '\n' ' ') 
-  local bestmatch=${allvalid%% *}
+  allvalid=$(echo $allvalid | tr ' ' '\n' | sort -n -u | tr '\n' ' ')
   for i in $allvalid; do
-    if [ "$i" = "$num" ]; then
-      echo $num
+    if [ "$i" -ge "$num" ]; then
+      echo $i
       return 0
     fi
-    if [ "$i" -gt "$num" -a "$bestmatch" -lt "$num" ]; then
-      bestmatch=$i
-    fi
   done
-
-  echo $bestmatch 
+  # if we got here, no number matched, so take the very first one
+  echo ${allvalid%% *}
 }
 
 function max_day_in_month() {
@@ -436,4 +509,3 @@ function max_day_in_month() {
       ;;
   esac
 }
-

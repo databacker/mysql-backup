@@ -13,6 +13,7 @@ file_env "DB_PORT"
 file_env "DB_USER"
 file_env "DB_PASS"
 file_env "DB_NAMES"
+file_env "DB_NAMES_EXCLUDE"
 
 file_env "DB_DUMP_FREQ" "1440"
 file_env "DB_DUMP_BEGIN" "+0"
@@ -25,12 +26,16 @@ file_env "DB_RESTORE_TARGET"
 
 file_env "AWS_ENDPOINT_URL"
 file_env "AWS_ENDPOINT_OPT"
+file_env "AWS_CLI_OPTS"
+file_env "AWS_CLI_S3_CP_OPTS"
 file_env "AWS_ACCESS_KEY_ID"
 file_env "AWS_SECRET_ACCESS_KEY"
 file_env "AWS_DEFAULT_REGION"
 
 file_env "SMB_USER"
 file_env "SMB_PASS"
+
+file_env "TMP_PATH" "/tmp"
 
 file_env "COMPRESSION" "gzip"
 
@@ -86,8 +91,8 @@ esac
 
 
 # temporary dump dir
-TMPDIR=/tmp/backups
-TMPRESTORE=/tmp/restorefile
+TMPDIR="${TMP_PATH}/backups"
+TMPRESTORE="${TMP_PATH}/restorefile"
 
 # this is global, so has to be set outside
 declare -A uri
@@ -110,7 +115,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
   elif [[ "${uri[schema]}" == "s3" ]]; then
     [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
-      aws ${AWS_ENDPOINT_OPT} s3 cp "${DB_RESTORE_TARGET}" $TMPRESTORE
+      aws ${AWS_CLI_OPTS} ${AWS_ENDPOINT_OPT} s3 cp ${AWS_CLI_S3_CP_OPTS} "${DB_RESTORE_TARGET}" $TMPRESTORE
   elif [[ "${uri[schema]}" == "smb" ]]; then
     if [[ -n "$SMB_USER" ]]; then
       UPASSARG="-U"
@@ -131,7 +136,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
-    workdir=/tmp/restore.$$
+    workdir="${TMP_PATH}/restore.$$"
     rm -rf $workdir
     mkdir -p $workdir
     $UNCOMPRESS < $TMPRESTORE | tar -C $workdir -xvf -
@@ -168,8 +173,8 @@ else
     waittime=$(( ${BASH_REMATCH[1]} * 60 ))
     target_time=$(($current_time + $waittime))
   else
-    today=$(date +"%Y%m%d")
-    target_time=$(date --date="${today}${DB_DUMP_BEGIN}" +"%s")
+    today=$(date +"%Y-%m-%d")
+    target_time=$(date --date="${today} ${DB_DUMP_BEGIN}" +"%s")
 
     if [[ "$target_time" < "$current_time" ]]; then
       target_time=$(($target_time + 24*60*60))

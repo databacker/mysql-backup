@@ -38,28 +38,36 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
-* `DB_NAMES`: names of databases to dump; defaults to all databases in the database server
+* `DB_NAMES`: names of databases to dump (separated by space); defaults to all databases in the database server
+* `DB_NAMES_EXCLUDE`: names of databases (separated by space) to exclude from the dump; `information_schema`. `performance_schema`, `sys` and `mysql` are excluded by default. This only applies if `DB_DUMP_BY_SCHEMA` is set to `true`. For example, if you set `DB_NAMES_EXCLUDE=database1 db2` and `DB_DUMP_BY_SCHEMA=true` then these two databases will not be dumped by mysqldump
+* `SINGLE_DATABASE`: If is set to `true`, mysqldump command will run without `--databases` flag. This avoid `USE <database>;` statement which is useful for the cases in which you want to import the dumpfile into a database with a different name.
 * `DB_DUMP_FREQ`: How often to do a dump, in minutes. Defaults to 1440 minutes, or once per day.
 * `DB_DUMP_BEGIN`: What time to do the first dump. Defaults to immediate. Must be in one of two formats:
     * Absolute: HHMM, e.g. `2330` or `0415`
     * Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half
-* `DB_DUMP_CRON`: Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line. 
-* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, all other scheduling options, like `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` and `DB_DUMP_CRON`, become obsolete. 
+* `DB_DUMP_CRON`: Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.
+* `RUN_ONCE`: Run the backup once and exit if `RUN_ONCE` is set. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally. If you use this option, all other scheduling options, like `DB_DUMP_FREQ` and `DB_DUMP_BEGIN` and `DB_DUMP_CRON`, become obsolete.
 * `DB_DUMP_DEBUG`: If set to `true`, print copious shell script messages to the container log. Otherwise only basic messages are printed.
-* `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Can have multiple targets separated by whitespace. Supports three formats:
+* `DB_DUMP_TARGET`: Where to put the dump file, should be a directory. Supports four formats:
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
     * SMB: If the value of `DB_DUMP_TARGET` is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
     * S3: If the value of `DB_DUMP_TARGET` is a URL of the format `s3://bucketname/path` then it will connect via awscli.
+    * Multiple: If the value of `DB_DUMP_TARGET` contains multiple targets, the targets should be separated by a whitespace **and** the value surrounded by quotes, e.g. `"/db s3://bucketname/path"`.
+* `DB_DUMP_SAFECHARS`: The dump filename usually includes the character `:` in the date, to comply with RFC3339. Some systems and shells don't like that character. If this environment variable is set, it will replace all `:` with `-`.
 * `AWS_ACCESS_KEY_ID`: AWS Key ID
 * `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
 * `AWS_DEFAULT_REGION`: Region in which the bucket resides
-* `AWS_ENDPOINT_URL`: Specify an alternative endpoint for s3 interopable systems e.g. Digitalocean 
+* `AWS_ENDPOINT_URL`: Specify an alternative endpoint for s3 interopable systems e.g. Digitalocean
+* `AWS_CLI_OPTS`: Additional arguments to be passed to the `aws` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/#options) for a list. _Be careful_, as you can break something!
+* `AWS_CLI_S3_CP_OPTS`: Additional arguments to be passed to the `s3 cp` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/s3/cp.html#options) for a list. If you are using AWS KMS, `sse`, `sse-kms-key-id`, etc., may be of interest.
 * `SMB_USER`: SMB username. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
 * `DB_DUMP_BY_SCHEMA`: Whether to use separate files per schema in the compressed file (`true`), or a single dump file (`false`). Defaults to `false`.
 * `DB_DUMP_KEEP_PERMISSIONS`: Whether to keep permissions for a file target. By default, `mysql-backup` copies the backup compressed file to the target with `cp -a`. In certain filesystems with certain permissions, this may cause errors. You can disable the `-a` flag by setting `DB_DUMP_KEEP_PERMISSIONS=false`. Defaults to `true`.
 * `MYSQLDUMP_OPTS`: A string of options to pass to `mysqldump`, e.g. `MYSQLDUMP_OPTS="--opt abc --param def --max_allowed_packet=123455678"` will run `mysqldump --opt abc --param def --max_allowed_packet=123455678`
+* `NICE`: true to perform mysqldump with ionice and nice option:- check for more information :- http://eosrei.net/articles/2013/03/forcing-mysqldump-always-be-nice-cpu-and-io
+* `TMP_PATH`: tmp directory to be used during backup creation and other operations. Optional, defaults to `/tmp`
 
 ### Scheduling
 There are several options for scheduling how often a backup should run:
@@ -91,12 +99,12 @@ The scheduling options have an order of priority:
 ### Permissions
 By default, the backup/restore process does **not** run as root (UID O). Whenever possible, you should run processes (not just in containers) as users other than root. In this case, it runs as username `appuser` with UID/GID `1005`.
 
-In most scenarios, this will not affect your backup process negatively. However, if you are usingn the "Local" dump target, i.e. your `DB_DUMP_TARGET` starts with `/` - and, most likely, is a volume mounted into the container - you can run into permissions issues. For example, if your mounted directory is owned by root on the host, then the backup process will be unable to write to it.
+In most scenarios, this will not affect your backup process negatively. However, if you are using the "Local" dump target, i.e. your `DB_DUMP_TARGET` starts with `/` - and, most likely, is a volume mounted into the container - you can run into permissions issues. For example, if your mounted directory is owned by root on the host, then the backup process will be unable to write to it.
 
 In this case, you have two options:
 
 * Run the container as root, `docker run --user 0 ... ` or, in i`docker-compose.yml`, `user: "0"`
-* Ensure your mounted directory is writable as UID or GID `1005`. 
+* Ensure your mounted directory is writable as UID or GID `1005`.
 
 
 ### Database Container
@@ -107,20 +115,29 @@ docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_
 ````
 
 ### Dump Target
+
 The dump target is where you want the backup files to be saved. The backup file *always* is a compressed file the following format:
 
-`db_backup_YYYYMMDDHHmm.<compression>`
+`db_backup_YYYY-MM-DDTHH:mm:ssZ.<compression>`
 
-Where:
+Where the date is RFC3339 date format, excluding the milliseconds portion.
 
 * YYYY = year in 4 digits
 * MM = month number from 01-12
 * DD = date for 01-31
 * HH = hour from 00-23
 * mm = minute from 00-59
+* ss = seconds from 00-59
+* T = literal character `T`, indicating the separation between date and time portions
+* Z = literal character `Z`, indicating that the time provided is UTC, or "Zulu"
 * compression = appropriate file ending for selected compression, one of: `gz` (gzip, default); `bz2` (bzip2)
 
 The time used is UTC time at the moment the dump begins.
+
+Notes on format:
+
+* SMB does not allow for `:` in a filename (depending on server options), so they are replaced with the `-` character when writing to SMB.
+* Some shells do not handle a `:` in the filename gracefully. Although these usually are legitimate characters as far as the _filesystem_ is concerned, your shell may not like it. To avoid this issue, you can set the "no-colons" options with the environment variable `DB_DUMP_SAFECHARS`
 
 The dump target is the location where the dump should be placed, defaults to `/backup` in the container. Of course, having the backup in the container does not help very much, so we very strongly recommend you volume mount it outside somewhere. See the above example.
 
@@ -135,7 +152,7 @@ Note that for s3, you'll need to specify your AWS credentials and default AWS re
 Also note that if you are using an s3 interopable storage system like DigitalOcean you can use that as the target by setting `AWS_ENDPOINT_URL` to `${REGION_NAME}.digitaloceanspaces.com` and setting `DB_DUMP_TARGET` to `s3://bucketname/path`.   
 
 #### Custom backup source file name
-There may be use-cases where you need to modify the source path of the backup file **before** it gets uploaded to the dump target. 
+There may be use-cases where you need to modify the source path of the backup file **before** it gets uploaded to the dump target.
 An example is combining multiple compressed files into one and giving it a new name, i.e. ```db-other-files-combined.tar.gz```.
 To do that, place an executable file called `source.sh` in the following path:
 
@@ -146,25 +163,25 @@ Whatever your script returns to _stdout_ will be used as the source name for the
 The following exported environment variables will be available to the script above:
 
 * `DUMPFILE`: full path in the container to the output file
-* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
-      
+
 **Example run:**
 
       NOW=20180930151304 DUMPFILE=/tmp/backups/db_backup_201809301513.gz DUMPDIR=/backup DB_DUMP_DEBUG=true /scripts.d/source.sh
-      
+
 **Example custom source script:**
-  
+
 ```bash
   #!/bin/bash
-  
+
   # Rename source file
   echo -n "db-plus-wordpress_${NOW}.gz"
 ```           
 
 #### Custom backup target file name
-There may be use-cases where you need to modify the target upload path of the backup file **before** it gets uploaded. 
+There may be use-cases where you need to modify the target upload path of the backup file **before** it gets uploaded.
 An example is uploading a backup to a date stamped object key path in S3, i.e. ```s3://bucket/2018/08/23/path```.
 To do that, place an executable file called ```target.sh``` in the following path:
 
@@ -175,22 +192,22 @@ Whatever your script returns to _stdout_ will be used as the name for the backup
 The following exported environment variables will be available to the script above:
 
 * `DUMPFILE`: full path in the container to the output file
-* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
 
 **Example run:**
 
       NOW=20180930151304 DUMPFILE=/tmp/backups/db_backup_201809301513.gz DUMPDIR=/backup DB_DUMP_DEBUG=true /scripts.d/target.sh
-      
+
 **Example custom target script:**
-  
+
 ```bash
   #!/bin/bash
-  
+
   # Rename target file
   echo -n "db-plus-wordpress-uploaded_${NOW}.gz"
-``` 
+```
 
 ### Backup pre and post processing
 
@@ -238,7 +255,7 @@ services:
 The scripts are _executed_ in the [entrypoint](https://github.com/databack/mysql-backup/blob/master/entrypoint) script, which means it has access to all exported environment variables. The following are available, but we are happy to export more as required (just open an issue or better yet, a pull request):
 
 * `DUMPFILE`: full path in the container to the output file
-* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y%m%d%H%M%S"`
+* `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DB_DUMP_DEBUG`: To enable debug mode in post-backup scripts.
 
@@ -267,6 +284,14 @@ fi
 ````
 
 You can think of this as a sort of basic plugin system. Look at the source of the [entrypoint](https://github.com/databack/mysql-backup/blob/master/entrypoint) script for other variables that can be used.
+
+### Encrypting the Backup
+
+Post-processing also give you options to encrypt the backup using openssl. The openssl binary is available
+to the processing scripts.
+
+The sample [examples/encrypt.sh](./examples/encrypt.sh) provides a sample post-processing script that you can use
+to encrypt your backup with AES256.
 
 ## Restore
 ### Dump Restore

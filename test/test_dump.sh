@@ -43,8 +43,6 @@ makenetwork
 
 start_service_containers
 
-await_database
-
 create_backup_file
 
 

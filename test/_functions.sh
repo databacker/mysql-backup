@@ -29,7 +29,7 @@ function create_backup_file() {
   rm -rf $tmpdumpdir
   mkdir $tmpdumpdir
   tmpdumpfile=backup.sql
-  docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -A -u$MYSQLUSER -p$MYSQLPW --compact > $tmpdumpdir/$tmpdumpfile
+  docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -u$MYSQLUSER -p$MYSQLPW --compact --databases tester > $tmpdumpdir/$tmpdumpfile
   tar -C $tmpdumpdir -cvf - $tmpdumpfile | gzip > ${target}
   cat $target | docker run --label mysqltest --name mysqlbackup-data-source -i --rm -v ${BACKUP_VOL}:/backups -e DEBUG=${DEBUG} ${BACKUP_TESTER_IMAGE} save_dump
   rm -rf $tmpdumpdir $target
@@ -113,9 +113,8 @@ function start_service_containers() {
 	[[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
 	smb_cid=$(docker run --label mysqltest --net mysqltest --name=smb  -d -p 445:445 -v ${BACKUP_VOL}:/share/backups -t ${SMB_IMAGE})
 	mysql_cid=$(docker run --label mysqltest --net mysqltest --name mysql -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:8.0)
+	# need process privilege, set it up after waiting for the mysql to be ready
 	s3_cid=$(docker run --label mysqltest --net mysqltest --name s3 -d -v ${BACKUP_VOL}:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
-}
-function await_database() {
 	# Allow up to 20 seconds for the database to be ready
 	db_connect="docker exec -i $mysql_cid mysql -u$MYSQLUSER -p$MYSQLPW --protocol=tcp -h127.0.0.1 --wait --connect_timeout=20 tester"
 	retry_count=0
@@ -135,6 +134,8 @@ function await_database() {
 		echo -n "failed to connect to database after $retryMax tries." >&2
 		return 1
 	fi
+	# ensure the user has the right privileges
+	docker exec -i mysql mysql -uroot -proot --protocol=tcp -h127.0.0.1 -e "grant process on *.* to user;"
 }
 function rm_service_containers() {
 	local smb_cid="$1"
