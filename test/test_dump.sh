@@ -75,9 +75,7 @@ for ((i=0; i< ${#targets[@]}; i++)); do
 done
 
 # now wait for everything
-waittime=10
-[[ "$DEBUG" != "0" ]] && echo "Waiting ${waittime} seconds to complete backup runs"
-sleep ${waittime}s
+sleepwait 10
 
 rm_service_containers $smb_cid $mysql_cid $s3_cid
 rm_containers $cids

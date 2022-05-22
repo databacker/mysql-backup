@@ -264,7 +264,7 @@ function wait_for_cron() {
   # cron only works in minutes, so we want to round down to the current minute
   # e.g. if we are at 20:06:25, we need to treat it as 20:06:00, or else our waittime will be -25
   # on the other hand, if we are at 20:06:00, do not round it down
-  local current_seconds=$(date --date="@$comparesec" +"%-S")
+  local current_seconds=$(getepochas "$comparesec" +"%-S")
   if [ $current_seconds -ne 0 ]; then
     comparesec=$(( $comparesec - $current_seconds ))
   fi
@@ -284,12 +284,12 @@ function wait_for_cron() {
   local success=1
 
   # when is the next time we hit that month?
-  local next_minute=$(date --date="@$compare" +"%-M")
-  local next_hour=$(date --date="@$compare" +"%-H")
-  local next_dom=$(date --date="@$compare" +"%-d")
-  local next_month=$(date --date="@$compare" +"%-m")
-  local next_dow=$(date --date="@$compare" +"%-u")
-  local next_year=$(date --date="@$compare" +"%-Y")
+  local next_minute=$(getepochas "$compare" +"%-M")
+  local next_hour=$(getepochas "$compare" +"%-H")
+  local next_dom=$(getepochas "$compare" +"%-d")
+  local next_month=$(getepochas "$compare" +"%-m")
+  local next_dow=$(getepochas "$compare" +"%-u")
+  local next_year=$(getepochas "$compare" +"%-Y")
 
   # date returns DOW as 1-7/Mon-Sun, we need 0-6/Sun-Sat
   next_dow=$(( $next_dow % 7 ))
@@ -394,7 +394,7 @@ function wait_for_cron() {
   done
   # success: "next" is now set to the next match!
 
-  local future=$(date --date="${next_year}-${next_month}-${next_dom}T${next_hour}:${next_minute}:00" +"%s")
+  local future=$(getdateas "${next_year}-${next_month}-${next_dom}T${next_hour}:${next_minute}:00" "+%s")
   local futurediff=$(($future - $comparesec))
   echo $futurediff
 }
@@ -508,4 +508,45 @@ function max_day_in_month() {
       echo 30
       ;;
   esac
+}
+
+function getdateas() {
+        local input="$1"
+	local outformat="$2"
+	local os=$(uname -s | tr '[A-Z]' '[a-z]')
+        case "$os" in
+        linux)
+                date --date="$input" "$outformat"
+                ;;
+        darwin)
+		# need to determine if it was Zulu time or local
+		lastchar="${input: -1}"
+		format="%Y-%m-%dT%H:%M:%S"
+		uarg="-u"
+		if [ "$lastchar" = "Z" ]; then
+			format="${format}Z"
+			uarg="-u"
+		fi
+                date $uarg -j -f "$format" "$input" "$outformat"
+                ;;
+        *)
+                echo "unknown OS $os" >&2
+                exit 1
+        esac
+}
+function getepochas() {
+        local input="$1"
+	local format="$2"
+	local os=$(uname -s | tr '[A-Z]' '[a-z]')
+        case "$os" in
+        linux)
+                date --date="@$input" "$format"
+                ;;
+        darwin)
+                date -u -j -r "$input" "$format"
+                ;;
+        *)
+                echo "unknown OS $os" >&2
+                exit 1
+        esac
 }
