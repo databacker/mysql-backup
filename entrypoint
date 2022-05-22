@@ -136,11 +136,16 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # did we get a file?
   if [[ -f "$TMPRESTORE" ]]; then
+    if [ "$SINGLE_DATABASE" = "true" ]; then
+      DBDATABASE="-D$DB_NAMES"
+    else
+      DBDATABASE=
+    fi
     workdir="${TMP_PATH}/restore.$$"
     rm -rf $workdir
     mkdir -p $workdir
     $UNCOMPRESS < $TMPRESTORE | tar -C $workdir -xvf -
-    cat $workdir/* | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS
+    cat $workdir/* | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DBDATABASE
     rm -rf $workdir
     /bin/rm -f $TMPRESTORE
   else
