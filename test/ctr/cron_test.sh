@@ -83,7 +83,7 @@ waittime=(
 
 for ((i=0; i< ${#cronline[@]}; i++)); do
         ex="${cronline[$i]}"
-        in=$(date --date="${nowtime[$i]}" +"%s")
+        in=$(getdateas "${nowtime[$i]}" "+%s")
         re=${waittime[$i]}
         out=$(wait_for_cron "$ex" "$in" 0)
         if [ "$out" = "$re" ]; then

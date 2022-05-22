@@ -13,6 +13,11 @@ SMB_IMAGE=mysqlbackup_smb_test:latest
 BACKUP_VOL=mysqlbackup-test
 MYSQLUSER=user
 MYSQLPW=abcdefg
+MYSQL_IMAGE=mysql:8.0
+arch=$(uname -m)
+if [ "$arch" = "arm64" -o "$arch" = "aarch64" ]; then
+	MYSQL_IMAGE=${MYSQL_IMAGE}-oracle
+fi
 
 QUIET="-q"
 [[ "$DEBUG" != "0" ]] && QUIET=""
@@ -112,7 +117,7 @@ function start_service_containers() {
 	# run the test images we need
 	[[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
 	smb_cid=$(docker run --label mysqltest --net mysqltest --name=smb  -d -p 445:445 -v ${BACKUP_VOL}:/share/backups -t ${SMB_IMAGE})
-	mysql_cid=$(docker run --label mysqltest --net mysqltest --name mysql -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW mysql:8.0)
+	mysql_cid=$(docker run --label mysqltest --net mysqltest --name mysql -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW $MYSQL_IMAGE)
 	# need process privilege, set it up after waiting for the mysql to be ready
 	s3_cid=$(docker run --label mysqltest --net mysqltest --name s3 -d -v ${BACKUP_VOL}:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
 	# Allow up to 20 seconds for the database to be ready
@@ -209,3 +214,12 @@ function run_dump_test() {
 	echo $cid
 }
 
+function sleepwait() {
+	local waittime=$1
+	[[ "$DEBUG" != "0" ]] && echo "Waiting ${waittime} seconds to complete backup runs"
+	os=$(uname -s | tr [A-Z] [a-z])
+	if [ "$os" = "linux" ]; then
+		waittime="${waittime}s"
+	fi
+	sleep ${waittime}
+}
