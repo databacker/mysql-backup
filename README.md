@@ -17,7 +17,7 @@ Please see [CONTRIBUTORS.md](./CONTRIBUTORS.md) for a list of contributors.
 
 ## Support
 
-Support is available at the Slack channel https://slack.databack.io. We accept issues here and general support questions on Slack.
+Support is available at the [databack Slack channel](http://databack.slack.com); register [here](https://join.slack.com/t/databack/shared_invite/zt-1cnbo2zfl-0dQS895icOUQy31RAruf7w). We accept issues here and general support questions on Slack.
 
 ## Backup
 To run a backup, launch `mysql-backup` image as a container with the correct parameters. Everything is controlled by environment variables passed to the container.
