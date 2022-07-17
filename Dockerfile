@@ -1,10 +1,10 @@
 # mysql backup image
-FROM alpine:3.9
-MAINTAINER Avi Deitcher <https://github.com/deitch>
+FROM alpine:3.15
+LABEL org.opencontainers.image.authors="https://github.com/deitch"
 
 # install the necessary client
 # the mysql-client must be 10.3.15 or later
-RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 samba-client shadow openssl coreutils && \
+RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 py3-pip samba-client shadow openssl coreutils && \
     rm -rf /var/cache/apk/* && \
     touch /etc/samba/smb.conf && \
     pip3 install awscli
@@ -13,7 +13,7 @@ RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 s
 RUN groupadd -g 1005 appuser && \
     useradd -r -u 1005 -g appuser appuser
 # ensure smb stuff works correctly
-RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba
+RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba && chown appuser /var/lib/samba/private
 USER appuser
 
 # install the entrypoint

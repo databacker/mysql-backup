@@ -1,5 +1,5 @@
-FROM alpine:3.9
-MAINTAINER https://github.com/deitch
+FROM alpine:3.15
+LABEL org.opencontainers.image.authors="https://github.com/deitch"
 
 # smb port
 EXPOSE 445
@@ -16,4 +16,4 @@ RUN adduser user -D -H
 RUN echo user:pass | chpasswd
 
 # run samba in the foreground
-CMD /usr/sbin/smbd -F -S -d 4 --no-process-group
+CMD /usr/sbin/smbd -F --debug-stdout -d 4 --no-process-group
