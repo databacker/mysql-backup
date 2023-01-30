@@ -1,5 +1,5 @@
 # mysql backup image
-FROM alpine:3.15
+FROM alpine:3.17
 LABEL org.opencontainers.image.authors="https://github.com/deitch"
 
 # install the necessary client
