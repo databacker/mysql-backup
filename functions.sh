@@ -125,8 +125,10 @@ function do_dump() {
   fi
   if [ -n "$DB_DUMP_BY_SCHEMA" -a "$DB_DUMP_BY_SCHEMA" = "true" ]; then
     if [[ -z "$DB_NAMES" ]]; then
-      DB_NAMES=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
+      DB_LIST=$(mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases')
       [ $? -ne 0 ] && return 1
+    else
+      DB_LIST="$DB_NAMES"
     fi
     if [ -z "$DB_NAMES_EXCLUDE" ]; then
       DB_NAMES_EXCLUDE="information_schema performance_schema mysql sys"
@@ -135,7 +137,7 @@ function do_dump() {
     for i in $DB_NAMES_EXCLUDE; do
       exclude_list[$i]="true"
     done
-    for onedb in $DB_NAMES; do
+    for onedb in $DB_LIST; do
       if [ -v exclude_list[$onedb] ]; then
         # skip db if it is in the exclude list
         continue
@@ -468,7 +470,7 @@ function next_cron_expression() {
     else
       # if it is not a step function, just add the tmpvalid to the allvalid
       allvalid="$allvalid $tmpvalid"
-    fi 
+    fi
   done
 
   # sort for deduplication and ordering
