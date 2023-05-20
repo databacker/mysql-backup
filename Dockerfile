@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.authors="https://github.com/deitch"
 
 # install the necessary client
 # the mysql-client must be 10.3.15 or later
-RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 py3-pip samba-client shadow openssl coreutils && \
+RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 py3-pip samba-client shadow openssl coreutils dumb-init && \
     rm -rf /var/cache/apk/* && \
     touch /etc/samba/smb.conf && \
     pip3 install awscli
@@ -21,4 +21,5 @@ COPY functions.sh /
 COPY entrypoint /entrypoint
 
 # start
-ENTRYPOINT ["/entrypoint"]
+ENTRYPOINT [ "/usr/bin/dumb-init", "--" ]
+CMD ["/entrypoint"]
