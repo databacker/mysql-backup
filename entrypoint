@@ -103,13 +103,11 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   # Execute additional scripts for pre backup restore processing. For example,
   # uncompress a tarball that contains the tarballs for the sql dump and a
   # wordpress installation.
-  if [ -d /scripts.d/pre-restore/ ]; then
-    for i in $(ls /scripts.d/pre-restore/*.sh); do
-      if [ -x $i ]; then
-        DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
-      fi
-    done
-  fi
+  for i in /scripts.d/pre-restore/*.sh; do
+    if [ -x $i ]; then
+      DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+    fi
+  done
   uri_parser ${DB_RESTORE_TARGET}
   if [[ "${uri[schema]}" == "file" ]]; then
     cp $DB_RESTORE_TARGET $TMPRESTORE 2>/dev/null
@@ -154,17 +152,15 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   fi
   # Execute additional scripts for post backup restore processing. For example,
   # uncompress a tarball that contains the files of a wordpress installation
-  if [ -d /scripts.d/post-restore/ ]; then
-    for i in $(ls /scripts.d/post-restore/*.sh); do
-      if [ -x $i ]; then
-        DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
-      fi
-    done
-  fi
+  for i in /scripts.d/post-restore/*.sh; do
+    if [ -x $i ]; then
+      DB_RESTORE_TARGET=${DB_RESTORE_TARGET} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+    fi
+  done
 else
   # wait for the next time to start a backup
   # for debugging
-  echo Starting at $(date)
+  echo "Starting at $(date)"
   last_run=0
   current_time=$(date +"%s")
   freq_time=$(($DB_DUMP_FREQ*60))
