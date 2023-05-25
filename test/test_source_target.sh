@@ -57,7 +57,7 @@ seq=0
 [[ "$DEBUG" != "0" ]] && echo "Populating volume for each target"
 for ((i=0; i< ${#targets[@]}; i++)); do
         t=${targets[$i]}
-        docker run --label mysqltest --name mysqlbackup-data-populate --rm -v ${BACKUP_VOL}:/backups -e DEBUG=${DEBUG} ${BACKUP_TESTER_IMAGE} populate "$t" $seq
+        docker run --label mysqltest --name mysqlbackup-data-populate --rm -v ${BACKUP_VOL}:/backups -v ${CERTS_VOL}:/certs -e DEBUG=${DEBUG} ${BACKUP_TESTER_IMAGE} populate "$t" $seq
         # increment our counter
         ((seq++)) || true
 done
@@ -92,7 +92,7 @@ declare -a pass
 seq=0
 for ((i=0; i< ${#targets[@]}; i++)); do
 	t=${targets[$i]}
-        results=$(docker run --label mysqltest --name mysqlbackup-data-check --rm -v ${BACKUP_VOL}:/backups -e DEBUG=${DEBUG} ${BACKUP_TESTER_IMAGE} check_source_target "$t" $seq $(get_default_source))
+        results=$(docker run --label mysqltest --name mysqlbackup-data-check --rm -v ${BACKUP_VOL}:/backups -v ${CERTS_VOL}:/certs -e DEBUG=${DEBUG} ${BACKUP_TESTER_IMAGE} check_source_target "$t" $seq $(get_default_source))
         # save the passes and fails
         #   | cat  - so that it doesn't return an error on no-match
         passes=$(echo "$results" | grep '^PASS:' | cat)

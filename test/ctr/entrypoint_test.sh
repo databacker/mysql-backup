@@ -218,6 +218,10 @@ save_dump)
 cron)
 	/cron_test.sh
 	;;
+*)
+  echo "unrecognized command: ${cmd}"
+  exit 2
+  ;;
 esac
 
 

@@ -308,6 +308,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_NAMES`: name of database to restore to. Required if `SINGLE_DATABASE=true`, otherwise has no effect. Although the name is plural, it must contain exactly one database name.
 * `SINGLE_DATABASE`: If is set to `true`, `DB_NAMES` is required and mysql command will run with `--database=$DB_NAMES` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
 * `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
+* `RESTORE_OPTS`: A string of options to pass to  `mysql` restore command, e.g. `--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem` will run `mysql --ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DBDATABASE`, default is empty ('')
 * `DB_DUMP_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
 * To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined.
 
@@ -315,8 +316,9 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 Examples:
 
 1. Restore from a local file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -v /local/path:/backup databack/mysql-backup`
-2. Restore from an SMB file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.gz databack/mysql-backup`
-3. Restore from an S3 file: `docker run -e DB_SERVER=gotodb.example.com -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.gz databack/mysql-backup`
+2. Restore from a local file using ssl: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e RESTORE_OPTS="--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem" -v /local/path:/backup -v /local/certs:/certs databack/mysql-backup`
+3. Restore from an SMB file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.gz databack/mysql-backup`
+4. Restore from an S3 file: `docker run -e DB_SERVER=gotodb.example.com -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.gz databack/mysql-backup`
 
 ### Restore when using docker-compose
 `docker-compose` automagically creates a network when started. `docker run` simply attaches to the bridge network. If you are trying to communicate with a mysql container started by docker-compose, you'll need to specify the network in your command arguments. You can use `docker network ls` to see what network is being used, or you can declare a network in your docker-compose.yml.
