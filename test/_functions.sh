@@ -11,6 +11,9 @@ BACKUP_IMAGE=mysqlbackup_backup_test:latest
 BACKUP_TESTER_IMAGE=mysqlbackup_backup_test_harness:latest
 SMB_IMAGE=mysqlbackup_smb_test:latest
 BACKUP_VOL=mysqlbackup-test
+CERTS_VOL=mysqlbackup-certs
+MYSQLDUMP_OPTS="--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem"
+RESTORE_OPTS="--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem"
 MYSQLUSER=user
 MYSQLPW=abcdefg
 MYSQL_IMAGE=mysql:8.0
@@ -36,7 +39,7 @@ function create_backup_file() {
   tmpdumpfile=backup.sql
   docker exec $mysql_cid mysqldump -hlocalhost --protocol=tcp -u$MYSQLUSER -p$MYSQLPW --compact --databases tester > $tmpdumpdir/$tmpdumpfile
   tar -C $tmpdumpdir -cvf - $tmpdumpfile | gzip > ${target}
-  cat $target | docker run --label mysqltest --name mysqlbackup-data-source -i --rm -v ${BACKUP_VOL}:/backups -e DEBUG=${DEBUG} ${BACKUP_TESTER_IMAGE} save_dump
+  cat $target | docker run --label mysqltest --name mysqlbackup-data-source -i --rm -v ${BACKUP_VOL}:/backups -v ${CERTS_VOL}:/certs -e DEBUG=${DEBUG} -e MYSQLDUMP_OPTS="${MYSQLDUMP_OPTS}" ${BACKUP_TESTER_IMAGE} save_dump
   rm -rf $tmpdumpdir $target
 }
 
@@ -107,6 +110,7 @@ function makevolume() {
 	local EXISTING_VOLS=$(docker volume ls --filter label=mysqltest -q)
 	[ -n "${EXISTING_VOLS}" ] && docker volume rm ${EXISTING_VOLS}
 	docker volume create --label mysqltest $BACKUP_VOL
+	docker volume create --label mysqltest $CERTS_VOL
 }
 function makesmb() {
 	# build the service images we need
@@ -117,11 +121,13 @@ function start_service_containers() {
 	# run the test images we need
 	[[ "$DEBUG" != "0" ]] && echo "Running smb, s3 and mysql containers"
 	smb_cid=$(docker run --label mysqltest --net mysqltest --name=smb  -d -p 445:445 -v ${BACKUP_VOL}:/share/backups -t ${SMB_IMAGE})
-	mysql_cid=$(docker run --label mysqltest --net mysqltest --name mysql -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW $MYSQL_IMAGE)
+	mysql_cid=$(docker run --label mysqltest --net mysqltest --name mysql -d -v ${CERTS_VOL}:/certs -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=tester -e MYSQL_USER=$MYSQLUSER -e MYSQL_PASSWORD=$MYSQLPW $MYSQL_IMAGE --require-secure-transport)
+	docker exec -i mysql bash -c "until [[ -f /var/lib/mysql/client-cert.pem ]]; do sleep 5; done; cp /var/lib/mysql/client-cert.pem /certs"
+	docker exec -i mysql bash -c "until [[ -f /var/lib/mysql/client-key.pem ]]; do sleep 5; done; cp /var/lib/mysql/client-key.pem /certs"
 	# need process privilege, set it up after waiting for the mysql to be ready
-	s3_cid=$(docker run --label mysqltest --net mysqltest --name s3 -d -v ${BACKUP_VOL}:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
+	s3_cid=$(docker run --label mysqltest --net mysqltest --name s3 -d -v ${CERTS_VOL}:/certs -v ${BACKUP_VOL}:/fakes3_root/s3/mybucket lphoward/fake-s3 -r /fakes3_root -p 443)
 	# Allow up to 20 seconds for the database to be ready
-	db_connect="docker exec -i $mysql_cid mysql -u$MYSQLUSER -p$MYSQLPW --protocol=tcp -h127.0.0.1 --wait --connect_timeout=20 tester"
+	db_connect="docker exec -i $mysql_cid mysql ${MYSQLDUMP_OPTS} -u$MYSQLUSER -p$MYSQLPW --protocol=tcp -h127.0.0.1 --wait --connect_timeout=20 tester"
 	retry_count=0
 	retryMax=20
 	retrySleep=1
@@ -140,7 +146,7 @@ function start_service_containers() {
 		return 1
 	fi
 	# ensure the user has the right privileges
-	docker exec -i mysql mysql -uroot -proot --protocol=tcp -h127.0.0.1 -e "grant process on *.* to user;"
+  docker exec -i mysql mysql ${MYSQLDUMP_OPTS} -uroot -proot --protocol=tcp -h127.0.0.1 -e "grant process on *.* to user;"
 }
 function rm_service_containers() {
 	local smb_cid="$1"
@@ -176,6 +182,7 @@ function rm_network() {
 function rm_volume() {
 	[[ "$DEBUG" != "0" ]] && echo "Removing docker volume"
 	docker volume rm ${BACKUP_VOL}
+	docker volume rm ${CERTS_VOL}
 }
 function run_dump_test() {
 	local t=$1
@@ -205,7 +212,14 @@ function run_dump_test() {
 	# change our target
         # ensure that we remove leading whitespace from targets
         allTargets=$(echo $allTargets | awk '{$1=$1;print}')
-        cid=$(docker container create --label mysqltest --name mysqlbackup-${sequence} --net mysqltest -v ${BACKUP_VOL}:/backups --link ${s3_cid}:mybucket.s3.amazonaws.com ${DBDEBUG} -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -e DB_SERVER=mysql -e MYSQLDUMP_OPTS="--compact" ${BACKUP_IMAGE})
+        if [[ "$sequence" -lt 1 ]]; then
+          # on first run we need to fix /certs/*.pem permissions and assign it to appuser otherwise mysqldump command fails
+          c_with_wrong_permission=$(docker container create --label mysqltest --name mysqltest-fix-certs-permissions -v ${BACKUP_VOL}:/backups -v ${CERTS_VOL}:/certs ${DBDEBUG} -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e DB_SERVER=mysql -e MYSQLDUMP_OPTS="--compact ${MYSQLDUMP_OPTS}" ${BACKUP_IMAGE})
+          docker container start ${c_with_wrong_permission} >/dev/null
+          docker exec -u 0 ${c_with_wrong_permission} chown -R appuser /certs>/dev/null
+          rm_containers $c_with_wrong_permission
+        fi
+        cid=$(docker container create --label mysqltest --name mysqlbackup-${sequence} --net mysqltest -v ${BACKUP_VOL}:/backups -v ${CERTS_VOL}:/certs --link ${s3_cid}:mybucket.s3.amazonaws.com ${DBDEBUG} -e DB_USER=$MYSQLUSER -e DB_PASS=$MYSQLPW -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=+0 -e DB_DUMP_TARGET="${allTargets}" -e AWS_ACCESS_KEY_ID=abcdefg -e AWS_SECRET_ACCESS_KEY=1234567 -e AWS_ENDPOINT_URL=http://s3:443/ -e DB_SERVER=mysql -e MYSQLDUMP_OPTS="--compact ${MYSQLDUMP_OPTS}" ${BACKUP_IMAGE})
         linkfile=/tmp/link.$$
         ln -s /backups/$sequence ${linkfile}
         docker cp ${linkfile} $cid:/scripts.d

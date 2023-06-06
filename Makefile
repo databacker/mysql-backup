@@ -22,7 +22,10 @@ test_cron:
 test_source_target:
 	cd test && ./test_source_target.sh
 
-test: test_dump test_cron test_source_target
+test_restore:
+	cd test && ./test_restore.sh
+
+test: test_dump test_restore test_cron test_source_target
 
 .PHONY: clean-test-stop clean-test-remove clean-test
 clean-test-stop:

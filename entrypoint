@@ -145,7 +145,8 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     rm -rf $workdir
     mkdir -p $workdir
     $UNCOMPRESS < $TMPRESTORE | tar -C $workdir -xvf -
-    cat $workdir/* | mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DBDATABASE
+    RESTORE_OPTS=${RESTORE_OPTS:-}
+    cat $workdir/* | mysql $RESTORE_OPTS -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DBDATABASE
     rm -rf $workdir
     /bin/rm -f $TMPRESTORE
   else
