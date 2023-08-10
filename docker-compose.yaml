@@ -1,0 +1,15 @@
+services:
+  mysql-backup:
+    build: .
+    environment:
+      - DB_DUMP_FREQ=60
+      - DB_SERVER=192.168.31.237
+      - DB_USER=root
+      - DB_PASS=123456
+      - DB_NAMES=api_hwgwb_com
+      - DB_DUMP_TARGET=oss://db-backup-mysql/api_hwgwb_com
+      - OSS_REGION=oss-cn-beijing
+      - OSS_ENDPOINT_URL=https://oss-cn-beijing.aliyuncs.com
+      - OSS_ACCESS_KEY_ID=LTAI5tBsui3RmMz8FqzHxLPw
+      - OSS_ACCESS_KEY_SECRET=IFIvp6SDz27ZS176ubFSAw2X1Octz9
+      - DB_RESTORE_TARGET=oss://db-backup-mysql/api_hwgwb_com/db_backup_2023-08-10T07:13:24Z.tgz

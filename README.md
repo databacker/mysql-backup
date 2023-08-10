@@ -52,6 +52,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
     * Local: If the value of `DB_DUMP_TARGET` starts with a `/` character, will dump to a local path, which should be volume-mounted.
     * SMB: If the value of `DB_DUMP_TARGET` is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
     * S3: If the value of `DB_DUMP_TARGET` is a URL of the format `s3://bucketname/path` then it will connect via awscli.
+    * OSS: If the value of `DB_DUMP_TARGET` is a URL of the format `oss://bucketname/path` then it will also connect via awscli. [OSS compatible with S3](https://www.alibabacloud.com/help/en/oss/developer-reference/compatibility-with-amazon-s3-1/?spm=a2c63.p38356.0.0.97ba41a0Ft7InT)
     * Multiple: If the value of `DB_DUMP_TARGET` contains multiple targets, the targets should be separated by a whitespace **and** the value surrounded by quotes, e.g. `"/db s3://bucketname/path"`.
 * `DB_DUMP_SAFECHARS`: The dump filename usually includes the character `:` in the date, to comply with RFC3339. Some systems and shells don't like that character. If this environment variable is set, it will replace all `:` with `-`.
 * `AWS_ACCESS_KEY_ID`: AWS Key ID
@@ -60,6 +61,10 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `AWS_ENDPOINT_URL`: Specify an alternative endpoint for s3 interopable systems e.g. Digitalocean
 * `AWS_CLI_OPTS`: Additional arguments to be passed to the `aws` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/#options) for a list. _Be careful_, as you can break something!
 * `AWS_CLI_S3_CP_OPTS`: Additional arguments to be passed to the `s3 cp` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/s3/cp.html#options) for a list. If you are using AWS KMS, `sse`, `sse-kms-key-id`, etc., may be of interest.
+* `OSS_REGION`: Alibaba Cloud OSS Region ID, e.g. `oss-cn-beijing`, `oss-cn-hangzhou`
+* `OSS_ENDPOINT_URL`: Alibaba Cloud OSS Endpoint URL, e.g. `https://oss-cn-beijing.aliyuncs.com`, `https://oss-cn-hangzhou.aliyuncs.com`
+* `OSS_ACCESS_KEY_ID`: Alibaba Cloud OSS Access Key ID
+* `OSS_ACCESS_KEY_SECRET`: Alibaba Cloud OSS Access Key Secret
 * `SMB_USER`: SMB username. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `SMB_PASS`: SMB password. May also be specified in `DB_DUMP_TARGET` with an `smb://` url. If both specified, this variable overrides the value in the URL.
 * `COMPRESSION`: Compression to use. Supported are: `gzip` (default), `bzip2`
