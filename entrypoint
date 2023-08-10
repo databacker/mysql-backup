@@ -32,6 +32,11 @@ file_env "AWS_ACCESS_KEY_ID"
 file_env "AWS_SECRET_ACCESS_KEY"
 file_env "AWS_DEFAULT_REGION"
 
+file_env "OSS_REGION"
+file_env "OSS_ENDPOINT_URL"
+file_env "OSS_ACCESS_KEY_ID"
+file_env "OSS_ACCESS_KEY_SECRET"
+
 file_env "SMB_USER"
 file_env "SMB_PASS"
 
@@ -97,6 +102,12 @@ TMPRESTORE="${TMP_PATH}/restorefile"
 # this is global, so has to be set outside
 declare -A uri
 
+# if OSS_ACCESS_KEY_ID and OSS_ACCESS_KEY_SECRET are set, add oss profile
+if [[ -n "$OSS_ACCESS_KEY_ID" && -n "$OSS_ACCESS_KEY_SECRET" ]]; then
+  aws configure set aws_access_key_id $OSS_ACCESS_KEY_ID --profile oss
+  aws configure set aws_secret_access_key $OSS_ACCESS_KEY_SECRET --profile oss
+  aws configure set s3.addressing_style virtual --profile oss
+fi
 
 
 if [[ -n "$DB_RESTORE_TARGET" ]]; then
@@ -116,6 +127,9 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
   elif [[ "${uri[schema]}" == "s3" ]]; then
     [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
       aws ${AWS_CLI_OPTS} ${AWS_ENDPOINT_OPT} s3 cp ${AWS_CLI_S3_CP_OPTS} "${DB_RESTORE_TARGET}" $TMPRESTORE
+  elif [[ "${uri[schema]}" == "oss" ]]; then
+    DB_RESTORE_TARGET=${DB_RESTORE_TARGET/oss:\/\//s3:\/\/}
+    aws --profile oss --region $OSS_REGION --endpoint-url $OSS_ENDPOINT_URL s3 cp "${DB_RESTORE_TARGET}" $TMPRESTORE
   elif [[ "${uri[schema]}" == "smb" ]]; then
     if [[ -n "$SMB_USER" ]]; then
       UPASSARG="-U"
