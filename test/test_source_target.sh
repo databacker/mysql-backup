@@ -13,6 +13,7 @@ targets=(
 "file:///backups/SEQ/data"
 "smb://user:pass@smb/auth/SEQ/data"
 "s3://mybucket/SEQ/data"
+"oss://mybucket/SEQ/data"
 )
 
 # we need to run through each each target and test the backup.
