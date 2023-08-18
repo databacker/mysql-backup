@@ -12,6 +12,8 @@ RUN apk add --update 'mariadb-client>10.3.15' mariadb-connector-c bash python3 p
 # set us up to run as non-root user
 RUN groupadd -g 1005 appuser && \
     useradd -r -u 1005 -g appuser appuser
+# add home directory for user so IRSA AWS auth works
+RUN mkdir -p /home/appuser && chmod 0755 /home/appuser && chown appuser /home/appuser
 # ensure smb stuff works correctly
 RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba && chown appuser /var/lib/samba/private
 USER appuser
