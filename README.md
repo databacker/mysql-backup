@@ -305,9 +305,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
-* `DB_NAMES`: can be used in two distinct cases:
-  * `SINGLE_DATABASE` has been set to `true`: in that case it specifies the name of the database to restore to, and it must contain exactly one database name.
-  * `SINGLE_DATABASE` has not been set to `true` and `DB_DUMP_BY_SCHEMA=true` was used for backup: in that case it specifies which schemas to restore. It can contain one or more schema names separated with spaces.
+* `DB_NAMES`: if `SINGLE_DATABASE` is `true`, __must__ contain the name of exactly one database. Else, __can__ contain one or more schemas to be restored from the `DB_RESTORE_TARGET`, separated by spaces. Second option only works if the target backup was dumped using `DB_DUMP_BY_SCHEMA`.
 * `SINGLE_DATABASE`: If is set to `true`, `DB_NAMES` is required and mysql command will run with `--database=$DB_NAMES` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
 * `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
 * `RESTORE_OPTS`: A string of options to pass to  `mysql` restore command, e.g. `--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem` will run `mysql --ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DBDATABASE`, default is empty ('')
