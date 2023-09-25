@@ -305,8 +305,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
-* `DB_NAMES`: if `SINGLE_DATABASE` is `true`, __must__ contain the name of exactly one database. Else, __can__ contain one or more schemas to be restored from the `DB_RESTORE_TARGET`, separated by spaces. Second option only works if the target backup was dumped using `DB_DUMP_BY_SCHEMA`.
-* `SINGLE_DATABASE`: If is set to `true`, `DB_NAMES` is required and mysql command will run with `--database=$DB_NAMES` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
+* `DB_NAMES`: names of databases to restore separated by spaces. Required if `SINGLE_DATABASE=true`.
+* `SINGLE_DATABASE`: If is set to `true`, `DB_NAMES` is required and must contain exactly one database name. Mysql command will then run with `--database=$DB_NAMES` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
 * `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
 * `RESTORE_OPTS`: A string of options to pass to  `mysql` restore command, e.g. `--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem` will run `mysql --ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS $DBDATABASE`, default is empty ('')
 * `DB_DUMP_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
@@ -319,6 +319,21 @@ Examples:
 2. Restore from a local file using ssl: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e RESTORE_OPTS="--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem" -v /local/path:/backup -v /local/certs:/certs databack/mysql-backup`
 3. Restore from an SMB file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.gz databack/mysql-backup`
 4. Restore from an S3 file: `docker run -e DB_SERVER=gotodb.example.com -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_DEFAULT_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.gz databack/mysql-backup`
+
+### Restore specific databases
+If you have multiple schemas in your database, you can choose to restore only some of them.
+
+To do this, you must dump your database using `DB_DUMP_BY_SCHEMA=true`, then restore using `DB_NAMES` to specify the schemas you want restored.
+
+When doing this, schemas will be restored with their original name. To restore under other names, you must use `SINGLE_DATABASE=true` on both dump and restore, and you can only do it one schema at a time.
+
+#### Examples:
+1. Dump a multi-schemas database and restore only some of them:
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_BY_SCHEMA=true -v /local/path:/backup databack/mysql-backup`
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e DB_NAMES="database1 database3" -v /local/path:/backup databack/mysql-backup`
+2. Dump and restore a schema under a different name:
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e SINGLE_DATABASE=true -e DB_NAMES=database1 -v /local/path:/backup databack/mysql-backup`
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e SINGLE_DATABASE=true DB_NAMES=newdatabase1 -v /local/path:/backup databack/mysql-backup`
 
 ### Restore when using docker-compose
 `docker-compose` automagically creates a network when started. `docker run` simply attaches to the bridge network. If you are trying to communicate with a mysql container started by docker-compose, you'll need to specify the network in your command arguments. You can use `docker network ls` to see what network is being used, or you can declare a network in your docker-compose.yml.
