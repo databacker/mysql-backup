@@ -15,6 +15,7 @@ targets=(
 "smb://user:pass@smb/auth/SEQ/data"
 "smb://CONF;user:pass@smb/auth/SEQ/data"
 "s3://mybucket/SEQ/data"
+"oss://mybucket/SEQ/data"
 "file:///backups/SEQ/data file:///backups/SEQ/data"
 )
 

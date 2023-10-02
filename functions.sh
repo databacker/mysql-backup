@@ -221,6 +221,10 @@ function backup_target() {
       [[ -n "$AWS_ENDPOINT_URL" ]] && AWS_ENDPOINT_OPT="--endpoint-url $AWS_ENDPOINT_URL"
       aws ${AWS_CLI_OPTS} ${AWS_ENDPOINT_OPT} s3 cp ${AWS_CLI_S3_CP_OPTS} ${TMPDIR}/${SOURCE} "${target}/${TARGET}"
       ;;
+    "oss")
+      target=${target/oss:\/\//s3:\/\/}
+      aws --profile oss --region $OSS_REGION --endpoint-url $OSS_ENDPOINT_URL s3 cp ${TMPDIR}/${SOURCE} "${target}/${TARGET}"
+      ;;
     "smb")
       if [[ -n "$SMB_USER" ]]; then
         UPASSARG="-U"

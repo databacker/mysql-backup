@@ -15,7 +15,8 @@ RUN groupadd -g 1005 appuser && \
 # add home directory for user so IRSA AWS auth works
 RUN mkdir -p /home/appuser && chmod 0755 /home/appuser && chown appuser /home/appuser
 # ensure smb stuff works correctly
-RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba && chown appuser /var/lib/samba/private
+RUN mkdir -p /var/cache/samba && chmod 0755 /var/cache/samba && chown appuser /var/cache/samba && chown appuser /var/lib/samba/private && \
+    mkdir -p /home/appuser && chown -R appuser /home/appuser
 USER appuser
 
 # install the entrypoint
