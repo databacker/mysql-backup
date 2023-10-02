@@ -105,14 +105,12 @@ function do_dump() {
   # Execute additional scripts for pre processing. For example, uncompress a
   # backup file containing this db backup and a second tar file with the
   # contents of a wordpress install so they can be restored.
-  if [ -d /scripts.d/pre-backup/ ]; then
-    for i in $(ls /scripts.d/pre-backup/*.sh); do
-      if [ -x $i ]; then
-        NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
-        [ $? -ne 0 ] && return 1
-      fi
-    done
-  fi
+  for i in /scripts.d/pre-backup/*.sh; do
+    if [ -x $i ]; then
+      NOW=${now} DUMPFILE=${TMPDIR}/${TARGET} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+      [ $? -ne 0 ] && return 1
+    fi
+  done
 
   # do the dump
   workdir="${TMP_PATH}/backup.$$"
@@ -138,7 +136,7 @@ function do_dump() {
       exclude_list[$i]="true"
     done
     for onedb in $DB_LIST; do
-      if [ -v exclude_list[$onedb] ]; then
+      if [[ -v exclude_list[$onedb] ]]; then
         # skip db if it is in the exclude list
         continue
       fi
@@ -165,14 +163,12 @@ function do_dump() {
   # Execute additional scripts for post processing. For example, create a new
   # backup file containing this db backup and a second tar file with the
   # contents of a wordpress install.
-  if [ -d /scripts.d/post-backup/ ]; then
-    for i in $(ls /scripts.d/post-backup/*.sh); do
-      if [ -x $i ]; then
-        NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
-        [ $? -ne 0 ] && return 1
-      fi
-    done
-  fi
+  for i in ls /scripts.d/post-backup/*.sh; do
+    if [ -x $i ]; then
+      NOW=${now} DUMPFILE=${TMPDIR}/${SOURCE} DUMPDIR=${TMPDIR} DB_DUMP_DEBUG=${DB_DUMP_DEBUG} $i
+      [ $? -ne 0 ] && return 1
+    fi
+  done
 
   # Execute a script to modify the name of the source file path before uploading to the dump target
   # For example, modifying the name of the source dump file from the default, e.g. db-other-files-combined.tar.$EXTENSION
