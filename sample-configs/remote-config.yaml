@@ -1,0 +1,30 @@
+# sample configuration file for all config provided by remote service
+type: config.databack.io
+version: 1
+
+# set logging level, one of: error,warning,info,debug,trace; default is info
+logging: info 
+
+# receives the config from the config service, so nothing else needed 
+config:
+  url: https://config.databack.io
+  # certificate for the server; unneeded if the server is using a certificate signed by a well-known CA
+  certificate: |
+    -----BEGIN CERTIFICATE-----
+    MIIBHjCBxaADAgECAgEBMAoGCCqGSM49BAMCMBcxFTATBgNVBAoTDERvY2tlciwg
+    SW5jLjAeFw0xMzA3MjUwMTEwMjRaFw0xNTA3MjUwMTEwMjRaMBcxFTATBgNVBAoT
+    DERvY2tlciwgSW5jLjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABMolCWAO0iP7
+    tkX/KLjQ9CKeOoHYynBgfFcd1ZGoxcefmIbWjHx29eWI3xlhbjS6ssSxhrw1Kuh5
+    RrASfUCHD7SjAjAAMAoGCCqGSM49BAMCA0gAMEUCIQDRLQTSSeqjsxsb+q4exLSt
+    EM7f7/ymBzoUzbXU7wI9AgIgXCWaI++GkopGT8T2qV/3+NL0U+fYM0ZjSNSiwaK3
+    +kA=
+    -----END CERTIFICATE-----
+  credentials:
+    # this is a sample key only
+    # DO NOT USE THIS KEY; GENERATE YOUR OWN!
+    private-key: |
+      -----BEGIN EC PRIVATE KEY-----
+      MHcCAQEEIEFRa42BSz1uuRxWBh60vePDrpkgtELJJMZtkJGlExuLoAoGCCqGSM49
+      AwEHoUQDQgAEyiUJYA7SI/u2Rf8ouND0Ip46gdjKcGB8Vx3VkajFx5+YhtaMfHb1
+      5YjfGWFuNLqyxLGGvDUq6HlGsBJ9QIcPtA==
+      -----END EC PRIVATE KEY-----
