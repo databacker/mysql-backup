@@ -22,6 +22,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.20
+      - name: Build with xgo
+        uses: crazy-max/ghaction-xgo@v1
+        with:
+          xgo_version: latest
+          go_version: 1.20
+          dest: dist
+          targets: windows/386,windows/amd64,windows/arm64,linux/386,linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
+          v: true
+          x: true
+          ldflags: -s -w
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
