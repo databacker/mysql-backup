@@ -59,7 +59,7 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 						if target, ok := targetStructures[t]; !ok {
 							return fmt.Errorf("target %s from dump configuration not found in targets configuration", t)
 						} else {
-							store, err = target.Storage()
+							store, err = target.Storage.Storage()
 							if err != nil {
 								return fmt.Errorf("target %s from dump configuration has invalid URL: %v", t, err)
 							}
@@ -79,9 +79,17 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 			if len(include) == 0 && configuration != nil {
 				include = configuration.Dump.Include
 			}
+			// make this slice nil if it's empty, so it is consistent; used mainly for test consistency
+			if len(include) == 0 {
+				include = nil
+			}
 			exclude := v.GetStringSlice("exclude")
 			if len(exclude) == 0 && configuration != nil {
 				exclude = configuration.Dump.Exclude
+			}
+			// make this slice nil if it's empty, so it is consistent; used mainly for test consistency
+			if len(exclude) == 0 {
+				exclude = nil
 			}
 			preBackupScripts := v.GetString("pre-backup-scripts")
 			if preBackupScripts == "" && configuration != nil {
@@ -96,7 +104,7 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 				compact = configuration.Dump.Compact
 			}
 			maxAllowedPacket := v.GetInt("max-allowed-packet")
-			if !v.IsSet("max-allowed-packet") && configuration != nil {
+			if !v.IsSet("max-allowed-packet") && configuration != nil && configuration.Dump.MaxAllowedPacket != 0 {
 				maxAllowedPacket = configuration.Dump.MaxAllowedPacket
 			}
 
@@ -160,9 +168,6 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 Local: If if starts with a "/" character of "file:///", will dump to a local path, which should be volume-mounted.
 SMB: If it is a URL of the format smb://hostname/share/path/ then it will connect via SMB.
 S3: If it is a URL of the format s3://bucketname/path then it will connect via S3 protocol.`)
-	if err := cmd.MarkFlagRequired("target"); err != nil {
-		return nil, err
-	}
 
 	// include - include of databases to back up
 	flags.StringSlice("include", []string{}, "names of databases to dump; empty to do all")

@@ -83,78 +83,65 @@ type DBCredentials struct {
 	Password string `yaml:"password"`
 }
 
+var _ yaml.Unmarshaler = &Target{}
+
 type Targets map[string]Target
 
-type Target interface {
-	Type() string
-	URL() string
+type Target struct {
+	Storage
+}
+
+type Storage interface {
 	Storage() (storage.Storage, error) // convert to a storage.Storage instance
 }
 
-func (t *Targets) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	tmpTargets := struct {
-		Targets map[string]yaml.Node `yaml:"targets"`
-	}{}
-	if err := unmarshal(&tmpTargets); err != nil {
+func (t *Target) UnmarshalYAML(n *yaml.Node) error {
+	type T struct {
+		Type    string    `yaml:"type"`
+		URL     string    `yaml:"url"`
+		Details yaml.Node `yaml:",inline"`
+	}
+	obj := &T{}
+	if err := n.Decode(obj); err != nil {
 		return err
 	}
-	for key, yamlTarget := range tmpTargets.Targets {
-		tmpT := struct {
-			Type string `yaml:"type"`
-			URL  string `yaml:"url"`
-		}{}
-		if err := yamlTarget.Decode(&tmpT); err != nil {
+	// based on the type, load the rest of the data
+	switch obj.Type {
+	case "s3":
+		var s3Target S3Target
+		if err := n.Decode(&s3Target); err != nil {
 			return err
 		}
-		switch tmpT.Type {
-		case "s3":
-			var s3Target S3Target
-			if err := yamlTarget.Decode(&s3Target); err != nil {
-				return err
-			}
-			s3Target.targetType = tmpT.Type
-			s3Target.url = tmpT.URL
-			(*t)[key] = s3Target
-		case "smb":
-			var smbTarget SMBTarget
-			if err := yamlTarget.Decode(&smbTarget); err != nil {
-				return err
-			}
-			smbTarget.targetType = tmpT.Type
-			smbTarget.url = tmpT.URL
-			(*t)[key] = smbTarget
-		case "file":
-			var fileTarget FileTarget
-			if err := yamlTarget.Decode(&fileTarget); err != nil {
-				return err
-			}
-			fileTarget.targetType = tmpT.Type
-			fileTarget.url = tmpT.URL
-			(*t)[key] = fileTarget
-		default:
-			return fmt.Errorf("unknown target type: %s", tmpT.Type)
+		t.Storage = s3Target
+	case "smb":
+		var smbTarget SMBTarget
+		if err := n.Decode(&smbTarget); err != nil {
+			return err
 		}
-
+		t.Storage = smbTarget
+	case "file":
+		var fileTarget FileTarget
+		if err := n.Decode(&fileTarget); err != nil {
+			return err
+		}
+		t.Storage = fileTarget
+	default:
+		return fmt.Errorf("unknown target type: %s", obj.Type)
 	}
+
 	return nil
 }
 
 type S3Target struct {
-	targetType  string         `yaml:"type"`
-	url         string         `yaml:"url"`
+	Type        string         `yaml:"type"`
+	URL         string         `yaml:"url"`
 	Region      string         `yaml:"region"`
 	Endpoint    string         `yaml:"endpoint"`
 	Credentials AWSCredentials `yaml:"credentials"`
 }
 
-func (s S3Target) Type() string {
-	return s.targetType
-}
-func (s S3Target) URL() string {
-	return s.url
-}
 func (s S3Target) Storage() (storage.Storage, error) {
-	u, err := util.SmartParse(s.url)
+	u, err := util.SmartParse(s.URL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid target url%v", err)
 	}
@@ -181,19 +168,13 @@ type AWSCredentials struct {
 }
 
 type SMBTarget struct {
-	targetType  string         `yaml:"type"`
-	url         string         `yaml:"url"`
+	Type        string         `yaml:"type"`
+	URL         string         `yaml:"url"`
 	Credentials SMBCredentials `yaml:"credentials"`
 }
 
-func (s SMBTarget) Type() string {
-	return s.targetType
-}
-func (s SMBTarget) URL() string {
-	return s.url
-}
 func (s SMBTarget) Storage() (storage.Storage, error) {
-	u, err := util.SmartParse(s.url)
+	u, err := util.SmartParse(s.URL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid target url%v", err)
 	}
@@ -218,16 +199,10 @@ type SMBCredentials struct {
 }
 
 type FileTarget struct {
-	targetType string `yaml:"type"`
-	url        string `yaml:"url"`
+	Type string `yaml:"type"`
+	URL  string `yaml:"url"`
 }
 
-func (f FileTarget) Type() string {
-	return f.targetType
-}
-func (f FileTarget) URL() string {
-	return f.url
-}
 func (f FileTarget) Storage() (storage.Storage, error) {
-	return storage.ParseURL(f.url, credentials.Creds{})
+	return storage.ParseURL(f.URL, credentials.Creds{})
 }

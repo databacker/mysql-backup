@@ -57,7 +57,7 @@ func restoreCmd(execs execs) (*cobra.Command, error) {
 				if target, ok := configuration.Targets[targetName]; !ok {
 					return fmt.Errorf("target %s not found in configuration", targetName)
 				} else {
-					if store, err = target.Storage(); err != nil {
+					if store, err = target.Storage.Storage(); err != nil {
 						return fmt.Errorf("error creating storage for target %s: %v", targetName, err)
 					}
 				}

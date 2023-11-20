@@ -18,7 +18,7 @@ func TestDumpCmd(t *testing.T) {
 	fileTargetURL, _ := url.Parse(fileTarget)
 	tests := []struct {
 		name                 string
-		args                 []string // "restore" will be prepended automatically
+		args                 []string // "dump" will be prepended automatically
 		config               string
 		wantErr              bool
 		expectedDumpOptions  core.DumpOptions
@@ -29,8 +29,10 @@ func TestDumpCmd(t *testing.T) {
 		{"file URL", []string{"--server", "abc", "--target", "file:///foo/bar"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
-			DBNames:          []string{},
-			Exclude:          []string{},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
+		{"config file", []string{"--config-file", "testdata/config.yml"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
 	}
 
