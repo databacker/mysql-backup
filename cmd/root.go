@@ -91,7 +91,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			// so we cannot use a single viper structure, as described above.
 
 			// set up database connection
-			var dbconn database.Connection
+			//var dbconn database.Connection
 
 			if configuration != nil {
 				if configuration.Database.Server != "" {
@@ -116,6 +116,10 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			if dbPort != 0 {
 				dbconn.Port = dbPort
 			}
+			if dbconn.Port == 0 {
+				// default is 3306
+				dbconn.Port = defaultPort
+			}
 			dbUser := v.GetString("user")
 			if dbUser != "" {
 				dbconn.User = dbUser
@@ -134,11 +138,13 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			if compressionVar != "" {
 				compressionAlgo = compressionVar
 			}
-			if compressionAlgo != "" {
-				compressor, err = compression.GetCompressor(compressionAlgo)
-				if err != nil {
-					return fmt.Errorf("failure to get compression '%s': %v", compressionAlgo, err)
-				}
+			if compressionAlgo == "" {
+				// default is gzip
+				compressionAlgo = "gzip"
+			}
+			compressor, err = compression.GetCompressor(compressionAlgo)
+			if err != nil {
+				return fmt.Errorf("failure to get compression '%s': %v", compressionAlgo, err)
 			}
 
 			// these are not from the config file, as they are generic credentials, used across all targets.
@@ -170,7 +176,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	pflags.String("config-file", "", "config file to use, if any; individual CLI flags override config file")
 
 	// server port via CLI or env var or default
-	pflags.Int("port", defaultPort, "port for database server")
+	pflags.Int("port", 0, "port for database server")
 
 	// user via CLI or env var
 	pflags.String("user", "", "username for database server")
