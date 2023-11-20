@@ -70,7 +70,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			// read the config file, if needed; the structure of the config differs quite some
 			// from the necessarily flat env vars/CLI flags, so we can't just use viper's
 			// automatic config file support.
-			if configFile := v.GetString("config"); configFile != "" {
+			if configFile := v.GetString("config-file"); configFile != "" {
 				var (
 					f      *os.File
 					err    error
@@ -163,12 +163,11 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	// server hostname via CLI or env var
 	pflags := cmd.PersistentFlags()
 	pflags.String("server", "", "hostname for database server")
-	if err := cmd.MarkPersistentFlagRequired("server"); err != nil {
-		return nil, err
-	}
 
 	// base of temporary directory to use
 	pflags.String("tmp", os.TempDir(), "temporary directory base for working directory, defaults to OS")
+
+	pflags.String("config-file", "", "config file to use, if any; individual CLI flags override config file")
 
 	// server port via CLI or env var or default
 	pflags.Int("port", defaultPort, "port for database server")

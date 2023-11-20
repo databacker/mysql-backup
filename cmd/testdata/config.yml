@@ -1,0 +1,18 @@
+database:
+  server: abc
+  port: 3306
+  credentials:
+    username: user
+    password: xxxx
+
+targets:
+  local:
+    type: file
+    url: file:///foo/bar
+  other:
+    type: file
+    url: /foo/bar
+
+dump:
+  targets:
+  - local
