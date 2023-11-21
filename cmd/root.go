@@ -109,19 +109,19 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			}
 			// override config with env var or CLI flag, if set
 			dbHost := v.GetString("server")
-			if dbHost != "" {
+			if dbHost != "" && v.IsSet("server") {
 				dbconn.Host = dbHost
 			}
 			dbPort := v.GetInt("port")
-			if dbPort != 0 {
+			if dbPort != 0 && v.IsSet("port") {
 				dbconn.Port = dbPort
 			}
 			dbUser := v.GetString("user")
-			if dbUser != "" {
+			if dbUser != "" && v.IsSet("dbUser") {
 				dbconn.User = dbUser
 			}
 			dbPass := v.GetString("pass")
-			if dbPass != "" {
+			if dbPass != "" && v.IsSet("pass") {
 				dbconn.Pass = dbPass
 			}
 
