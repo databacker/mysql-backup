@@ -31,24 +31,12 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          # list of Docker images to use as base name for tags
-          images: |
-            ${{env.IMAGE_NAME}}
-          # generate Docker tags based on the following events/attributes
-          # for any semver, including rc and alpha, etc. take the tag as is
-          # for ones that are exactly X.Y.Z, also tag it as latest
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}.{{patch}},value=latest
-      - name: Build and push semver tag
-        id: docker_build_push_semver
+      - name: Build and push
+        id: docker_build
         uses: docker/build-push-action@v2
         with:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ steps.meta.outputs.tags }}
+            ${{env.IMAGE_NAME}}:${{ github.ref_name }}
+            ${{env.IMAGE_NAME}}:latest
