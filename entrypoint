@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 . /functions.sh
 
@@ -148,7 +148,7 @@ if [[ -n "$DB_RESTORE_TARGET" ]]; then
     RESTORE_OPTS=${RESTORE_OPTS:-}
     # If there are multiple schemas in the archive (e.g. DB_DUMP_BY_SCHEMA was used) and DB_NAMES is set,
     # restore only the required databases
-    if [[ $(ls -1q $workdir/* | wc -l) -gt 1 ]] && [[ -n "$DB_NAMES" ]]; then
+    if [ "$SINGLE_DATABASE" != "true" ] && [[ $(ls -1q $workdir/* | wc -l) -gt 1 ]] && [[ -n "$DB_NAMES" ]]; then
       for onedb in $DB_NAMES; do
         echo "Restoring $onedb from " $workdir/$onedb*
         # /!\ If a schema has a name that begins with another one, it will executed multiple times the other one
