@@ -8,12 +8,12 @@ mysql-backup is a simple way to do MySQL database backups and restores.
 
 It has the following features:
 
-* dump and restore
-* dump to local filesystem or to SMB server
-* select database user and password
-* connect to any container running on the same system
-* select how often to run a dump
-* select when to start the first dump, whether time of day or relative to container start time
+- dump and restore
+- dump to local filesystem or to SMB server
+- select database user and password
+- connect to any container running on the same system
+- select how often to run a dump
+- select when to start the first dump, whether time of day or relative to container start time
 
 Please see [CONTRIBUTORS.md](./CONTRIBUTORS.md) for a list of contributors.
 
@@ -35,17 +35,17 @@ If you are interested in commercial support, please contact us via Slack above.
 
 ## Backup
 
-To run a backup, launch `mysql-backup` - as a container or as a binary - with the correct parameters. 
+To run a backup, launch `mysql-backup` - as a container or as a binary - with the correct parameters.
 
 For example:
 
-````bash
+```bash
 docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/local/file/path -e DB_SERVER=my-db-address -v /local/file/path:/db databack/mysql-backup
 
 # or
 
 mysql-backup dump --frequency=60 --begin=2330 --target=/local/file/path --server=my-db-address
-````
+```
 
 Or `mysql-backup --config-file=/path/to/config/file.yaml` where `/path/to/config/file.yaml` is a file
 with the following contents:
@@ -60,18 +60,17 @@ dump:
 
 The above will run a dump every 60 minutes, beginning at the next 2330 local time, from the database accessible in the container `my-db-address`.
 
-````bash
+```bash
 docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-address -v /local/file/path:/db databack/mysql-backup
 
 # or
 
 mysql-backup dump --user=user123 --pass=pass123 --frequency=60 --begin=2330 --target=/local/file/path --server=my-db-address --port=3306
-````
+```
 
 See [backup](./docs/backup.md) for a more detailed description of performing backups.
 
 See [configuration](./docs/configuration.md) for a detailed list of all configuration options.
-
 
 ## Restore
 
@@ -84,26 +83,27 @@ If you wish to run a restore to an existing database, you can use mysql-backup t
 
 You need only the following environment variables:
 
-__You should consider the [use of `--env-file=`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file) to keep your secrets out of your shell history__
+**You should consider the [use of `--env-file=`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file) to keep your secrets out of your shell history**
 
-* `DB_SERVER`: hostname to connect to database. Required.
-* `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
-* `DB_USER`: username for the database
-* `DB_PASS`: password for the database
-* `DB_NAMES`: names of databases to restore separated by spaces. Required if `SINGLE_DATABASE=true`.
-* `SINGLE_DATABASE`: If is set to `true`, `DB_NAMES` is required and must contain exactly one database name. Mysql command will then run with `--database=$DB_NAMES` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
-* `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
-* `DB_DUMP_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
-* To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined.
+- `DB_SERVER`: hostname to connect to database. Required.
+- `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
+- `DB_USER`: username for the database
+- `DB_PASS`: password for the database
+- `DB_NAMES`: name of database to restore to. Required if `SINGLE_DATABASE=true`, otherwise has no effect. Although the name is plural, it must contain exactly one database name.
+- `SINGLE_DATABASE`: If is set to `true`, `DB_NAMES` is required and mysql command will run with `--database=$DB_NAMES` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
+- `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
+- `DB_DUMP_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
+- To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined.
 
 Examples:
 
 1. Restore from a local file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -v /local/path:/backup databack/mysql-backup`
 2. Restore from a local file using ssl: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e RESTORE_OPTS="--ssl-cert /certs/client-cert.pem --ssl-key /certs/client-key.pem" -v /local/path:/backup -v /local/certs:/certs databack/mysql-backup`
-2. Restore from an SMB file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.gz databack/mysql-backup`
-3. Restore from an S3 file: `docker run -e DB_SERVER=gotodb.example.com -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.gz databack/mysql-backup`
+3. Restore from an SMB file: `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=smb://smbserver/share1/backup/db_backup_201509271627.gz databack/mysql-backup`
+4. Restore from an S3 file: `docker run -e DB_SERVER=gotodb.example.com -e AWS_ACCESS_KEY_ID=awskeyid -e AWS_SECRET_ACCESS_KEY=secret -e AWS_REGION=eu-central-1 -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=s3://bucket/path/db_backup_201509271627.gz databack/mysql-backup`
 
 ### Restore specific databases
+
 If you have multiple schemas in your database, you can choose to restore only some of them.
 
 To do this, you must dump your database using `DB_DUMP_BY_SCHEMA=true`, then restore using `DB_NAMES` to specify the schemas you want restored.
@@ -111,17 +111,19 @@ To do this, you must dump your database using `DB_DUMP_BY_SCHEMA=true`, then res
 When doing this, schemas will be restored with their original name. To restore under other names, you must use `SINGLE_DATABASE=true` on both dump and restore, and you can only do it one schema at a time.
 
 #### Examples:
+
 1. Dump a multi-schemas database and restore only some of them:
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_BY_SCHEMA=true -v /local/path:/backup databack/mysql-backup`
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e DB_NAMES="database1 database3" -v /local/path:/backup databack/mysql-backup`
+   - `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_BY_SCHEMA=true -v /local/path:/backup databack/mysql-backup`
+   - `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e DB_NAMES="database1 database3" -v /local/path:/backup databack/mysql-backup`
 2. Dump and restore a schema under a different name:
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e SINGLE_DATABASE=true -e DB_NAMES=database1 -v /local/path:/backup databack/mysql-backup`
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e SINGLE_DATABASE=true DB_NAMES=newdatabase1 -v /local/path:/backup databack/mysql-backup`
+   - `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e SINGLE_DATABASE=true -e DB_NAMES=database1 -v /local/path:/backup databack/mysql-backup`
+   - `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e SINGLE_DATABASE=true DB_NAMES=newdatabase1 -v /local/path:/backup databack/mysql-backup`
 
 See [restore](./docs/restore.md) for a more detailed description of performing restores.
 
 See [configuration](./docs/configuration.md) for a detailed list of all configuration options.
 
 ## License
+
 Released under the MIT License.
 Copyright Avi Deitcher https://github.com/deitch
