@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/util"
@@ -39,6 +40,27 @@ func restoreCmd(execs execs) (*cobra.Command, error) {
 					databasesMap[parts[0]] = parts[1]
 				}
 			}
+
+			// compression algorithm: check config, then CLI/env var overrides
+			var (
+				compressionAlgo string
+				compressor      compression.Compressor
+				err             error
+			)
+			if configuration != nil {
+				compressionAlgo = configuration.Dump.Compression
+			}
+			compressionVar := v.GetString("compression")
+			if compressionVar != "" {
+				compressionAlgo = compressionVar
+			}
+			if compressionAlgo != "" {
+				compressor, err = compression.GetCompressor(compressionAlgo)
+				if err != nil {
+					return fmt.Errorf("failure to get compression '%s': %v", compressionAlgo, err)
+				}
+			}
+
 			// target URL can reference one from the config file, or an absolute one
 			// if it's not in the config file, it's an absolute one
 			// if it is in the config file, it's a reference to one of the targets in the config file

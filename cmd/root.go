@@ -34,7 +34,6 @@ const (
 var (
 	dbconn        database.Connection
 	creds         credentials.Creds
-	compressor    compression.Compressor
 	configuration *config.Config
 )
 
@@ -55,7 +54,6 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 		AWS_REGION: Region in which the bucket resides
 		`,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			var err error
 			bindFlags(cmd, v)
 			logLevel := v.GetInt("verbose")
 			switch logLevel {
@@ -123,22 +121,6 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			dbPass := v.GetString("pass")
 			if dbPass != "" && v.IsSet("pass") {
 				dbconn.Pass = dbPass
-			}
-
-			// compression algorithm: check config, then CLI/env var overrides
-			var compressionAlgo string
-			if configuration != nil {
-				compressionAlgo = configuration.Dump.Compression
-			}
-			compressionVar := v.GetString("compression")
-			if compressionVar != "" {
-				compressionAlgo = compressionVar
-			}
-			if compressionAlgo != "" {
-				compressor, err = compression.GetCompressor(compressionAlgo)
-				if err != nil {
-					return fmt.Errorf("failure to get compression '%s': %v", compressionAlgo, err)
-				}
 			}
 
 			// these are not from the config file, as they are generic credentials, used across all targets.

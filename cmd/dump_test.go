@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/file"
@@ -29,10 +30,12 @@ func TestDumpCmd(t *testing.T) {
 		{"file URL", []string{"--server", "abc", "--target", "file:///foo/bar"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
 		{"config file", []string{"--config-file", "testdata/config.yml"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
 	}
 
