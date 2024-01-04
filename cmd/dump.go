@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/storage"
 )
@@ -106,6 +107,25 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 			maxAllowedPacket := v.GetInt("max-allowed-packet")
 			if !v.IsSet("max-allowed-packet") && configuration != nil && configuration.Dump.MaxAllowedPacket != 0 {
 				maxAllowedPacket = configuration.Dump.MaxAllowedPacket
+			}
+
+			// compression algorithm: check config, then CLI/env var overrides
+			var (
+				compressionAlgo string
+				compressor      compression.Compressor
+			)
+			if configuration != nil {
+				compressionAlgo = configuration.Dump.Compression
+			}
+			compressionVar := v.GetString("compression")
+			if compressionVar != "" {
+				compressionAlgo = compressionVar
+			}
+			if compressionAlgo != "" {
+				compressor, err = compression.GetCompressor(compressionAlgo)
+				if err != nil {
+					return fmt.Errorf("failure to get compression '%s': %v", compressionAlgo, err)
+				}
 			}
 
 			dumpOpts := core.DumpOptions{
