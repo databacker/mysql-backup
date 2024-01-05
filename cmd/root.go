@@ -115,7 +115,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				dbconn.Port = dbPort
 			}
 			dbUser := v.GetString("user")
-			if dbUser != "" && v.IsSet("dbUser") {
+			if dbUser != "" && v.IsSet("user") {
 				dbconn.User = dbUser
 			}
 			dbPass := v.GetString("pass")
