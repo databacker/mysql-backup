@@ -89,8 +89,6 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			// so we cannot use a single viper structure, as described above.
 
 			// set up database connection
-			var dbconn database.Connection
-
 			if configuration != nil {
 				if configuration.Database.Server != "" {
 					dbconn.Host = configuration.Database.Server

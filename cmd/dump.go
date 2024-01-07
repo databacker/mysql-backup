@@ -127,7 +127,6 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 					return fmt.Errorf("failure to get compression '%s': %v", compressionAlgo, err)
 				}
 			}
-
 			dumpOpts := core.DumpOptions{
 				Targets:             targets,
 				Safechars:           safechars,
