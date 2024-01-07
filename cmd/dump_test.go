@@ -6,6 +6,7 @@ import (
 
 	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/core"
+	"github.com/databacker/mysql-backup/pkg/database"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/file"
 	"github.com/go-test/deep"
@@ -26,16 +27,18 @@ func TestDumpCmd(t *testing.T) {
 		expectedTimerOptions core.TimerOptions
 	}{
 		{"missing server and target options", []string{""}, "", true, core.DumpOptions{}, core.TimerOptions{}},
-		{"invalid target URL", []string{"--server", "abc", "--target", "def"}, "", true, core.DumpOptions{}, core.TimerOptions{}},
+		{"invalid target URL", []string{"--server", "abc", "--target", "def"}, "", true, core.DumpOptions{DBConn: database.Connection{Host: "abc"}}, core.TimerOptions{}},
 		{"file URL", []string{"--server", "abc", "--target", "file:///foo/bar"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc"},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
 		{"config file", []string{"--config-file", "testdata/config.yml"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc", Port: 3306, User: "user", Pass: "xxxx"},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
 	}
 

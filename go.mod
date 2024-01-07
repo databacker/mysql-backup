@@ -1,6 +1,6 @@
 module github.com/databacker/mysql-backup
 
-go 1.19
+go 1.21
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.19.1
@@ -14,7 +14,7 @@ require (
 	github.com/moby/moby v23.0.6+incompatible
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.0
-	github.com/spf13/cobra v1.0.0
+	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.3
 	github.com/stretchr/testify v1.8.4
@@ -52,7 +52,7 @@ require (
 	github.com/geoffgarside/ber v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect

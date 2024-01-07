@@ -89,8 +89,6 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			// so we cannot use a single viper structure, as described above.
 
 			// set up database connection
-			var dbconn database.Connection
-
 			if configuration != nil {
 				if configuration.Database.Server != "" {
 					dbconn.Host = configuration.Database.Server
@@ -115,7 +113,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				dbconn.Port = dbPort
 			}
 			dbUser := v.GetString("user")
-			if dbUser != "" && v.IsSet("dbUser") {
+			if dbUser != "" && v.IsSet("user") {
 				dbconn.User = dbUser
 			}
 			dbPass := v.GetString("pass")
