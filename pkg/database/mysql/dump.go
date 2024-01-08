@@ -580,7 +580,10 @@ func (table *table) Stream() <-chan string {
 			}
 
 			if insert.Len() == 0 {
-				_, _ = fmt.Fprint(&insert, "INSERT INTO ", table.NameEsc(), " VALUES ")
+				_, _ = fmt.Fprint(&insert, strings.Join(
+					// extra "" at the end so we get an extra whitespace as needed
+					[]string{"INSERT", "INTO", table.NameEsc(), "(" + table.columnsList() + ")", "VALUES", ""},
+					" "))
 			} else {
 				_, _ = insert.WriteString(",")
 			}
