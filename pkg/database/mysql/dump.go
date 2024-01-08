@@ -420,8 +420,10 @@ func (table *table) initColumnData() error {
 			return err
 		}
 
-		// Ignore the virtual columns
-		if !info[extraIndex].Valid || !strings.Contains(info[extraIndex].String, "VIRTUAL") {
+		// Ignore the virtual columns and generated columns
+		// if there is an Extra column and it is a valid string, then only include this column if
+		// the column is not marked as VIRTUAL or GENERATED
+		if !info[extraIndex].Valid || (!strings.Contains(info[extraIndex].String, "VIRTUAL") && !strings.Contains(info[extraIndex].String, "GENERATED")) {
 			result = append(result, info[fieldIndex].String)
 		}
 	}
