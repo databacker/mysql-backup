@@ -46,7 +46,7 @@ const (
 	mysqlRootUser = "root"
 	mysqlRootPass = "root"
 	smbImage      = "mysqlbackup_smb_test:latest"
-	mysqlImage    = "mysql:8.0"
+	mysqlImage    = "mysql:8.2.0"
 	bucketName    = "mybucket"
 )
 
@@ -316,7 +316,7 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 	_, _ = stdcopy.StdCopy(&bufo, &bufe, attachResp.Reader)
 
 	// Dump the database - do both compact and non-compact
-	mysqlDumpCompactCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--compact", "--databases", "tester"}
+	mysqlDumpCompactCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--compact", "--databases", "tester"}
 	attachResp, exitCode, err = d.execInContainer(ctx, mysqlCID, mysqlDumpCompactCmd)
 	if err != nil {
 		return fmt.Errorf("failed to attach to exec: %w", err)
@@ -337,7 +337,7 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 	bufo.Reset()
 	bufe.Reset()
 
-	mysqlDumpCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--databases", "tester"}
+	mysqlDumpCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--databases", "tester"}
 	attachResp, exitCode, err = d.execInContainer(ctx, mysqlCID, mysqlDumpCmd)
 	if err != nil {
 		return fmt.Errorf("failed to attach to exec: %w", err)
