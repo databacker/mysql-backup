@@ -227,5 +227,11 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	// max-allowed-packet size
 	flags.Int("max-allowed-packet", defaultMaxAllowedPacket, "Maximum size of the buffer for client/server communication, similar to mysqldump's max_allowed_packet. 0 means to use the default size.")
 
+	cmd.MarkFlagsMutuallyExclusive("once", "cron")
+	cmd.MarkFlagsMutuallyExclusive("once", "begin")
+	cmd.MarkFlagsMutuallyExclusive("once", "frequency")
+	cmd.MarkFlagsMutuallyExclusive("cron", "begin")
+	cmd.MarkFlagsMutuallyExclusive("cron", "frequency")
+
 	return cmd, nil
 }
