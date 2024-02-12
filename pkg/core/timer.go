@@ -80,7 +80,7 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 				return nil, fmt.Errorf("invalid format for begin delay '%s': %v", opts.Begin, err)
 			}
 			delay = time.Duration(delayMins) * time.Minute
-		case len(startTimeParts) > 3:
+		case len(startTimeParts) > 2:
 			hour, err := strconv.Atoi(startTimeParts[1])
 			if err != nil {
 				return nil, fmt.Errorf("invalid format for begin delay '%s': %v", opts.Begin, err)
@@ -93,7 +93,7 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 			// convert that start time into a Duration to wait
 			now := time.Now()
 
-			today := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, now.Second(), now.Nanosecond(), time.UTC)
+			today := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, now.Second(), now.Nanosecond(), time.Local)
 			if today.After(now) {
 				delay = today.Sub(now)
 			} else {
