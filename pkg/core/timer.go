@@ -93,7 +93,7 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 			// convert that start time into a Duration to wait
 			now := time.Now()
 
-			today := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, now.Second(), now.Nanosecond(), time.Local)
+			today := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, now.Second(), now.Nanosecond(), time.UTC)
 			if today.After(now) {
 				delay = today.Sub(now)
 			} else {
