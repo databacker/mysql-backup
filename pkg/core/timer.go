@@ -39,7 +39,7 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 		err   error
 	)
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	// validate we do not have conflicting options
 	if opts.Once && (opts.Cron != "" || opts.Begin != "" || opts.Frequency != 0) {
