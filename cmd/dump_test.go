@@ -14,7 +14,7 @@ import (
 )
 
 func TestDumpCmd(t *testing.T) {
-	//t.Parallel()
+	t.Parallel()
 
 	fileTarget := "file:///foo/bar"
 	fileTargetURL, _ := url.Parse(fileTarget)
