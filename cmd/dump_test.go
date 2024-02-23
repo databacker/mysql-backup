@@ -14,7 +14,7 @@ import (
 )
 
 func TestDumpCmd(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 
 	fileTarget := "file:///foo/bar"
 	fileTargetURL, _ := url.Parse(fileTarget)
@@ -34,12 +34,41 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           database.Connection{Host: "abc"},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
+		{"once flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--once"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc"},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin, Once: true}},
+		{"cron flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--cron", "0 0 * * *"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc"},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin, Cron: "0 0 * * *"}},
+		{"begin flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--begin", "1234"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc"},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: "1234"}},
+		{"frequency flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--frequency", "10"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc"},
+		}, core.TimerOptions{Frequency: 10, Begin: defaultBegin}},
 		{"config file", []string{"--config-file", "testdata/config.yml"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           database.Connection{Host: "abc", Port: 3306, User: "user", Pass: "xxxx"},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}},
+		{"incompatible flags: once/cron", []string{"--server", "abc", "--target", "file:///foo/bar", "--once", "--cron", "0 0 * * *"}, "", true, core.DumpOptions{}, core.TimerOptions{}},
+		{"incompatible flags: once/begin", []string{"--server", "abc", "--target", "file:///foo/bar", "--once", "--begin", "1234"}, "", true, core.DumpOptions{}, core.TimerOptions{}},
+		{"incompatible flags: once/frequency", []string{"--server", "abc", "--target", "file:///foo/bar", "--once", "--frequency", "10"}, "", true, core.DumpOptions{}, core.TimerOptions{}},
+		{"incompatible flags: cron/begin", []string{"--server", "abc", "--target", "file:///foo/bar", "--cron", "0 0 * * *", "--begin", "1234"}, "", true, core.DumpOptions{}, core.TimerOptions{}},
+		{"incompatible flags: cron/frequency", []string{"--server", "abc", "--target", "file:///foo/bar", "--cron", "0 0 * * *", "--frequency", "10"}, "", true, core.DumpOptions{}, core.TimerOptions{}},
 	}
 
 	for _, tt := range tests {
