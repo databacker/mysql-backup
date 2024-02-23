@@ -51,9 +51,11 @@ func TestWaitForBeginTime(t *testing.T) {
 		{"wait until 10:23", "1023", "2018-10-10T10:00:00Z", 23 * time.Minute, nil},
 		{"wait until 23:59", "2359", "2018-10-10T10:00:00Z", 13*time.Hour + 59*time.Minute, nil},
 		{"wait until 9:59", "0959", "2018-10-10T10:00:00Z", 23*time.Hour + 59*time.Minute, nil},
+		{"pass time over 24h", "2401", "2018-10-10T10:00:00Z", 14*time.Hour + time.Minute, nil}, //time.Time accepts values outside the usual ranges
 		{"fail text", "today", "2018-10-10T10:00:00Z", time.Duration(0), fmt.Errorf("invalid format for begin delay 'today'")},
 		{"fail number", "1", "2018-10-10T10:00:00Z", time.Duration(0), fmt.Errorf("invalid format for begin delay '1'")},
 		{"fail +hour", "+1h", "2018-10-10T10:00:00Z", time.Duration(0), fmt.Errorf("invalid format for begin delay '+1h'")},
+		{"fail too long time", "12345", "2018-10-10T10:00:00Z", time.Duration(0), fmt.Errorf("invalid format for begin delay '12345'")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

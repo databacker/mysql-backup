@@ -118,7 +118,7 @@ func waitForBeginTime(begin string, from time.Time) (time.Duration, error) {
 	if err != nil {
 		return time.Duration(0), fmt.Errorf("invalid matcher for checking begin delay options: %v", err)
 	}
-	timeRe, err := regexp.Compile(`([0-9][0-9])([0-9][0-9])`)
+	timeRe, err := regexp.Compile(`^([0-9][0-9])([0-9][0-9])$`)
 	if err != nil {
 		return time.Duration(0), fmt.Errorf("invalid matcher for checking begin delay options: %v", err)
 	}
