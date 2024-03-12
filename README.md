@@ -4,7 +4,7 @@ Back up mysql databases to... anywhere!
 
 ## Overview
 
-mysql-backup is a simple way to do MySQL database backups and restores.
+mysql-backup is a simple way to do MySQL database backups and restores, as well as manage your backups.
 
 It has the following features:
 
@@ -14,6 +14,7 @@ It has the following features:
 * connect to any container running on the same system
 * select how often to run a dump
 * select when to start the first dump, whether time of day or relative to container start time
+* prune backups older than a specific time period or quantity
 
 Please see [CONTRIBUTORS.md](./CONTRIBUTORS.md) for a list of contributors.
 
