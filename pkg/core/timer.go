@@ -38,7 +38,7 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 		err   error
 	)
 
-  now := time.Now().UTC()
+	now := time.Now().UTC()
 	// parse the options to determine our delays
 	if opts.Cron != "" {
 		// calculate delay until next cron moment as defined
