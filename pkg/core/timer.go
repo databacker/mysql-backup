@@ -2,11 +2,13 @@ package core
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
 
 	"github.com/robfig/cron/v3"
+	log "github.com/sirupsen/logrus"
 )
 
 type TimerOptions struct {
@@ -149,4 +151,23 @@ func waitForCron(cronExpr string, from time.Time) (time.Duration, error) {
 	// we allow matching current time, so we do it from 1ns
 	next := sched.Next(from.Add(-1 * time.Nanosecond))
 	return next.Sub(from), nil
+}
+
+// TimerCommand runs a command on a timer
+func TimerCommand(timerOpts TimerOptions, cmd func() error) error {
+	c, err := Timer(timerOpts)
+	if err != nil {
+		log.Errorf("error creating timer: %v", err)
+		os.Exit(1)
+	}
+	// block and wait for it
+	for update := range c {
+		if err := cmd(); err != nil {
+			return fmt.Errorf("error running command: %w", err)
+		}
+		if update.Last {
+			break
+		}
+	}
+	return nil
 }

@@ -442,7 +442,9 @@ func runDumpTest(dc *dockerContext, compact bool, base string, targets []backupT
 	timerOpts := core.TimerOptions{
 		Once: true,
 	}
-	return core.TimerDump(dumpOpts, timerOpts)
+	return core.TimerCommand(timerOpts, func() error {
+		return core.Dump(dumpOpts)
+	})
 }
 
 func setup(dc *dockerContext, base, backupFile, compactBackupFile string) (mysql, smb containerPort, s3url string, s3backend gofakes3.Backend, err error) {

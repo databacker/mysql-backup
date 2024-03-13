@@ -14,7 +14,10 @@ import (
 	"github.com/databacker/mysql-backup/pkg/util"
 )
 
-func restoreCmd(execs execs) (*cobra.Command, error) {
+func restoreCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
+	if cmdConfig == nil {
+		return nil, fmt.Errorf("cmdConfig is nil")
+	}
 	var v *viper.Viper
 	var cmd = &cobra.Command{
 		Use:   "restore",
@@ -47,8 +50,8 @@ func restoreCmd(execs execs) (*cobra.Command, error) {
 				compressor      compression.Compressor
 				err             error
 			)
-			if configuration != nil {
-				compressionAlgo = configuration.Dump.Compression
+			if cmdConfig.configuration != nil {
+				compressionAlgo = cmdConfig.configuration.Dump.Compression
 			}
 			compressionVar := v.GetString("compression")
 			if compressionVar != "" {
@@ -73,10 +76,10 @@ func restoreCmd(execs execs) (*cobra.Command, error) {
 				// get the target name
 				targetName := u.Host
 				// get the target from the config file
-				if configuration == nil {
+				if cmdConfig.configuration == nil {
 					return fmt.Errorf("no configuration file found")
 				}
-				if target, ok := configuration.Targets[targetName]; !ok {
+				if target, ok := cmdConfig.configuration.Targets[targetName]; !ok {
 					return fmt.Errorf("target %s not found in configuration", targetName)
 				} else {
 					if store, err = target.Storage.Storage(); err != nil {
@@ -86,7 +89,7 @@ func restoreCmd(execs execs) (*cobra.Command, error) {
 				// need to add the path to the specific target file
 			} else {
 				// parse the target URL
-				store, err = storage.ParseURL(target, creds)
+				store, err = storage.ParseURL(target, cmdConfig.creds)
 				if err != nil {
 					return fmt.Errorf("invalid target url: %v", err)
 				}
@@ -95,7 +98,7 @@ func restoreCmd(execs execs) (*cobra.Command, error) {
 			if execs != nil {
 				restore = execs.restore
 			}
-			if err := restore(store, targetFile, dbconn, databasesMap, compressor); err != nil {
+			if err := restore(store, targetFile, cmdConfig.dbconn, databasesMap, compressor); err != nil {
 				return fmt.Errorf("error restoring: %v", err)
 			}
 			log.Info("Restore complete")
