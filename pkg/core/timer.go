@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -40,16 +39,6 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 	)
 
 	now := time.Now().UTC()
-
-	// validate we do not have conflicting options
-	if opts.Once && (opts.Cron != "" || opts.Begin != "" || opts.Frequency != 0) {
-		return nil, errors.New("option 'Once' is exclusive and must not be used with Begin, Cron or Frequency")
-	}
-
-	if opts.Cron != "" && (opts.Begin != "" || opts.Frequency != 0) {
-		return nil, errors.New("option 'Cron' is exclusive and must not be used with Begin, Once or Frequency")
-	}
-
 	// parse the options to determine our delays
 	if opts.Cron != "" {
 		// calculate delay until next cron moment as defined
@@ -57,8 +46,7 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid cron format '%s': %v", opts.Cron, err)
 		}
-	}
-	if opts.Begin != "" {
+	} else if opts.Begin != "" {
 		// calculate how long to wait
 		minsRe, err := regexp.Compile(`^\+([0-9]+)$`)
 		if err != nil {
