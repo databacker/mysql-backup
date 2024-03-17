@@ -1,10 +1,11 @@
 # sample configuration file for telemetry service only; everything else is local
-# will be overridden by command-line arguments
-# or remote, if configured
+# can be overridden by command-line arguments or remote, if configured
 
 # only needed if registered to send logs and results to a telemetry service
 # and not defined in the config service. Normally, you can just use the config
 # to get the telemetry info
+
+# standard reference of type and version
 type: config.databack.io
 version: 1
 

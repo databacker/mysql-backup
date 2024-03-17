@@ -1,4 +1,8 @@
-# sample configuration file for all config provided by remote service
+# sample configuration file for config entirely from remote service. When retrieving from remote,
+# will also be told how to handle telemetry.
+# can be overridden by command-line arguments
+
+# standard reference of type and version
 type: config.databack.io
 version: 1
 
