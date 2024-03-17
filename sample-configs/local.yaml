@@ -1,5 +1,7 @@
-# sample configuration file for entire local config, not using remote config service
-# will be overridden by command-line arguments
+# sample configuration file for config entirely local, not using remote config service
+# can be overridden by command-line arguments
+
+# standard reference of type and version
 type: config.databack.io
 version: 1
 
