@@ -17,12 +17,25 @@ func newMockExecs() *mockExecs {
 	return m
 }
 
-func (m *mockExecs) timerDump(opts core.DumpOptions, timerOpts core.TimerOptions) error {
-	args := m.Called(opts, timerOpts)
+func (m *mockExecs) dump(opts core.DumpOptions) error {
+	args := m.Called(opts)
 	return args.Error(0)
 }
 
 func (m *mockExecs) restore(target storage.Storage, targetFile string, dbconn database.Connection, databasesMap map[string]string, compressor compression.Compressor) error {
 	args := m.Called(target, targetFile, dbconn, databasesMap, compressor)
 	return args.Error(0)
+}
+
+func (m *mockExecs) prune(opts core.PruneOptions) error {
+	args := m.Called(opts)
+	return args.Error(0)
+}
+func (m *mockExecs) timer(timerOpts core.TimerOptions, cmd func() error) error {
+	args := m.Called(timerOpts)
+	err := args.Error(0)
+	if err != nil {
+		return err
+	}
+	return cmd()
 }

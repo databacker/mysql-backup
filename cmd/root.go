@@ -19,28 +19,31 @@ import (
 )
 
 type execs interface {
-	timerDump(opts core.DumpOptions, timerOpts core.TimerOptions) error
+	dump(opts core.DumpOptions) error
 	restore(target storage.Storage, targetFile string, dbconn database.Connection, databasesMap map[string]string, compressor compression.Compressor) error
+	prune(opts core.PruneOptions) error
+	timer(timerOpts core.TimerOptions, cmd func() error) error
 }
 
-type subCommand func(execs) (*cobra.Command, error)
+type subCommand func(execs, *cmdConfiguration) (*cobra.Command, error)
 
-var subCommands = []subCommand{dumpCmd, restoreCmd}
+var subCommands = []subCommand{dumpCmd, restoreCmd, pruneCmd}
+
+type cmdConfiguration struct {
+	dbconn        database.Connection
+	creds         credentials.Creds
+	configuration *config.Config
+}
 
 const (
 	defaultPort = 3306
 )
 
-var (
-	dbconn        database.Connection
-	creds         credentials.Creds
-	configuration *config.Config
-)
-
 func rootCmd(execs execs) (*cobra.Command, error) {
 	var (
-		v   *viper.Viper
-		cmd *cobra.Command
+		v         *viper.Viper
+		cmd       *cobra.Command
+		cmdConfig = &cmdConfiguration{}
 	)
 	cmd = &cobra.Command{
 		Use:   "mysql-backup",
@@ -82,48 +85,48 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				if err := decoder.Decode(&config); err != nil {
 					return fmt.Errorf("fatal error config file: %w", err)
 				}
-				configuration = &config
+				cmdConfig.configuration = &config
 			}
 
 			// the structure of our config file is more complex and with relationships than our config/env var
 			// so we cannot use a single viper structure, as described above.
 
 			// set up database connection
-			if configuration != nil {
-				if configuration.Database.Server != "" {
-					dbconn.Host = configuration.Database.Server
+			if cmdConfig.configuration != nil {
+				if cmdConfig.configuration.Database.Server != "" {
+					cmdConfig.dbconn.Host = cmdConfig.configuration.Database.Server
 				}
-				if configuration.Database.Port != 0 {
-					dbconn.Port = configuration.Database.Port
+				if cmdConfig.configuration.Database.Port != 0 {
+					cmdConfig.dbconn.Port = cmdConfig.configuration.Database.Port
 				}
-				if configuration.Database.Credentials.Username != "" {
-					dbconn.User = configuration.Database.Credentials.Username
+				if cmdConfig.configuration.Database.Credentials.Username != "" {
+					cmdConfig.dbconn.User = cmdConfig.configuration.Database.Credentials.Username
 				}
-				if configuration.Database.Credentials.Password != "" {
-					dbconn.Pass = configuration.Database.Credentials.Password
+				if cmdConfig.configuration.Database.Credentials.Password != "" {
+					cmdConfig.dbconn.Pass = cmdConfig.configuration.Database.Credentials.Password
 				}
 			}
 			// override config with env var or CLI flag, if set
 			dbHost := v.GetString("server")
 			if dbHost != "" && v.IsSet("server") {
-				dbconn.Host = dbHost
+				cmdConfig.dbconn.Host = dbHost
 			}
 			dbPort := v.GetInt("port")
 			if dbPort != 0 && v.IsSet("port") {
-				dbconn.Port = dbPort
+				cmdConfig.dbconn.Port = dbPort
 			}
 			dbUser := v.GetString("user")
 			if dbUser != "" && v.IsSet("user") {
-				dbconn.User = dbUser
+				cmdConfig.dbconn.User = dbUser
 			}
 			dbPass := v.GetString("pass")
 			if dbPass != "" && v.IsSet("pass") {
-				dbconn.Pass = dbPass
+				cmdConfig.dbconn.Pass = dbPass
 			}
 
 			// these are not from the config file, as they are generic credentials, used across all targets.
 			// the config file uses specific ones per target
-			creds = credentials.Creds{
+			cmdConfig.creds = credentials.Creds{
 				AWSEndpoint: v.GetString("aws-endpoint-url"),
 				SMBCredentials: credentials.SMBCreds{
 					Username: v.GetString("smb-user"),
@@ -173,7 +176,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	pflags.String("smb-domain", "", "SMB domain")
 
 	for _, subCmd := range subCommands {
-		if sc, err := subCmd(execs); err != nil {
+		if sc, err := subCmd(execs, cmdConfig); err != nil {
 			return nil, err
 		} else {
 			cmd.AddCommand(sc)

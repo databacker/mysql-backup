@@ -2,6 +2,7 @@ package file
 
 import (
 	"io"
+	"io/fs"
 	"net/url"
 	"os"
 	"path"
@@ -31,6 +32,27 @@ func (f *File) Protocol() string {
 
 func (f *File) URL() string {
 	return f.url.String()
+}
+
+func (f *File) ReadDir(dirname string) ([]fs.FileInfo, error) {
+
+	entries, err := os.ReadDir(filepath.Join(f.path, dirname))
+	if err != nil {
+		return nil, err
+	}
+	var files []fs.FileInfo
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, info)
+	}
+	return files, nil
+}
+
+func (f *File) Remove(target string) error {
+	return os.Remove(filepath.Join(f.path, target))
 }
 
 // copyFile copy a file from to as efficiently as possible

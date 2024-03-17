@@ -50,11 +50,50 @@ func New(u url.URL, opts ...Option) *SMB {
 }
 
 func (s *SMB) Pull(source, target string) (int64, error) {
-	return s.command(false, s.url, source, target)
+	var (
+		copied int64
+		err    error
+	)
+	err = s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
+		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
+
+		to, err := os.Create(target)
+		if err != nil {
+			return err
+		}
+		defer to.Close()
+		from, err := fs.Open(smbFilename)
+		if err != nil {
+			return err
+		}
+		defer from.Close()
+		copied, err = io.Copy(to, from)
+		return err
+	})
+	return copied, err
 }
 
 func (s *SMB) Push(target, source string) (int64, error) {
-	return s.command(true, s.url, target, source)
+	var (
+		copied int64
+		err    error
+	)
+	err = s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
+		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
+		from, err := os.Open(source)
+		if err != nil {
+			return err
+		}
+		defer from.Close()
+		to, err := fs.Create(smbFilename)
+		if err != nil {
+			return err
+		}
+		defer to.Close()
+		copied, err = io.Copy(to, from)
+		return err
+	})
+	return copied, err
 }
 
 func (s *SMB) Protocol() string {
@@ -65,7 +104,26 @@ func (s *SMB) URL() string {
 	return s.url.String()
 }
 
-func (s *SMB) command(push bool, u url.URL, remoteFilename, filename string) (int64, error) {
+func (s *SMB) ReadDir(dirname string) ([]os.FileInfo, error) {
+	var (
+		err   error
+		infos []os.FileInfo
+	)
+	err = s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
+		infos, err = fs.ReadDir(sharepath)
+		return err
+	})
+	return infos, err
+}
+
+func (s *SMB) Remove(target string) error {
+	return s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
+		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
+		return fs.Remove(smbFilename)
+	})
+}
+
+func (s *SMB) exec(u url.URL, command func(fs *smb2.Share, sharepath string) error) error {
 	var (
 		username, password, domain string
 	)
@@ -86,7 +144,7 @@ func (s *SMB) command(push bool, u url.URL, remoteFilename, filename string) (in
 
 	conn, err := net.Dial("tcp", host)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer conn.Close()
 
@@ -100,7 +158,7 @@ func (s *SMB) command(push bool, u url.URL, remoteFilename, filename string) (in
 
 	smbConn, err := d.Dial(conn)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer func() {
 		_ = smbConn.Logoff()
@@ -108,42 +166,12 @@ func (s *SMB) command(push bool, u url.URL, remoteFilename, filename string) (in
 
 	fs, err := smbConn.Mount(share)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer func() {
 		_ = fs.Umount()
 	}()
-
-	smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(remoteFilename, ":", "-")))
-
-	var (
-		from io.ReadCloser
-		to   io.WriteCloser
-	)
-	if push {
-		from, err = os.Open(filename)
-		if err != nil {
-			return 0, err
-		}
-		defer from.Close()
-		to, err = fs.Create(smbFilename)
-		if err != nil {
-			return 0, err
-		}
-		defer to.Close()
-	} else {
-		to, err = os.Create(filename)
-		if err != nil {
-			return 0, err
-		}
-		defer to.Close()
-		from, err = fs.Open(smbFilename)
-		if err != nil {
-			return 0, err
-		}
-		defer from.Close()
-	}
-	return io.Copy(to, from)
+	return command(fs, sharepath)
 }
 
 // parseSMBDomain parse a username to get an SMB domain

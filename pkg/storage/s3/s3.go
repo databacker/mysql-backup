@@ -3,9 +3,11 @@ package s3
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"path"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -139,6 +141,57 @@ func (s *S3) URL() string {
 	return s.url.String()
 }
 
+func (s *S3) ReadDir(dirname string) ([]fs.FileInfo, error) {
+	// Get the AWS config
+	cfg, err := getConfig(s.endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AWS config: %v", err)
+	}
+
+	// Create a new S3 service client
+	svc := s3.NewFromConfig(cfg)
+
+	// Call ListObjectsV2 with your bucket and prefix
+	result, err := svc.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{Bucket: aws.String(s.url.Hostname()), Prefix: aws.String(dirname)})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list objects, %v", err)
+	}
+
+	// Convert s3.Object to fs.FileInfo
+	var files []fs.FileInfo
+	for _, item := range result.Contents {
+		files = append(files, &s3FileInfo{
+			name:         *item.Key,
+			lastModified: *item.LastModified,
+			size:         item.Size,
+		})
+	}
+
+	return files, nil
+}
+
+func (s *S3) Remove(target string) error {
+	// Get the AWS config
+	cfg, err := getConfig(s.endpoint)
+	if err != nil {
+		return fmt.Errorf("failed to load AWS config: %v", err)
+	}
+
+	// Create a new S3 service client
+	svc := s3.NewFromConfig(cfg)
+
+	// Call DeleteObject with your bucket and the key of the object you want to delete
+	_, err = svc.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+		Bucket: aws.String(s.url.Hostname()),
+		Key:    aws.String(target),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete object, %v", err)
+	}
+
+	return nil
+}
+
 func getEndpoint(endpoint string) string {
 	// for some reason, the lookup gets flaky when the endpoint is 127.0.0.1
 	// so you have to set it to localhost explicitly.
@@ -174,3 +227,16 @@ func getConfig(endpoint string) (aws.Config, error) {
 	)
 
 }
+
+type s3FileInfo struct {
+	name         string
+	lastModified time.Time
+	size         int64
+}
+
+func (s s3FileInfo) Name() string       { return s.name }
+func (s s3FileInfo) Size() int64        { return s.size }
+func (s s3FileInfo) Mode() os.FileMode  { return 0 } // Not applicable in S3
+func (s s3FileInfo) ModTime() time.Time { return s.lastModified }
+func (s s3FileInfo) IsDir() bool        { return false } // Not applicable in S3
+func (s s3FileInfo) Sys() interface{}   { return nil }   // Not applicable in S3
