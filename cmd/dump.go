@@ -20,7 +20,10 @@ const (
 	defaultMaxAllowedPacket = 4194304
 )
 
-func dumpCmd(execs execs) (*cobra.Command, error) {
+func dumpCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
+	if cmdConfig == nil {
+		return nil, fmt.Errorf("cmdConfig is nil")
+	}
 	var v *viper.Viper
 	var cmd = &cobra.Command{
 		Use:     "dump",
@@ -43,7 +46,7 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 			)
 			if len(targetURLs) > 0 {
 				for _, t := range targetURLs {
-					store, err := storage.ParseURL(t, creds)
+					store, err := storage.ParseURL(t, cmdConfig.creds)
 					if err != nil {
 						return fmt.Errorf("invalid target url: %v", err)
 					}
@@ -51,10 +54,10 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 				}
 			} else {
 				// try the config file
-				if configuration != nil {
+				if cmdConfig.configuration != nil {
 					// parse the target objects, then the ones listed for the backup
-					targetStructures := configuration.Targets
-					dumpTargets := configuration.Dump.Targets
+					targetStructures := cmdConfig.configuration.Targets
+					dumpTargets := cmdConfig.configuration.Dump.Targets
 					for _, t := range dumpTargets {
 						var store storage.Storage
 						if target, ok := targetStructures[t]; !ok {
@@ -73,40 +76,40 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 				return fmt.Errorf("no targets specified")
 			}
 			safechars := v.GetBool("safechars")
-			if !v.IsSet("safechars") && configuration != nil {
-				safechars = configuration.Dump.Safechars
+			if !v.IsSet("safechars") && cmdConfig.configuration != nil {
+				safechars = cmdConfig.configuration.Dump.Safechars
 			}
 			include := v.GetStringSlice("include")
-			if len(include) == 0 && configuration != nil {
-				include = configuration.Dump.Include
+			if len(include) == 0 && cmdConfig.configuration != nil {
+				include = cmdConfig.configuration.Dump.Include
 			}
 			// make this slice nil if it's empty, so it is consistent; used mainly for test consistency
 			if len(include) == 0 {
 				include = nil
 			}
 			exclude := v.GetStringSlice("exclude")
-			if len(exclude) == 0 && configuration != nil {
-				exclude = configuration.Dump.Exclude
+			if len(exclude) == 0 && cmdConfig.configuration != nil {
+				exclude = cmdConfig.configuration.Dump.Exclude
 			}
 			// make this slice nil if it's empty, so it is consistent; used mainly for test consistency
 			if len(exclude) == 0 {
 				exclude = nil
 			}
 			preBackupScripts := v.GetString("pre-backup-scripts")
-			if preBackupScripts == "" && configuration != nil {
-				preBackupScripts = configuration.Dump.Scripts.PreBackup
+			if preBackupScripts == "" && cmdConfig.configuration != nil {
+				preBackupScripts = cmdConfig.configuration.Dump.Scripts.PreBackup
 			}
 			noDatabaseName := v.GetBool("no-database-name")
-			if !v.IsSet("no-database-name") && configuration != nil {
-				noDatabaseName = configuration.Dump.NoDatabaseName
+			if !v.IsSet("no-database-name") && cmdConfig.configuration != nil {
+				noDatabaseName = cmdConfig.configuration.Dump.NoDatabaseName
 			}
 			compact := v.GetBool("compact")
-			if !v.IsSet("compact") && configuration != nil {
-				compact = configuration.Dump.Compact
+			if !v.IsSet("compact") && cmdConfig.configuration != nil {
+				compact = cmdConfig.configuration.Dump.Compact
 			}
 			maxAllowedPacket := v.GetInt("max-allowed-packet")
-			if !v.IsSet("max-allowed-packet") && configuration != nil && configuration.Dump.MaxAllowedPacket != 0 {
-				maxAllowedPacket = configuration.Dump.MaxAllowedPacket
+			if !v.IsSet("max-allowed-packet") && cmdConfig.configuration != nil && cmdConfig.configuration.Dump.MaxAllowedPacket != 0 {
+				maxAllowedPacket = cmdConfig.configuration.Dump.MaxAllowedPacket
 			}
 
 			// compression algorithm: check config, then CLI/env var overrides
@@ -114,8 +117,8 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 				compressionAlgo string
 				compressor      compression.Compressor
 			)
-			if configuration != nil {
-				compressionAlgo = configuration.Dump.Compression
+			if cmdConfig.configuration != nil {
+				compressionAlgo = cmdConfig.configuration.Dump.Compression
 			}
 			compressionVar := v.GetString("compression")
 			if compressionVar != "" {
@@ -131,7 +134,7 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 				Targets:             targets,
 				Safechars:           safechars,
 				DBNames:             include,
-				DBConn:              dbconn,
+				DBConn:              cmdConfig.dbconn,
 				Compressor:          compressor,
 				Exclude:             exclude,
 				PreBackupScripts:    preBackupScripts,
@@ -141,22 +144,28 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 				MaxAllowedPacket:    maxAllowedPacket,
 			}
 
+			// retention, if enabled
+			retention := v.GetString("retention")
+			if retention == "" && cmdConfig.configuration != nil {
+				retention = cmdConfig.configuration.Prune.Retention
+			}
+
 			// timer options
 			once := v.GetBool("once")
-			if !v.IsSet("once") && configuration != nil {
-				once = configuration.Dump.Schedule.Once
+			if !v.IsSet("once") && cmdConfig.configuration != nil {
+				once = cmdConfig.configuration.Dump.Schedule.Once
 			}
 			cron := v.GetString("cron")
-			if cron == "" && configuration != nil {
-				cron = configuration.Dump.Schedule.Cron
+			if cron == "" && cmdConfig.configuration != nil {
+				cron = cmdConfig.configuration.Dump.Schedule.Cron
 			}
 			begin := v.GetString("begin")
-			if begin == "" && configuration != nil {
-				begin = configuration.Dump.Schedule.Begin
+			if begin == "" && cmdConfig.configuration != nil {
+				begin = cmdConfig.configuration.Dump.Schedule.Begin
 			}
 			frequency := v.GetInt("frequency")
-			if frequency == 0 && configuration != nil {
-				frequency = configuration.Dump.Schedule.Frequency
+			if frequency == 0 && cmdConfig.configuration != nil {
+				frequency = cmdConfig.configuration.Dump.Schedule.Frequency
 			}
 			timerOpts := core.TimerOptions{
 				Once:      once,
@@ -164,12 +173,27 @@ func dumpCmd(execs execs) (*cobra.Command, error) {
 				Begin:     begin,
 				Frequency: frequency,
 			}
-			dump := core.TimerDump
+			dump := core.Dump
+			prune := core.Prune
+			timer := core.TimerCommand
 			if execs != nil {
-				dump = execs.timerDump
+				dump = execs.dump
+				prune = execs.prune
+				timer = execs.timer
 			}
-			if err := dump(dumpOpts, timerOpts); err != nil {
-				return err
+			if err := timer(timerOpts, func() error {
+				err := dump(dumpOpts)
+				if err != nil {
+					return fmt.Errorf("error running dump: %w", err)
+				}
+				if retention != "" {
+					if err := prune(core.PruneOptions{Targets: targets, Retention: retention}); err != nil {
+						return fmt.Errorf("error running prune: %w", err)
+					}
+				}
+				return nil
+			}); err != nil {
+				return fmt.Errorf("error running command: %w", err)
 			}
 			log.Info("Backup complete")
 			return nil
@@ -226,6 +250,14 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 
 	// max-allowed-packet size
 	flags.Int("max-allowed-packet", defaultMaxAllowedPacket, "Maximum size of the buffer for client/server communication, similar to mysqldump's max_allowed_packet. 0 means to use the default size.")
+
+	cmd.MarkFlagsMutuallyExclusive("once", "cron")
+	cmd.MarkFlagsMutuallyExclusive("once", "begin")
+	cmd.MarkFlagsMutuallyExclusive("once", "frequency")
+	cmd.MarkFlagsMutuallyExclusive("cron", "begin")
+	cmd.MarkFlagsMutuallyExclusive("cron", "frequency")
+	// retention
+	flags.String("retention", "", "Retention period for backups. Optional. If not specified, no pruning will be done. Can be number of backups or time-based. For time-based, the format is: 1d, 1w, 1m, 1y for days, weeks, months, years, respectively. For number-based, the format is: 1c, 2c, 3c, etc. for the count of backups to keep.")
 
 	return cmd, nil
 }

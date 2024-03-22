@@ -19,25 +19,6 @@ const (
 	targetRenameCmd = "/scripts.d/target.sh"
 )
 
-// TimerDump runs a dump on a timer
-func TimerDump(opts DumpOptions, timerOpts TimerOptions) error {
-	c, err := Timer(timerOpts)
-	if err != nil {
-		log.Errorf("error creating timer: %v", err)
-		os.Exit(1)
-	}
-	// block and wait for it
-	for update := range c {
-		if err := Dump(opts); err != nil {
-			return fmt.Errorf("error backing up: %w", err)
-		}
-		if update.Last {
-			break
-		}
-	}
-	return nil
-}
-
 // Dump run a single dump, based on the provided opts
 func Dump(opts DumpOptions) error {
 	targets := opts.Targets

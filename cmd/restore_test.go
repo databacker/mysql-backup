@@ -30,7 +30,7 @@ func TestRestoreCmd(t *testing.T) {
 		{"missing server and target options", []string{""}, "", true, nil, "", database.Connection{}, nil, &compression.GzipCompressor{}},
 		{"invalid target URL", []string{"--server", "abc", "--target", "def"}, "", true, nil, "", database.Connection{Host: "abc"}, nil, &compression.GzipCompressor{}},
 		{"valid URL missing dump filename", []string{"--server", "abc", "--target", "file:///foo/bar"}, "", true, nil, "", database.Connection{Host: "abc"}, nil, &compression.GzipCompressor{}},
-		{"valid file URL", []string{"--server", "abc", "--target", fileTarget, "filename.tgz"}, "", false, file.New(*fileTargetURL), "filename.tgz", database.Connection{Host: "abc"}, map[string]string{}, &compression.GzipCompressor{}},
+		{"valid file URL", []string{"--server", "abc", "--target", fileTarget, "filename.tgz", "--verbose", "2"}, "", false, file.New(*fileTargetURL), "filename.tgz", database.Connection{Host: "abc"}, map[string]string{}, &compression.GzipCompressor{}},
 	}
 
 	for _, tt := range tests {
@@ -50,7 +50,6 @@ func TestRestoreCmd(t *testing.T) {
 				t.Fatal(err)
 			case err == nil:
 				m.AssertExpectations(t)
-				//m.AssertCalled(t, "restore", tt.expectedTarget, tt.expectedTargetFile, tt.expectedDbconn, tt.expectedDatabasesMap, tt.expectedCompressor)
 			}
 
 		})

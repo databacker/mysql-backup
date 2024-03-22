@@ -1,9 +1,9 @@
 database:
-  server: abc
+  server: abcd
   port: 3306
   credentials:
-    username: user
-    password: xxxx
+    username: user2
+    password: xxxx2
 
 targets:
   local:
@@ -16,3 +16,6 @@ targets:
 dump:
   targets:
   - local
+
+prune:
+  retention: "1h"

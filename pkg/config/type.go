@@ -34,6 +34,7 @@ type Config struct {
 	Restore  Restore  `yaml:"restore"`
 	Database Database `yaml:"database"`
 	Targets  Targets  `yaml:"targets"`
+	Prune    Prune    `yaml:"prune"`
 }
 
 type Dump struct {
@@ -49,6 +50,10 @@ type Dump struct {
 	FilenamePattern  string        `yaml:"filename-pattern"`
 	Scripts          BackupScripts `yaml:"scripts"`
 	Targets          []string      `yaml:"targets"`
+}
+
+type Prune struct {
+	Retention string `yaml:"retention"`
 }
 
 type Schedule struct {

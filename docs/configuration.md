@@ -58,7 +58,7 @@ Various sample configuration files are available in the [sample-configs](../samp
 
 ## Configuration Options
 
-The following are the environment variables, CLI flags and configuration file options for a backup or a restore.
+The following are the environment variables, CLI flags and configuration file options for: backup(B), restore (R), prune (P).
 
 | Purpose | Backup / Restore | CLI Flag | Env Var | Config Key | Default |
 | --- | --- | --- | --- | --- | --- |
@@ -70,21 +70,21 @@ The following are the environment variables, CLI flags and configuration file op
 | names of databases to exclude from the dump | B | `exclude` | `DB_NAMES_EXCLUDE` | `database.exclude` |  |
 | do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `database.no-database-name` | `false` |
 | restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
-| how often to do a dump, in minutes | B | `dump --frequency` | `DB_DUMP_FREQ` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
-| what time to do the first dump | B | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
-| cron schedule for dumps | B | `dump --cron` | `DB_DUMP_CRON` | `dump.schedule.cron` |  |
-| run the backup a single time and exit | B | `dump --once` | `RUN_ONCE` | `dump.schedule.once` | `false` |
-| enable debug logging | BR | `debug` | `DEBUG` | `logging: debug` | `false` |
-| where to put the dump file; see [backup](./backup.md) | B | `dump --target` | `DB_DUMP_TARGET` | `dump.targets` |  |
+| how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQ` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
+| what time to do the first dump or prune | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
+| cron schedule for dumps or prunes | BP | `dump --cron` | `DB_DUMP_CRON` | `dump.schedule.cron` |  |
+| run the backup or prune a single time and exit | BP | `dump --once` | `RUN_ONCE` | `dump.schedule.once` | `false` |
+| enable debug logging | BRP | `debug` | `DEBUG` | `logging: debug` | `false` |
+| where to put the dump file; see [backup](./backup.md) | BP | `dump --target` | `DB_DUMP_TARGET` | `dump.targets` |  |
 | where the restore file exists; see [restore](./restore.md) | R | `restore --target` | `DB_RESTORE_TARGET` | `restore.target` |  |
-| replace any `:` in the dump filename with `-` | B | `dump --safechars` | `DB_DUMP_SAFECHARS` | `database.safechars` | `false` |
-| AWS access key ID, used only if a target does not have one | BR | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].credentials.access-key-id` |  |
-| AWS secret access key, used only if a target does not have one | BR | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].credentials.secret-access-key` |  |
-| AWS default region, used only if a target does not have one | BR | `aws-region` | `AWS_REGION` | `dump.targets[s3-target].region` |  |
+| replace any `:` in the dump filename with `-` | BP | `dump --safechars` | `DB_DUMP_SAFECHARS` | `database.safechars` | `false` |
+| AWS access key ID, used only if a target does not have one | BRP | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].credentials.access-key-id` |  |
+| AWS secret access key, used only if a target does not have one | BRP | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].credentials.secret-access-key` |  |
+| AWS default region, used only if a target does not have one | BRP | `aws-region` | `AWS_REGION` | `dump.targets[s3-target].region` |  |
 | alternative endpoint URL for S3-interoperable systems, used only if a target does not have one | BR | `aws-endpoint-url` | `AWS_ENDPOINT_URL` | `dump.targets[s3-target].endpoint` |  |
-| SMB username, used only if a target does not have one | BR | `smb-user` | `SMB_USER` | `dump.targets[smb-target].credentials.username` |  |
-| SMB password, used only if a target does not have one | BR | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].credentials.password` |  |
-| compression to use, one of: `bzip2`, `gzip` | B | `compression` | `COMPRESSION` | `dump.compression` | `gzip` |
+| SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].credentials.username` |  |
+| SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].credentials.password` |  |
+| compression to use, one of: `bzip2`, `gzip` | BP | `compression` | `COMPRESSION` | `dump.compression` | `gzip` |
 | when in container, run the dump or restore with `nice`/`ionice` | BR | `` | `NICE` | `` | `false` |
 | tmp directory to be used during backup creation and other operations | BR | `tmp` | `TMP_PATH` | `tmp` | system-defined |
 | filename to save the target backup file | B | `dump --filename-pattern` | `DB_DUMP_FILENAME_PATTERN` | `dump.filename-pattern` |  |
@@ -92,12 +92,4 @@ The following are the environment variables, CLI flags and configuration file op
 | directory with scripts to execute after backup | B | `dump --post-backup-scripts` | `DB_DUMP_POST_BACKUP_SCRIPTS` | `dump.scripts.post-backup` | in container, `/scripts.d/post-backup/` |
 | directory with scripts to execute before restore | R | `restore --pre-restore-scripts` | `DB_DUMP_PRE_RESTORE_SCRIPTS` | `dump.pre-restore-scripts` | in container, `/scripts.d/pre-restore/` |
 | directory with scripts to execute after restore | R | `restore --post-restore-scripts` | `DB_DUMP_POST_RESTORE_SCRIPTS` | `dump.post-restore-scripts` | in container, `/scripts.d/post-restore/` |
-
-
-## Unsupported Options
-
-Unsupported options from the old version of `mysql-backup`:
-
-* `MYSQLDUMP_OPTS`: A string of options to pass to `mysqldump`, e.g. `MYSQLDUMP_OPTS="--opt abc --param def --max_allowed_packet=123455678"` will run `mysqldump --opt abc --param def --max_allowed_packet=123455678`. These are replaced by individual options.
-* `AWS_CLI_OPTS`: Additional arguments to be passed to the `aws` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/#options) for a list. These are replaced by target-specific options.
-* `AWS_CLI_S3_CP_OPTS`: Additional arguments to be passed to the `s3 cp` part of the `aws s3 cp` command, click [here](https://docs.aws.amazon.com/cli/latest/reference/s3/cp.html#options) for a list. If you are using AWS KMS, `sse`, `sse-kms-key-id`, etc., may be of interest. These are replaced by target-specific options
+| retention policy for backups | BP | `dump --retention` | `RETENTION` | `prune.retention` | Infinite |

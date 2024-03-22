@@ -1,13 +1,14 @@
 package core
 
 import (
-	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
 
 	"github.com/robfig/cron/v3"
+	log "github.com/sirupsen/logrus"
 )
 
 type TimerOptions struct {
@@ -40,16 +41,6 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 	)
 
 	now := time.Now().UTC()
-
-	// validate we do not have conflicting options
-	if opts.Once && (opts.Cron != "" || opts.Begin != "" || opts.Frequency != 0) {
-		return nil, errors.New("option 'Once' is exclusive and must not be used with Begin, Cron or Frequency")
-	}
-
-	if opts.Cron != "" && (opts.Begin != "" || opts.Frequency != 0) {
-		return nil, errors.New("option 'Cron' is exclusive and must not be used with Begin, Once or Frequency")
-	}
-
 	// parse the options to determine our delays
 	if opts.Cron != "" {
 		// calculate delay until next cron moment as defined
@@ -57,8 +48,7 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid cron format '%s': %v", opts.Cron, err)
 		}
-	}
-	if opts.Begin != "" {
+	} else if opts.Begin != "" {
 		// calculate delay based on begin time
 		delay, err = waitForBeginTime(opts.Begin, now)
 		if err != nil {
@@ -170,4 +160,23 @@ func waitForCron(cronExpr string, from time.Time) (time.Duration, error) {
 	// we allow matching current time, so we do it from 1ns
 	next := sched.Next(from.Add(-1 * time.Nanosecond))
 	return next.Sub(from), nil
+}
+
+// TimerCommand runs a command on a timer
+func TimerCommand(timerOpts TimerOptions, cmd func() error) error {
+	c, err := Timer(timerOpts)
+	if err != nil {
+		log.Errorf("error creating timer: %v", err)
+		os.Exit(1)
+	}
+	// block and wait for it
+	for update := range c {
+		if err := cmd(); err != nil {
+			return fmt.Errorf("error running command: %w", err)
+		}
+		if update.Last {
+			break
+		}
+	}
+	return nil
 }
