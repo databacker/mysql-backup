@@ -303,7 +303,17 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 	ctx := context.Background()
 
 	// Create and populate the table
-	mysqlCreateCmd := []string{"mysql", "-hlocalhost", "--protocol=tcp", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "-e", `use tester; create table t1 (id INT, name VARCHAR(20)); INSERT INTO t1 (id,name) VALUES (1, "John"), (2, "Jill"), (3, "Sam"), (4, "Sarah");`}
+	mysqlCreateCmd := []string{"mysql", "-hlocalhost", "--protocol=tcp", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "-e", `
+	use tester;
+	create table t1
+	(id int, name varchar(20), d date, t time, dt datetime, ts timestamp);
+	INSERT INTO t1 (id,name,d,t,dt,ts)
+	VALUES
+	(1, "John", "2012-11-01", "00:15:00", "2012-11-01 00:15:00", "2012-11-01 00:15:00"),
+	(2, "Jill", "2012-11-02", "00:16:00", "2012-11-02 00:16:00", "2012-11-02 00:16:00"),
+	(3, "Sam", "2012-11-03", "00:17:00", "2012-11-03 00:17:00", "2012-11-03 00:17:00"),
+	(4, "Sarah", "2012-11-04", "00:18:00", "2012-11-04 00:18:00", "2012-11-04 00:18:00");
+	`}
 	attachResp, exitCode, err := d.execInContainer(ctx, mysqlCID, mysqlCreateCmd)
 	if err != nil {
 		return fmt.Errorf("failed to attach to exec: %w", err)
