@@ -181,6 +181,8 @@ func dumpCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 				prune = execs.prune
 				timer = execs.timer
 			}
+			// at this point, any errors should not have usage
+			cmd.SilenceUsage = true
 			if err := timer(timerOpts, func() error {
 				err := dump(dumpOpts)
 				if err != nil {
