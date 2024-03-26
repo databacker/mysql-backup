@@ -98,6 +98,8 @@ func restoreCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error
 			if execs != nil {
 				restore = execs.restore
 			}
+			// at this point, any errors should not have usage
+			cmd.SilenceUsage = true
 			if err := restore(store, targetFile, cmdConfig.dbconn, databasesMap, compressor); err != nil {
 				return fmt.Errorf("error restoring: %v", err)
 			}
