@@ -488,6 +488,12 @@ func reflectColumnType(tp *sql.ColumnType) reflect.Type {
 		return reflect.TypeOf(sql.NullInt64{})
 	case "DOUBLE":
 		return reflect.TypeOf(sql.NullFloat64{})
+	case "TIMESTAMP", "DATETIME":
+		return reflect.TypeOf(sql.NullTime{})
+	case "DATE":
+		return reflect.TypeOf(NullDate{})
+	case "TIME":
+		return reflect.TypeOf(sql.NullString{})
 	}
 
 	// unknown datatype
@@ -556,6 +562,18 @@ func (table *table) RowBuffer() *bytes.Buffer {
 				b.WriteString(nullType)
 			} else {
 				fmt.Fprintf(&b, "_binary '%s'", sanitize(string(*s)))
+			}
+		case *NullDate:
+			if s.Valid {
+				fmt.Fprintf(&b, "'%s'", sanitize(s.Date.Format("2006-01-02")))
+			} else {
+				b.WriteString(nullType)
+			}
+		case *sql.NullTime:
+			if s.Valid {
+				fmt.Fprintf(&b, "'%s'", sanitize(s.Time.Format("2006-01-02 15:04:05")))
+			} else {
+				b.WriteString(nullType)
 			}
 		default:
 			fmt.Fprintf(&b, "'%s'", value)

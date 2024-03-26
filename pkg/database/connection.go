@@ -19,5 +19,6 @@ func (c Connection) MySQL() string {
 	config.Passwd = c.Pass
 	config.Net = "tcp"
 	config.Addr = fmt.Sprintf("%s:%d", c.Host, c.Port)
+	config.ParseTime = true
 	return config.FormatDSN()
 }
