@@ -1,5 +1,9 @@
-# sample configuration file for config entirely local, not using remote config service
-# can be overridden by command-line arguments
+# sample configuration file for telemetry service only; everything else is local
+# can be overridden by command-line arguments or remote, if configured
+
+# only needed if registered to send logs and results to a telemetry service
+# and not defined in the config service. Normally, you can just use the config
+# to get the telemetry info
 
 # standard reference of type and version
 version: config.databack.io/v1
@@ -9,6 +13,18 @@ spec:
 
   # set logging level, one of: error,warning,info,debug,trace; default is info
   logging: info 
+
+  telemetry:
+    url: https://telemetry.databack.io
+    # sha256 fingerprint of certificate for the telemetry server, or one of the certificates in the signing chain; unneeded if the server is using a certificate signed by a well-known CA
+    # this is a sample fingerprint only
+    # DO NOT USE THIS FINGERPRINT; GET THE ACTUAL ONE FROM YOUR REMOTE SERVER!
+    certificates: sha256:69729b8e15a86efc177a57afb7171dfc64add28c2fca8cf1507e34453ccb1470
+    # base64-encoded Curve25519 private key for authentication to the telemetry server
+    # this is a sample key only
+    # DO NOT USE THIS KEY; GENERATE YOUR OWN!
+    credentials: BwMqVfr1myxqX8tikIPYCyNtpHgMLIg/2nUE+pLQnTE=
+    # only needed if required by endpoint
 
   # dump, or backup, configuration
   dump:
@@ -25,10 +41,8 @@ spec:
       once: true # run only once and exit; ignores all other scheduling. Defaults to false
       cron: "0 10 * * *"
       frequency: 1440 # in minutes
-      begin: +25 # What time to do the first dump. Must be in one of two formats: Absolute: HHMM, e.g. `2330` or `0415`; or Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half"
+      begin: 25 # minutes from initialization
     compression: gzip # defaults to gzip
-    compact: true # defaults to false
-    max-allowed-packet: 4194304 # defaults to 4194304
     filename-pattern: db_backup_{{ .now }}.{{ .compression }}
     scripts:
       pre-backup: /path/to/prescripts/
@@ -58,9 +72,9 @@ spec:
     s3:
       type: s3
       url: s3://bucket.us-west.amazonaws.com/databackup
-      details:
-        region: us-west-1
-        endpoint: https://s3.us-west-1.amazonaws.com
+      region: us-west-1
+      endpoint: https://s3.us-west-1.amazonaws.com
+      credentials:
         access-key-id: access_key_id
         secret-access-key: secret_access_key
     file:
@@ -72,7 +86,7 @@ spec:
     smbshare:
       type: smb
       url: smb://cifshost:2125/databackup
-      details:
+      credentials:
         domain: mydomain
         username: user
         password: password
