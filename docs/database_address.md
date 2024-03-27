@@ -9,7 +9,7 @@ In order to perform the actual dump or restore, `mysql-backup` needs to connect 
 db-server: my-db-address
 ```
 
-The address itself, in the above example `my-db-address`, can be a container or any database process, as long as it is
+The address itself, in the above example `my-db-address`, can be a hostname, ip address, or path to a unix domain socket , as long as it is
 accessible from where the `mysql-backup` runs.
 
 The default port is `3306`, the normal default port for mysql. You can override the default port of `3306` via

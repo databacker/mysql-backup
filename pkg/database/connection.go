@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"strings"
 
 	mysql "github.com/go-sql-driver/mysql"
 )
@@ -17,8 +18,13 @@ func (c Connection) MySQL() string {
 	config := mysql.NewConfig()
 	config.User = c.User
 	config.Passwd = c.Pass
-	config.Net = "tcp"
-	config.Addr = fmt.Sprintf("%s:%d", c.Host, c.Port)
+	if strings.HasPrefix(c.Host, "/") {
+		config.Net = "unix"
+		config.Addr = c.Host
+	} else {
+		config.Net = "tcp"
+		config.Addr = fmt.Sprintf("%s:%d", c.Host, c.Port)
+	}
 	config.ParseTime = true
 	return config.FormatDSN()
 }

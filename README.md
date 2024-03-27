@@ -46,6 +46,10 @@ docker run -d --restart=always -e DB_DUMP_FREQ=60 -e DB_DUMP_BEGIN=2330 -e DB_DU
 # or
 
 mysql-backup dump --frequency=60 --begin=2330 --target=/local/file/path --server=my-db-address
+
+# or to connect to a local mysqld via the unix domain socket as the current user
+
+mysql-backup dump --frequency=60 --begin=2330 --target=/local/file/path --server=/run/mysqld/mysqld.sock
 ````
 
 Or `mysql-backup --config-file=/path/to/config/file.yaml` where `/path/to/config/file.yaml` is a file
@@ -87,7 +91,7 @@ You need only the following environment variables:
 
 __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/reference/commandline/run/#set-environment-variables-e-env-env-file) to keep your secrets out of your shell history__
 
-* `DB_SERVER`: hostname to connect to database. Required.
+* `DB_SERVER`: hostname or unix domain socket path (starting with a slash) to connect to database. Required.
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
