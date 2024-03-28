@@ -17,7 +17,7 @@ func init() {
 }
 
 func GetSchemas(dbconn Connection) ([]string, error) {
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/", dbconn.User, dbconn.Pass, dbconn.Host, dbconn.Port))
+	db, err := sql.Open("mysql", dbconn.MySQL())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection to database: %v", err)
 	}
