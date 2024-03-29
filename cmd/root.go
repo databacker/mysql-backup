@@ -147,9 +147,6 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	pflags := cmd.PersistentFlags()
 	pflags.String("server", "", "hostname for database server")
 
-	// base of temporary directory to use
-	pflags.String("tmp", os.TempDir(), "temporary directory base for working directory, defaults to OS")
-
 	pflags.String("config-file", "", "config file to use, if any; individual CLI flags override config file")
 
 	// server port via CLI or env var or default

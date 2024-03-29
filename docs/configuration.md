@@ -84,9 +84,8 @@ The following are the environment variables, CLI flags and configuration file op
 | alternative endpoint URL for S3-interoperable systems, used only if a target does not have one | BR | `aws-endpoint-url` | `AWS_ENDPOINT_URL` | `dump.targets[s3-target].endpoint` |  |
 | SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].credentials.username` |  |
 | SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].credentials.password` |  |
-| compression to use, one of: `bzip2`, `gzip` | BP | `compression` | `COMPRESSION` | `dump.compression` | `gzip` |
+| compression to use, one of: `bzip2`, `gzip` | BP | `compression` | `DB_DUMP_COMPRESSION` | `dump.compression` | `gzip` |
 | when in container, run the dump or restore with `nice`/`ionice` | BR | `` | `NICE` | `` | `false` |
-| tmp directory to be used during backup creation and other operations | BR | `tmp` | `TMP_PATH` | `tmp` | system-defined |
 | filename to save the target backup file | B | `dump --filename-pattern` | `DB_DUMP_FILENAME_PATTERN` | `dump.filename-pattern` |  |
 | directory with scripts to execute before backup | B | `dump --pre-backup-scripts` | `DB_DUMP_PRE_BACKUP_SCRIPTS` | `dump.scripts.pre-backup` | in container, `/scripts.d/pre-backup/` |
 | directory with scripts to execute after backup | B | `dump --post-backup-scripts` | `DB_DUMP_POST_BACKUP_SCRIPTS` | `dump.scripts.post-backup` | in container, `/scripts.d/post-backup/` |
