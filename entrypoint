@@ -1,3 +1,9 @@
 #!/bin/sh
 
-/mysql-backup $@
+NICE_CMD=
+# if we asked to do by schema, then we need to get a list of all of the databases, take each, and then tar and zip them
+if [ "$NICE" = "true" ]; then
+    NICE_CMD="nice -n19 ionice -c2"
+fi
+
+${NICE_CMD} /mysql-backup $@
