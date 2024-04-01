@@ -95,7 +95,10 @@ func Dump(opts DumpOptions) error {
 		return fmt.Errorf("failed to open output file '%s': %v", outFile, err)
 	}
 	defer f.Close()
-	cw := compressor.Compress(f)
+	cw, err := compressor.Compress(f)
+	if err != nil {
+		return fmt.Errorf("failed to create compressor: %v", err)
+	}
 	if err := archive.Tar(workdir, cw); err != nil {
 		return fmt.Errorf("error creating the compressed archive: %v", err)
 	}
