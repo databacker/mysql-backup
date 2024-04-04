@@ -7,7 +7,7 @@ WORKDIR /src/mysql-backup
 RUN mkdir /out && go build -o /out/mysql-backup .
 
 # we would do from scratch, but we need basic utilities in order to support pre/post scripts
-FROM alpine:3.17
+FROM alpine:3.19
 LABEL org.opencontainers.image.authors="https://github.com/databacker"
 
 # set us up to run as non-root user

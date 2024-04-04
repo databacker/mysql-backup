@@ -3,7 +3,7 @@ FROM mysql:8.0
 ## MYSQL
 
 
-FROM alpine:3.17
+FROM alpine:3.19
 
 ## SAMBA
 
