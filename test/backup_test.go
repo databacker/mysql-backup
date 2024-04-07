@@ -434,7 +434,7 @@ func runDumpTest(dc *dockerContext, compact bool, base string, targets []backupT
 		if err := os.MkdirAll(localPath, 0o755); err != nil {
 			return fmt.Errorf("failed to create local path %s: %w", localPath, err)
 		}
-		store, err := storage.ParseURL(t, credentials.Creds{AWSEndpoint: s3})
+		store, err := storage.ParseURL(t, credentials.Creds{AWS: credentials.AWSCreds{Endpoint: s3}})
 		if err != nil {
 			return fmt.Errorf("invalid target url: %v", err)
 		}
