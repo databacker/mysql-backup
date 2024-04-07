@@ -24,20 +24,29 @@ func ParseURL(url string, creds credentials.Creds) (Storage, error) {
 		store = file.New(*u)
 	case "smb":
 		opts := []smb.Option{}
-		if creds.SMBCredentials.Domain != "" {
-			opts = append(opts, smb.WithDomain(creds.SMBCredentials.Domain))
+		if creds.SMB.Domain != "" {
+			opts = append(opts, smb.WithDomain(creds.SMB.Domain))
 		}
-		if creds.SMBCredentials.Username != "" {
-			opts = append(opts, smb.WithUsername(creds.SMBCredentials.Username))
+		if creds.SMB.Username != "" {
+			opts = append(opts, smb.WithUsername(creds.SMB.Username))
 		}
-		if creds.SMBCredentials.Password != "" {
-			opts = append(opts, smb.WithPassword(creds.SMBCredentials.Password))
+		if creds.SMB.Password != "" {
+			opts = append(opts, smb.WithPassword(creds.SMB.Password))
 		}
 		store = smb.New(*u, opts...)
 	case "s3":
 		opts := []s3.Option{}
-		if creds.AWSEndpoint != "" {
-			opts = append(opts, s3.WithEndpoint(creds.AWSEndpoint))
+		if creds.AWS.Endpoint != "" {
+			opts = append(opts, s3.WithEndpoint(creds.AWS.Endpoint))
+		}
+		if creds.AWS.Region != "" {
+			opts = append(opts, s3.WithRegion(creds.AWS.Region))
+		}
+		if creds.AWS.AccessKeyID != "" {
+			opts = append(opts, s3.WithAccessKeyId(creds.AWS.AccessKeyID))
+		}
+		if creds.AWS.SecretAccessKey != "" {
+			opts = append(opts, s3.WithSecretAccessKey(creds.AWS.SecretAccessKey))
 		}
 		store = s3.New(*u, opts...)
 	default:

@@ -127,8 +127,13 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			// these are not from the config file, as they are generic credentials, used across all targets.
 			// the config file uses specific ones per target
 			cmdConfig.creds = credentials.Creds{
-				AWSEndpoint: v.GetString("aws-endpoint-url"),
-				SMBCredentials: credentials.SMBCreds{
+				AWS: credentials.AWSCreds{
+					Endpoint:        v.GetString("aws-endpoint-url"),
+					AccessKeyID:     v.GetString("aws-access-key-id"),
+					SecretAccessKey: v.GetString("aws-secret-access-key"),
+					Region:          v.GetString("aws-region"),
+				},
+				SMB: credentials.SMBCreds{
 					Username: v.GetString("smb-user"),
 					Password: v.GetString("smb-pass"),
 					Domain:   v.GetString("smb-domain"),

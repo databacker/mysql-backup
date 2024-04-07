@@ -1,12 +1,19 @@
 package credentials
 
 type Creds struct {
-	SMBCredentials SMBCreds
-	AWSEndpoint    string
+	SMB SMBCreds
+	AWS AWSCreds
 }
 
 type SMBCreds struct {
 	Username string
 	Password string
 	Domain   string
+}
+
+type AWSCreds struct {
+	AccessKeyID     string
+	SecretAccessKey string
+	Endpoint        string
+	Region          string
 }

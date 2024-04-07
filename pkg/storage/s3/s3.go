@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	log "github.com/sirupsen/logrus"
@@ -64,18 +65,13 @@ func New(u url.URL, opts ...Option) *S3 {
 }
 
 func (s *S3) Pull(source, target string) (int64, error) {
-	// TODO: need to find way to include cli opts and cli_s3_cp_opts
-	// old was:
-	// 		aws ${AWS_CLI_OPTS} s3 cp ${AWS_CLI_S3_CP_OPTS} "${DB_RESTORE_TARGET}" $TMPRESTORE
-
-	bucket, path := s.url.Hostname(), path.Join(s.url.Path, source)
-	// The session the S3 Downloader will use
-	cfg, err := getConfig(s.endpoint)
+	// get the s3 client
+	client, err := s.getClient()
 	if err != nil {
-		return 0, fmt.Errorf("failed to load AWS config: %v", err)
+		return 0, fmt.Errorf("failed to get AWS client: %v", err)
 	}
 
-	client := s3.NewFromConfig(cfg)
+	bucket, path := s.url.Hostname(), path.Join(s.url.Path, source)
 
 	// Create a downloader with the session and default options
 	downloader := manager.NewDownloader(client)
@@ -99,18 +95,13 @@ func (s *S3) Pull(source, target string) (int64, error) {
 }
 
 func (s *S3) Push(target, source string) (int64, error) {
-	// TODO: need to find way to include cli opts and cli_s3_cp_opts
-	// old was:
-	// 		aws ${AWS_CLI_OPTS} s3 cp ${AWS_CLI_S3_CP_OPTS} "${DB_RESTORE_TARGET}" $TMPRESTORE
-
-	bucket, key := s.url.Hostname(), s.url.Path
-	// The session the S3 Downloader will use
-	cfg, err := getConfig(s.endpoint)
+	// get the s3 client
+	client, err := s.getClient()
 	if err != nil {
-		return 0, fmt.Errorf("failed to load AWS config: %v", err)
+		return 0, fmt.Errorf("failed to get AWS client: %v", err)
 	}
+	bucket, key := s.url.Hostname(), s.url.Path
 
-	client := s3.NewFromConfig(cfg)
 	// Create an uploader with the session and default options
 	uploader := manager.NewUploader(client)
 
@@ -142,17 +133,14 @@ func (s *S3) URL() string {
 }
 
 func (s *S3) ReadDir(dirname string) ([]fs.FileInfo, error) {
-	// Get the AWS config
-	cfg, err := getConfig(s.endpoint)
+	// get the s3 client
+	client, err := s.getClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load AWS config: %v", err)
+		return nil, fmt.Errorf("failed to get AWS client: %v", err)
 	}
 
-	// Create a new S3 service client
-	svc := s3.NewFromConfig(cfg)
-
 	// Call ListObjectsV2 with your bucket and prefix
-	result, err := svc.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{Bucket: aws.String(s.url.Hostname()), Prefix: aws.String(dirname)})
+	result, err := client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{Bucket: aws.String(s.url.Hostname()), Prefix: aws.String(dirname)})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list objects, %v", err)
 	}
@@ -171,17 +159,14 @@ func (s *S3) ReadDir(dirname string) ([]fs.FileInfo, error) {
 }
 
 func (s *S3) Remove(target string) error {
-	// Get the AWS config
-	cfg, err := getConfig(s.endpoint)
+	// Get the AWS client
+	client, err := s.getClient()
 	if err != nil {
-		return fmt.Errorf("failed to load AWS config: %v", err)
+		return fmt.Errorf("failed to get AWS client: %v", err)
 	}
 
-	// Create a new S3 service client
-	svc := s3.NewFromConfig(cfg)
-
 	// Call DeleteObject with your bucket and the key of the object you want to delete
-	_, err = svc.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
+	_, err = client.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
 		Bucket: aws.String(s.url.Hostname()),
 		Key:    aws.String(target),
 	})
@@ -192,9 +177,44 @@ func (s *S3) Remove(target string) error {
 	return nil
 }
 
+func (s *S3) getClient() (*s3.Client, error) {
+	// Get the AWS config
+	cleanEndpoint := getEndpoint(s.endpoint)
+	opts := []func(*config.LoadOptions) error{
+		config.WithEndpointResolverWithOptions(
+			aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+				return aws.Endpoint{URL: cleanEndpoint}, nil
+			}),
+		),
+	}
+	if log.IsLevelEnabled(log.TraceLevel) {
+		opts = append(opts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
+	}
+	if s.region != "" {
+		opts = append(opts, config.WithRegion(s.region))
+	}
+	if s.accessKeyId != "" {
+		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			s.accessKeyId,
+			s.secretAccessKey,
+			"",
+		)))
+	}
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		opts...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load AWS config: %v", err)
+	}
+
+	// Create a new S3 service client
+	return s3.NewFromConfig(cfg), nil
+}
+
+// getEndpoint returns a clean (for AWS client) endpoint. Normally, this is unchanged,
+// but for some reason, the lookup gets flaky when the endpoint is 127.0.0.1,
+// so in that case, set it to localhost explicitly.
 func getEndpoint(endpoint string) string {
-	// for some reason, the lookup gets flaky when the endpoint is 127.0.0.1
-	// so you have to set it to localhost explicitly.
 	e := endpoint
 	u, err := url.Parse(endpoint)
 	if err == nil {
@@ -208,24 +228,6 @@ func getEndpoint(endpoint string) string {
 		}
 	}
 	return e
-}
-
-func getConfig(endpoint string) (aws.Config, error) {
-	cleanEndpoint := getEndpoint(endpoint)
-	opts := []func(*config.LoadOptions) error{
-		config.WithEndpointResolverWithOptions(
-			aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-				return aws.Endpoint{URL: cleanEndpoint}, nil
-			}),
-		),
-	}
-	if log.IsLevelEnabled(log.TraceLevel) {
-		opts = append(opts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
-	}
-	return config.LoadDefaultConfig(context.TODO(),
-		opts...,
-	)
-
 }
 
 type s3FileInfo struct {
