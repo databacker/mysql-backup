@@ -179,13 +179,16 @@ func (s *S3) Remove(target string) error {
 
 func (s *S3) getClient() (*s3.Client, error) {
 	// Get the AWS config
-	cleanEndpoint := getEndpoint(s.endpoint)
-	opts := []func(*config.LoadOptions) error{
-		config.WithEndpointResolverWithOptions(
-			aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-				return aws.Endpoint{URL: cleanEndpoint}, nil
-			}),
-		),
+	var opts []func(*config.LoadOptions) error
+	if s.endpoint != "" {
+		cleanEndpoint := getEndpoint(s.endpoint)
+		opts = append(opts,
+			config.WithEndpointResolverWithOptions(
+				aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+					return aws.Endpoint{URL: cleanEndpoint}, nil
+				}),
+			),
+		)
 	}
 	if log.IsLevelEnabled(log.TraceLevel) {
 		opts = append(opts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
