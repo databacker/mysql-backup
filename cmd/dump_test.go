@@ -36,14 +36,28 @@ func TestDumpCmd(t *testing.T) {
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
-			DBConn:           database.Connection{Host: "abc"},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"file URL with prune", []string{"--server", "abc", "--target", "file:///foo/bar", "--retention", "1h"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
-			DBConn:           database.Connection{Host: "abc"},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
+
+		// database name and port
+		{"database explicit name with default port", []string{"--server", "abc", "--target", "file:///foo/bar"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+		{"database explicit name with explicit port", []string{"--server", "abc", "--port", "3307", "--target", "file:///foo/bar"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc", Port: 3307},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 
 		// config file
 		{"config file", []string{"--config-file", "testdata/config.yml"}, "", false, core.DumpOptions{
@@ -52,31 +66,37 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           database.Connection{Host: "abcd", Port: 3306, User: "user2", Pass: "xxxx2"},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
+		{"config file with port override", []string{"--config-file", "testdata/config.yml", "--port", "3307"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abcd", Port: 3307, User: "user2", Pass: "xxxx2"},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
 
 		// timer options
 		{"once flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--once"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
-			DBConn:           database.Connection{Host: "abc"},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
 		}, core.TimerOptions{Once: true, Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"cron flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--cron", "0 0 * * *"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
-			DBConn:           database.Connection{Host: "abc"},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin, Cron: "0 0 * * *"}, nil},
 		{"begin flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--begin", "1234"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
-			DBConn:           database.Connection{Host: "abc"},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: "1234"}, nil},
 		{"frequency flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--frequency", "10"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,
 			Compressor:       &compression.GzipCompressor{},
-			DBConn:           database.Connection{Host: "abc"},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
 		}, core.TimerOptions{Frequency: 10, Begin: defaultBegin}, nil},
 		{"incompatible flags: once/cron", []string{"--server", "abc", "--target", "file:///foo/bar", "--once", "--cron", "0 0 * * *"}, "", true, core.DumpOptions{}, core.TimerOptions{}, nil},
 		{"incompatible flags: once/begin", []string{"--server", "abc", "--target", "file:///foo/bar", "--once", "--begin", "1234"}, "", true, core.DumpOptions{}, core.TimerOptions{}, nil},

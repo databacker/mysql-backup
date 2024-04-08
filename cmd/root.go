@@ -112,7 +112,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				cmdConfig.dbconn.Host = dbHost
 			}
 			dbPort := v.GetInt("port")
-			if dbPort != 0 && v.IsSet("port") {
+			if dbPort != 0 && (v.IsSet("port") || cmdConfig.dbconn.Port == 0) {
 				cmdConfig.dbconn.Port = dbPort
 			}
 			dbUser := v.GetString("user")
