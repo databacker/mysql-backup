@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v3"
 )
 
 type execs interface {
@@ -32,7 +31,7 @@ var subCommands = []subCommand{dumpCmd, restoreCmd, pruneCmd}
 type cmdConfiguration struct {
 	dbconn        database.Connection
 	creds         credentials.Creds
-	configuration *config.Config
+	configuration *config.ConfigSpec
 }
 
 const (
@@ -71,41 +70,43 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			// read the config file, if needed; the structure of the config differs quite some
 			// from the necessarily flat env vars/CLI flags, so we can't just use viper's
 			// automatic config file support.
-			if configFile := v.GetString("config-file"); configFile != "" {
+			var actualConfig *config.ConfigSpec
+
+			if configFilePath := v.GetString("config-file"); configFilePath != "" {
 				var (
-					f      *os.File
-					err    error
-					config config.Config
+					f   *os.File
+					err error
 				)
-				if f, err = os.Open(configFile); err != nil {
+				if f, err = os.Open(configFilePath); err != nil {
 					return fmt.Errorf("fatal error config file: %w", err)
 				}
 				defer f.Close()
-				decoder := yaml.NewDecoder(f)
-				if err := decoder.Decode(&config); err != nil {
-					return fmt.Errorf("fatal error config file: %w", err)
+				actualConfig, err = config.ProcessConfig(f)
+				if err != nil {
+					return fmt.Errorf("unable to read provided config: %w", err)
 				}
-				cmdConfig.configuration = &config
 			}
 
 			// the structure of our config file is more complex and with relationships than our config/env var
 			// so we cannot use a single viper structure, as described above.
 
 			// set up database connection
-			if cmdConfig.configuration != nil {
-				if cmdConfig.configuration.Database.Server != "" {
-					cmdConfig.dbconn.Host = cmdConfig.configuration.Database.Server
+			if actualConfig != nil {
+				if actualConfig.Database.Server != "" {
+					cmdConfig.dbconn.Host = actualConfig.Database.Server
 				}
-				if cmdConfig.configuration.Database.Port != 0 {
-					cmdConfig.dbconn.Port = cmdConfig.configuration.Database.Port
+				if actualConfig.Database.Port != 0 {
+					cmdConfig.dbconn.Port = actualConfig.Database.Port
 				}
-				if cmdConfig.configuration.Database.Credentials.Username != "" {
-					cmdConfig.dbconn.User = cmdConfig.configuration.Database.Credentials.Username
+				if actualConfig.Database.Credentials.Username != "" {
+					cmdConfig.dbconn.User = actualConfig.Database.Credentials.Username
 				}
-				if cmdConfig.configuration.Database.Credentials.Password != "" {
-					cmdConfig.dbconn.Pass = cmdConfig.configuration.Database.Credentials.Password
+				if actualConfig.Database.Credentials.Password != "" {
+					cmdConfig.dbconn.Pass = actualConfig.Database.Credentials.Password
 				}
+				cmdConfig.configuration = actualConfig
 			}
+
 			// override config with env var or CLI flag, if set
 			dbHost := v.GetString("server")
 			if dbHost != "" && v.IsSet("server") {
