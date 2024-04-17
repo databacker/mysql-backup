@@ -19,10 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"io"
-	"reflect"
-	"strings"
 	"text/template"
 	"time"
 )
@@ -49,19 +46,8 @@ type Data struct {
 
 	tx         *sql.Tx
 	headerTmpl *template.Template
-	tableTmpl  *template.Template
 	footerTmpl *template.Template
 	err        error
-}
-
-type table struct {
-	Name string
-	Err  error
-
-	cols   []string
-	data   *Data
-	rows   *sql.Rows
-	values []interface{}
 }
 
 type metaData struct {
@@ -122,41 +108,6 @@ const footerTmpl = `/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 const footerTmplCompact = ``
 
-// Takes a *table
-const tableTmpl = `
---
--- Table structure for table {{ .NameEsc }}
---
-
-DROP TABLE IF EXISTS {{ .NameEsc }};
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-{{ .CreateSQL }};
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table {{ .NameEsc }}
---
-
-LOCK TABLES {{ .NameEsc }} WRITE;
-/*!40000 ALTER TABLE {{ .NameEsc }} DISABLE KEYS */;
-{{ range $value := .Stream }}
-{{- $value }}
-{{ end -}}
-/*!40000 ALTER TABLE {{ .NameEsc }} ENABLE KEYS */;
-UNLOCK TABLES;
-`
-
-const tableTmplCompact = `
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-{{ .CreateSQL }};
-/*!40101 SET character_set_client = @saved_cs_client */;
-{{ range $value := .Stream }}
-{{- $value }}
-{{ end -}}
-`
-
 const nullType = "NULL"
 
 // Dump data using struct
@@ -206,11 +157,11 @@ func (data *Data) Dump() error {
 	if data.LockTables && len(tables) > 0 {
 		var b bytes.Buffer
 		b.WriteString("LOCK TABLES ")
-		for index, name := range tables {
+		for index, table := range tables {
 			if index != 0 {
 				b.WriteString(",")
 			}
-			b.WriteString("`" + name + "` READ /*!32311 LOCAL */")
+			b.WriteString("`" + table.Name() + "` READ /*!32311 LOCAL */")
 		}
 
 		if _, err := data.Connection.Exec(b.String()); err != nil {
@@ -263,19 +214,14 @@ func (data *Data) rollback() error {
 
 // MARK: writter methods
 
-func (data *Data) dumpTable(name string) error {
+func (data *Data) dumpTable(table Table) error {
 	if data.err != nil {
 		return data.err
 	}
-	table := data.createTable(name)
-	return data.writeTable(table)
-}
-
-func (data *Data) writeTable(table *table) error {
-	if err := data.tableTmpl.Execute(data.Out, table); err != nil {
+	if err := table.Init(); err != nil {
 		return err
 	}
-	return table.Err
+	return table.Execute(data.Out, data.Compact)
 }
 
 // MARK: get methods
@@ -284,10 +230,8 @@ func (data *Data) writeTable(table *table) error {
 func (data *Data) getTemplates() (err error) {
 	var hTmpl string
 	fTmpl := footerTmpl
-	tTmpl := tableTmpl
 	if data.Compact {
 		fTmpl = footerTmplCompact
-		tTmpl = tableTmplCompact
 	} else {
 		hTmpl = headerTmpl
 	}
@@ -304,34 +248,42 @@ func (data *Data) getTemplates() (err error) {
 		return
 	}
 
-	data.tableTmpl, err = template.New("mysqldumpTable").Parse(tTmpl)
-	if err != nil {
-		return
-	}
-
-	data.footerTmpl, err = template.New("mysqldumpTable").Parse(fTmpl)
+	data.footerTmpl, err = template.New("mysqldumpFooter").Parse(fTmpl)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func (data *Data) getTables() ([]string, error) {
-	tables := make([]string, 0)
+func (data *Data) getTables() ([]Table, error) {
+	tables := make([]Table, 0)
 
-	rows, err := data.tx.Query("SHOW TABLES")
+	rows, err := data.tx.Query("SHOW FULL TABLES")
 	if err != nil {
-		return tables, err
+		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var table sql.NullString
-		if err := rows.Scan(&table); err != nil {
-			return tables, err
+		var tableName, tableType sql.NullString
+		if err := rows.Scan(&tableName, &tableType); err != nil {
+			return nil, err
 		}
-		if table.Valid && !data.isIgnoredTable(table.String) {
-			tables = append(tables, table.String)
+		if !tableName.Valid || data.isIgnoredTable(tableName.String) {
+			continue
+		}
+		table := baseTable{
+			name:     tableName.String,
+			data:     data,
+			database: data.Schema,
+		}
+		switch tableType.String {
+		case "VIEW":
+			tables = append(tables, &view{baseTable: table})
+		case "BASE TABLE":
+			tables = append(tables, &table)
+		default:
+			return nil, errors.New("unknown table type: " + tableType.String)
 		}
 	}
 	return tables, rows.Err()
@@ -353,266 +305,10 @@ func (meta *metaData) updateServerVersion(data *Data) (err error) {
 	return
 }
 
-// MARK: create methods
-
-func (data *Data) createTable(name string) *table {
-	return &table{
-		Name: name,
-		data: data,
-	}
+func sub(a, b int) int {
+	return a - b
 }
 
-func (table *table) NameEsc() string {
-	return "`" + table.Name + "`"
-}
-
-func (table *table) CreateSQL() (string, error) {
-	var tableReturn, tableSQL sql.NullString
-	if err := table.data.tx.QueryRow("SHOW CREATE TABLE "+table.NameEsc()).Scan(&tableReturn, &tableSQL); err != nil {
-		return "", err
-	}
-
-	if tableReturn.String != table.Name {
-		return "", errors.New("Returned table is not the same as requested table")
-	}
-
-	return tableSQL.String, nil
-}
-
-func (table *table) initColumnData() error {
-	colInfo, err := table.data.tx.Query("SHOW COLUMNS FROM " + table.NameEsc())
-	if err != nil {
-		return err
-	}
-	defer colInfo.Close()
-
-	cols, err := colInfo.Columns()
-	if err != nil {
-		return err
-	}
-
-	fieldIndex, extraIndex := -1, -1
-	for i, col := range cols {
-		switch col {
-		case "Field", "field":
-			fieldIndex = i
-		case "Extra", "extra":
-			extraIndex = i
-		}
-		if fieldIndex >= 0 && extraIndex >= 0 {
-			break
-		}
-	}
-	if fieldIndex < 0 || extraIndex < 0 {
-		return errors.New("database column information is malformed")
-	}
-
-	info := make([]sql.NullString, len(cols))
-	scans := make([]interface{}, len(cols))
-	for i := range info {
-		scans[i] = &info[i]
-	}
-
-	var result []string
-	for colInfo.Next() {
-		// Read into the pointers to the info marker
-		if err := colInfo.Scan(scans...); err != nil {
-			return err
-		}
-
-		// Ignore the virtual columns and generated columns
-		// if there is an Extra column and it is a valid string, then only include this column if
-		// the column is not marked as VIRTUAL or GENERATED
-		if !info[extraIndex].Valid || (!strings.Contains(info[extraIndex].String, "VIRTUAL") && !strings.Contains(info[extraIndex].String, "GENERATED")) {
-			result = append(result, info[fieldIndex].String)
-		}
-	}
-	table.cols = result
-	return nil
-}
-
-func (table *table) columnsList() string {
-	return "`" + strings.Join(table.cols, "`, `") + "`"
-}
-
-func (table *table) Init() error {
-	if len(table.values) != 0 {
-		return errors.New("can't init twice")
-	}
-
-	if err := table.initColumnData(); err != nil {
-		return err
-	}
-
-	if len(table.cols) == 0 {
-		// No data to dump since this is a virtual table
-		return nil
-	}
-
-	var err error
-	table.rows, err = table.data.tx.Query("SELECT " + table.columnsList() + " FROM " + table.NameEsc())
-	if err != nil {
-		return err
-	}
-
-	tt, err := table.rows.ColumnTypes()
-	if err != nil {
-		return err
-	}
-
-	table.values = make([]interface{}, len(tt))
-	for i, tp := range tt {
-		table.values[i] = reflect.New(reflectColumnType(tp)).Interface()
-	}
-	return nil
-}
-
-func reflectColumnType(tp *sql.ColumnType) reflect.Type {
-	// reflect for scanable
-	switch tp.ScanType().Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return reflect.TypeOf(sql.NullInt64{})
-	case reflect.Float32, reflect.Float64:
-		return reflect.TypeOf(sql.NullFloat64{})
-	case reflect.String:
-		return reflect.TypeOf(sql.NullString{})
-	}
-
-	// determine by name
-	switch tp.DatabaseTypeName() {
-	case "BLOB", "BINARY":
-		return reflect.TypeOf(sql.RawBytes{})
-	case "VARCHAR", "TEXT", "DECIMAL":
-		return reflect.TypeOf(sql.NullString{})
-	case "BIGINT", "TINYINT", "INT":
-		return reflect.TypeOf(sql.NullInt64{})
-	case "DOUBLE":
-		return reflect.TypeOf(sql.NullFloat64{})
-	case "TIMESTAMP", "DATETIME":
-		return reflect.TypeOf(sql.NullTime{})
-	case "DATE":
-		return reflect.TypeOf(NullDate{})
-	case "TIME":
-		return reflect.TypeOf(sql.NullString{})
-	}
-
-	// unknown datatype
-	return tp.ScanType()
-}
-
-func (table *table) Next() bool {
-	if table.rows == nil {
-		if err := table.Init(); err != nil {
-			table.Err = err
-			return false
-		}
-	}
-	// Fallthrough
-	if table.rows.Next() {
-		if err := table.rows.Scan(table.values...); err != nil {
-			table.Err = err
-			return false
-		} else if err := table.rows.Err(); err != nil {
-			table.Err = err
-			return false
-		}
-	} else {
-		table.rows.Close()
-		table.rows = nil
-		return false
-	}
-	return true
-}
-
-func (table *table) RowValues() string {
-	return table.RowBuffer().String()
-}
-
-func (table *table) RowBuffer() *bytes.Buffer {
-	var b bytes.Buffer
-	b.WriteString("(")
-
-	for key, value := range table.values {
-		if key != 0 {
-			b.WriteString(",")
-		}
-		switch s := value.(type) {
-		case nil:
-			b.WriteString(nullType)
-		case *sql.NullString:
-			if s.Valid {
-				fmt.Fprintf(&b, "'%s'", sanitize(s.String))
-			} else {
-				b.WriteString(nullType)
-			}
-		case *sql.NullInt64:
-			if s.Valid {
-				fmt.Fprintf(&b, "%d", s.Int64)
-			} else {
-				b.WriteString(nullType)
-			}
-		case *sql.NullFloat64:
-			if s.Valid {
-				fmt.Fprintf(&b, "%f", s.Float64)
-			} else {
-				b.WriteString(nullType)
-			}
-		case *sql.RawBytes:
-			if len(*s) == 0 {
-				b.WriteString(nullType)
-			} else {
-				fmt.Fprintf(&b, "_binary '%s'", sanitize(string(*s)))
-			}
-		case *NullDate:
-			if s.Valid {
-				fmt.Fprintf(&b, "'%s'", sanitize(s.Date.Format("2006-01-02")))
-			} else {
-				b.WriteString(nullType)
-			}
-		case *sql.NullTime:
-			if s.Valid {
-				fmt.Fprintf(&b, "'%s'", sanitize(s.Time.Format("2006-01-02 15:04:05")))
-			} else {
-				b.WriteString(nullType)
-			}
-		default:
-			fmt.Fprintf(&b, "'%s'", value)
-		}
-	}
-	b.WriteString(")")
-
-	return &b
-}
-
-func (table *table) Stream() <-chan string {
-	valueOut := make(chan string, 1)
-	go func() {
-		defer close(valueOut)
-		var insert bytes.Buffer
-
-		for table.Next() {
-			b := table.RowBuffer()
-			// Truncate our insert if it won't fit
-			if insert.Len() != 0 && insert.Len()+b.Len() > table.data.MaxAllowedPacket-1 {
-				_, _ = insert.WriteString(";")
-				valueOut <- insert.String()
-				insert.Reset()
-			}
-
-			if insert.Len() == 0 {
-				_, _ = fmt.Fprint(&insert, strings.Join(
-					// extra "" at the end so we get an extra whitespace as needed
-					[]string{"INSERT", "INTO", table.NameEsc(), "(" + table.columnsList() + ")", "VALUES", ""},
-					" "))
-			} else {
-				_, _ = insert.WriteString(",")
-			}
-			_, _ = b.WriteTo(&insert)
-		}
-		if insert.Len() != 0 {
-			_, _ = insert.WriteString(";")
-			valueOut <- insert.String()
-		}
-	}()
-	return valueOut
+func esc(in string) string {
+	return "`" + in + "`"
 }

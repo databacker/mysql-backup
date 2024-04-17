@@ -313,6 +313,7 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 	(2, "Jill", "2012-11-02", "00:16:00", "2012-11-02 00:16:00", "2012-11-02 00:16:00"),
 	(3, "Sam", "2012-11-03", "00:17:00", "2012-11-03 00:17:00", "2012-11-03 00:17:00"),
 	(4, "Sarah", "2012-11-04", "00:18:00", "2012-11-04 00:18:00", "2012-11-04 00:18:00");
+	create view view1 as select id, name from t1;
 	`}
 	attachResp, exitCode, err := d.execInContainer(ctx, mysqlCID, mysqlCreateCmd)
 	if err != nil {
