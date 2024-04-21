@@ -1,15 +1,17 @@
 package cmd
 
 import (
-	"github.com/databacker/mysql-backup/pkg/compression"
+	"reflect"
+
 	"github.com/databacker/mysql-backup/pkg/core"
-	"github.com/databacker/mysql-backup/pkg/database"
-	"github.com/databacker/mysql-backup/pkg/storage"
+	"github.com/go-test/deep"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 )
 
 type mockExecs struct {
 	mock.Mock
+	logger *log.Logger
 }
 
 func newMockExecs() *mockExecs {
@@ -17,25 +19,64 @@ func newMockExecs() *mockExecs {
 	return m
 }
 
-func (m *mockExecs) dump(opts core.DumpOptions) error {
+func (m *mockExecs) Dump(opts core.DumpOptions) error {
 	args := m.Called(opts)
 	return args.Error(0)
 }
 
-func (m *mockExecs) restore(target storage.Storage, targetFile string, dbconn database.Connection, databasesMap map[string]string, compressor compression.Compressor) error {
-	args := m.Called(target, targetFile, dbconn, databasesMap, compressor)
-	return args.Error(0)
-}
-
-func (m *mockExecs) prune(opts core.PruneOptions) error {
+func (m *mockExecs) Restore(opts core.RestoreOptions) error {
 	args := m.Called(opts)
 	return args.Error(0)
 }
-func (m *mockExecs) timer(timerOpts core.TimerOptions, cmd func() error) error {
+
+func (m *mockExecs) Prune(opts core.PruneOptions) error {
+	args := m.Called(opts)
+	return args.Error(0)
+}
+func (m *mockExecs) Timer(timerOpts core.TimerOptions, cmd func() error) error {
 	args := m.Called(timerOpts)
 	err := args.Error(0)
 	if err != nil {
 		return err
 	}
 	return cmd()
+}
+
+func (m *mockExecs) SetLogger(logger *log.Logger) {
+	m.logger = logger
+}
+
+func (m *mockExecs) GetLogger() *log.Logger {
+	return m.logger
+}
+
+func equalIgnoreFields(a, b interface{}, fields []string) bool {
+	va := reflect.ValueOf(a)
+	vb := reflect.ValueOf(b)
+
+	// Check if both a and b are struct types
+	if va.Kind() != reflect.Struct || vb.Kind() != reflect.Struct {
+		return false
+	}
+
+	// Make a map of fields to ignore for quick lookup
+	ignoreMap := make(map[string]bool)
+	for _, f := range fields {
+		ignoreMap[f] = true
+	}
+
+	// Compare fields that are not in the ignore list
+	for i := 0; i < va.NumField(); i++ {
+		field := va.Type().Field(i).Name
+		if !ignoreMap[field] {
+			vaField := va.Field(i).Interface()
+			vbField := vb.Field(i).Interface()
+			diff := deep.Equal(vaField, vbField)
+			if diff != nil {
+				return false
+			}
+		}
+	}
+
+	return true
 }

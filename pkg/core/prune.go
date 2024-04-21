@@ -7,16 +7,15 @@ import (
 	"slices"
 	"strconv"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // filenameRE is a regular expression to match a backup filename
 var filenameRE = regexp.MustCompile(`^db_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z\.\w+$`)
 
 // Prune prune older backups
-func Prune(opts PruneOptions) error {
-	log.Info("beginning prune")
+func (e *Executor) Prune(opts PruneOptions) error {
+	logger := e.Logger.WithField("run", opts.Run.String())
+	logger.Info("beginning prune")
 	var (
 		candidates []string
 		now        = opts.Now
@@ -36,8 +35,8 @@ func Prune(opts PruneOptions) error {
 	for _, target := range opts.Targets {
 		var pruned int
 
-		log.Debugf("pruning target %s", target)
-		files, err := target.ReadDir(".")
+		logger.Debugf("pruning target %s", target)
+		files, err := target.ReadDir(".", logger)
 		if err != nil {
 			return fmt.Errorf("failed to read directory: %v", err)
 		}
@@ -49,17 +48,17 @@ func Prune(opts PruneOptions) error {
 			filename := fileInfo.Name()
 			matches := filenameRE.FindStringSubmatch(filename)
 			if matches == nil {
-				log.Debugf("ignoring filename that is not standard backup pattern: %s", filename)
+				logger.Debugf("ignoring filename that is not standard backup pattern: %s", filename)
 				continue
 			}
-			log.Debugf("checking filename that is standard backup pattern: %s", filename)
+			logger.Debugf("checking filename that is standard backup pattern: %s", filename)
 
 			// Parse the date from the filename
 			year, month, day, hour, minute, second := matches[1], matches[2], matches[3], matches[4], matches[5], matches[6]
 			dateTimeStr := fmt.Sprintf("%s-%s-%sT%s:%s:%sZ", year, month, day, hour, minute, second)
 			filetime, err := time.Parse(time.RFC3339, dateTimeStr)
 			if err != nil {
-				log.Debugf("Error parsing date from filename %s: %v; ignoring", filename, err)
+				logger.Debugf("Error parsing date from filename %s: %v; ignoring", filename, err)
 				continue
 			}
 			filesWithTimes = append(filesWithTimes, fileWithTime{
@@ -75,11 +74,11 @@ func Prune(opts PruneOptions) error {
 				// Check if the file is within 'retain' hours from 'now'
 				age := now.Sub(f.filetime).Hours()
 				if age < float64(retainHours) {
-					log.Debugf("file %s is %f hours old", f.filename, age)
-					log.Debugf("keeping file %s", f.filename)
+					logger.Debugf("file %s is %f hours old", f.filename, age)
+					logger.Debugf("keeping file %s", f.filename)
 					continue
 				}
-				log.Debugf("Adding candidate file: %s", f.filename)
+				logger.Debugf("Adding candidate file: %s", f.filename)
 				candidates = append(candidates, f.filename)
 			}
 		case retainCount > 0:
@@ -96,7 +95,7 @@ func Prune(opts PruneOptions) error {
 			slices.Reverse(filesWithTimes)
 			if retainCount >= len(filesWithTimes) {
 				for i := 0 + retainCount; i < len(filesWithTimes); i++ {
-					log.Debugf("Adding candidate file %s:", filesWithTimes[i].filename)
+					logger.Debugf("Adding candidate file %s:", filesWithTimes[i].filename)
 					candidates = append(candidates, filesWithTimes[i].filename)
 				}
 			}
@@ -106,12 +105,12 @@ func Prune(opts PruneOptions) error {
 
 		// we have the list, remove them all
 		for _, filename := range candidates {
-			if err := target.Remove(filename); err != nil {
+			if err := target.Remove(filename, logger); err != nil {
 				return fmt.Errorf("failed to remove file %s: %v", filename, err)
 			}
 			pruned++
 		}
-		log.Debugf("pruning %d files from target %s", pruned, target)
+		logger.Debugf("pruning %d files from target %s", pruned, target)
 	}
 
 	return nil

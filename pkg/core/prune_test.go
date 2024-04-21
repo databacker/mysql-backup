@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"testing"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -107,7 +109,12 @@ func TestPrune(t *testing.T) {
 			}
 
 			// run Prune
-			err := Prune(tt.opts)
+			logger := log.New()
+			logger.Out = io.Discard
+			executor := Executor{
+				Logger: logger,
+			}
+			err := executor.Prune(tt.opts)
 			switch {
 			case (err == nil && tt.err != nil) || (err != nil && tt.err == nil):
 				t.Errorf("expected error %v, got %v", tt.err, err)

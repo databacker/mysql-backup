@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cloudsoda/go-smb2"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -49,7 +50,7 @@ func New(u url.URL, opts ...Option) *SMB {
 	return s
 }
 
-func (s *SMB) Pull(source, target string) (int64, error) {
+func (s *SMB) Pull(source, target string, logger *log.Entry) (int64, error) {
 	var (
 		copied int64
 		err    error
@@ -73,7 +74,7 @@ func (s *SMB) Pull(source, target string) (int64, error) {
 	return copied, err
 }
 
-func (s *SMB) Push(target, source string) (int64, error) {
+func (s *SMB) Push(target, source string, logger *log.Entry) (int64, error) {
 	var (
 		copied int64
 		err    error
@@ -104,7 +105,7 @@ func (s *SMB) URL() string {
 	return s.url.String()
 }
 
-func (s *SMB) ReadDir(dirname string) ([]os.FileInfo, error) {
+func (s *SMB) ReadDir(dirname string, logger *log.Entry) ([]os.FileInfo, error) {
 	var (
 		err   error
 		infos []os.FileInfo
@@ -116,7 +117,7 @@ func (s *SMB) ReadDir(dirname string) ([]os.FileInfo, error) {
 	return infos, err
 }
 
-func (s *SMB) Remove(target string) error {
+func (s *SMB) Remove(target string, logger *log.Entry) error {
 	return s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
 		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
 		return fs.Remove(smbFilename)

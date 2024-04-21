@@ -60,8 +60,9 @@ Various sample configuration files are available in the [sample-configs](../samp
 
 The following are the environment variables, CLI flags and configuration file options for: backup(B), restore (R), prune (P).
 
-| Purpose | Backup / Restore | CLI Flag | Env Var | Config Key | Default |
+| Purpose | Backup / Restore / Prune | CLI Flag | Env Var | Config Key | Default |
 | --- | --- | --- | --- | --- | --- |
+| config file path | BRP | `config` | `DB_DUMP_CONFIG` |  |  |
 | hostname or unix domain socket path (starting with a slash) to connect to database. Required. | BR | `server` | `DB_SERVER` | `database.server` |  |
 | port to use to connect to database. Optional. | BR | `port` | `DB_PORT` | `database.port` | 3306 |
 | username for the database | BR | `user` | `DB_USER` | `database.credentials.username` |  |

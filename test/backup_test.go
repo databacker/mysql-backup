@@ -453,8 +453,11 @@ func runDumpTest(dc *dockerContext, compact bool, base string, targets []backupT
 	timerOpts := core.TimerOptions{
 		Once: true,
 	}
-	return core.TimerCommand(timerOpts, func() error {
-		return core.Dump(dumpOpts)
+	executor := &core.Executor{}
+	executor.SetLogger(log.New())
+
+	return executor.Timer(timerOpts, func() error {
+		return executor.Dump(dumpOpts)
 	})
 }
 

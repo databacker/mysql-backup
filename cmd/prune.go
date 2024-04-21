@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -12,7 +12,7 @@ import (
 	"github.com/databacker/mysql-backup/pkg/storage"
 )
 
-func pruneCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
+func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 	if cmdConfig == nil {
 		return nil, fmt.Errorf("cmdConfig is nil")
 	}
@@ -31,7 +31,7 @@ func pruneCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) 
 			bindFlags(cmd, v)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Debug("starting prune")
+			cmdConfig.logger.Debug("starting prune")
 			retention := v.GetString("retention")
 			targetURLs := v.GetStringSlice("target")
 			var (
@@ -96,18 +96,20 @@ func pruneCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) 
 				Frequency: frequency,
 			}
 
-			prune := core.Prune
-			timer := core.TimerCommand
-			if execs != nil {
-				prune = execs.prune
-				timer = execs.timer
+			var executor execs
+			executor = &core.Executor{}
+			if passedExecs != nil {
+				executor = passedExecs
 			}
-			if err := timer(timerOpts, func() error {
-				return prune(core.PruneOptions{Targets: targets, Retention: retention})
+			executor.SetLogger(cmdConfig.logger)
+
+			if err := executor.Timer(timerOpts, func() error {
+				uid := uuid.New()
+				return executor.Prune(core.PruneOptions{Targets: targets, Retention: retention, Run: uid})
 			}); err != nil {
 				return fmt.Errorf("error running prune: %w", err)
 			}
-			log.Info("Pruning complete")
+			executor.GetLogger().Info("Pruning complete")
 			return nil
 		},
 	}

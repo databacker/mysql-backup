@@ -7,7 +7,6 @@ import (
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/file"
-	"github.com/go-test/deep"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -32,15 +31,14 @@ func TestPruneCmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newMockExecs()
-			m.On("prune", mock.MatchedBy(func(pruneOpts core.PruneOptions) bool {
-				diff := deep.Equal(pruneOpts, tt.expectedPruneOptions)
-				if diff == nil {
+			m.On("Prune", mock.MatchedBy(func(pruneOpts core.PruneOptions) bool {
+				if equalIgnoreFields(pruneOpts, tt.expectedPruneOptions, []string{"Run"}) {
 					return true
 				}
-				t.Errorf("pruneOpts compare failed: %v", diff)
+				t.Errorf("pruneOpts compare failed: %#v %#v", pruneOpts, tt.expectedPruneOptions)
 				return false
 			})).Return(nil)
-			m.On("timer", tt.expectedTimerOptions).Return(nil)
+			m.On("Timer", tt.expectedTimerOptions).Return(nil)
 			cmd, err := rootCmd(m)
 			if err != nil {
 				t.Fatal(err)

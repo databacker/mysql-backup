@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type File struct {
@@ -18,11 +20,11 @@ func New(u url.URL) *File {
 	return &File{u, u.Path}
 }
 
-func (f *File) Pull(source, target string) (int64, error) {
+func (f *File) Pull(source, target string, logger *log.Entry) (int64, error) {
 	return copyFile(path.Join(f.path, source), target)
 }
 
-func (f *File) Push(target, source string) (int64, error) {
+func (f *File) Push(target, source string, logger *log.Entry) (int64, error) {
 	return copyFile(source, filepath.Join(f.path, target))
 }
 
@@ -34,7 +36,7 @@ func (f *File) URL() string {
 	return f.url.String()
 }
 
-func (f *File) ReadDir(dirname string) ([]fs.FileInfo, error) {
+func (f *File) ReadDir(dirname string, logger *log.Entry) ([]fs.FileInfo, error) {
 
 	entries, err := os.ReadDir(filepath.Join(f.path, dirname))
 	if err != nil {
@@ -51,7 +53,7 @@ func (f *File) ReadDir(dirname string) ([]fs.FileInfo, error) {
 	return files, nil
 }
 
-func (f *File) Remove(target string) error {
+func (f *File) Remove(target string, logger *log.Entry) error {
 	return os.Remove(filepath.Join(f.path, target))
 }
 

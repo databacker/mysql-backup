@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -14,7 +14,7 @@ import (
 	"github.com/databacker/mysql-backup/pkg/util"
 )
 
-func restoreCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
+func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 	if cmdConfig == nil {
 		return nil, fmt.Errorf("cmdConfig is nil")
 	}
@@ -28,7 +28,7 @@ func restoreCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error
 		},
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Debug("starting restore")
+			cmdConfig.logger.Debug("starting restore")
 			targetFile := args[0]
 			target := v.GetString("target")
 			// get databases namesand mappings
@@ -94,16 +94,28 @@ func restoreCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error
 					return fmt.Errorf("invalid target url: %v", err)
 				}
 			}
-			restore := core.Restore
-			if execs != nil {
-				restore = execs.restore
+			var executor execs
+			executor = &core.Executor{}
+			if passedExecs != nil {
+				executor = passedExecs
 			}
+			executor.SetLogger(cmdConfig.logger)
+
 			// at this point, any errors should not have usage
 			cmd.SilenceUsage = true
-			if err := restore(store, targetFile, cmdConfig.dbconn, databasesMap, compressor); err != nil {
+			uid := uuid.New()
+			restoreOpts := core.RestoreOptions{
+				Target:       store,
+				TargetFile:   targetFile,
+				Compressor:   compressor,
+				DatabasesMap: databasesMap,
+				DBConn:       cmdConfig.dbconn,
+				Run:          uid,
+			}
+			if err := executor.Restore(restoreOpts); err != nil {
 				return fmt.Errorf("error restoring: %v", err)
 			}
-			log.Info("Restore complete")
+			passedExecs.GetLogger().Info("Restore complete")
 			return nil
 		},
 	}
