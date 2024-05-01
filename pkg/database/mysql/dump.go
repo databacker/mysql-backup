@@ -43,6 +43,8 @@ type Data struct {
 	Compact             bool
 	Host                string
 	SuppressUseDatabase bool
+	Charset             string
+	Collation           string
 
 	tx         *sql.Tx
 	headerTmpl *template.Template
@@ -56,6 +58,8 @@ type metaData struct {
 	CompleteTime  string
 	Host          string
 	Database      string
+	Charset       string
+	Collation     string
 }
 
 const (
@@ -75,7 +79,7 @@ const headerTmpl = `-- Go SQL Dump {{ .DumpVersion }}
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!50503 SET NAMES utf8mb4 */;
+/*!50503 SET NAMES {{ .Charset }} */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -89,7 +93,7 @@ const headerTmpl = `-- Go SQL Dump {{ .DumpVersion }}
 `
 
 const createUseDatabaseHeader = `
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ ` + "`{{.Database}}`" + ` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ ` + "`{{.Database}}`" + ` /*!40100 DEFAULT CHARACTER SET {{ .Charset }} COLLATE {{ .Collation }} */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE ` + "`{{.Database}}`;"
 
@@ -140,7 +144,11 @@ func (data *Data) Dump() error {
 		_ = data.rollback()
 	}()
 
-	if err := meta.updateServerVersion(data); err != nil {
+	if err := data.getCharsetCollections(); err != nil {
+		return err
+	}
+
+	if err := meta.updateMetadata(data); err != nil {
 		return err
 	}
 
@@ -289,6 +297,28 @@ func (data *Data) getTables() ([]Table, error) {
 	return tables, rows.Err()
 }
 
+func (data *Data) getCharsetCollections() error {
+	rows, err := data.tx.Query("SELECT @@character_set_database, @@collation_database")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var charset, collation sql.NullString
+		if err := rows.Scan(&charset, &collation); err != nil {
+			return err
+		}
+		if !charset.Valid || !collation.Valid {
+			continue
+		}
+		data.Charset = charset.String
+		data.Collation = collation.String
+		break
+	}
+	return rows.Err()
+}
+
 func (data *Data) isIgnoredTable(name string) bool {
 	for _, item := range data.IgnoreTables {
 		if item == name {
@@ -298,10 +328,12 @@ func (data *Data) isIgnoredTable(name string) bool {
 	return false
 }
 
-func (meta *metaData) updateServerVersion(data *Data) (err error) {
+func (meta *metaData) updateMetadata(data *Data) (err error) {
 	var serverVersion sql.NullString
 	err = data.tx.QueryRow("SELECT version()").Scan(&serverVersion)
 	meta.ServerVersion = serverVersion.String
+	meta.Collation = data.Collation
+	meta.Charset = data.Charset
 	return
 }
 
