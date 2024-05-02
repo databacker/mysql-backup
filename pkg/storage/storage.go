@@ -1,13 +1,17 @@
 package storage
 
-import "io/fs"
+import (
+	"io/fs"
+
+	log "github.com/sirupsen/logrus"
+)
 
 type Storage interface {
-	Push(target, source string) (int64, error)
-	Pull(source, target string) (int64, error)
 	Protocol() string
 	URL() string
-	ReadDir(dirname string) ([]fs.FileInfo, error)
+	Push(target, source string, logger *log.Entry) (int64, error)
+	Pull(source, target string, logger *log.Entry) (int64, error)
+	ReadDir(dirname string, logger *log.Entry) ([]fs.FileInfo, error)
 	// Remove remove a particular file
-	Remove(string) error
+	Remove(target string, logger *log.Entry) error
 }

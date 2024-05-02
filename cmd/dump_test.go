@@ -110,15 +110,14 @@ func TestDumpCmd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := newMockExecs()
-			m.On("dump", mock.MatchedBy(func(dumpOpts core.DumpOptions) bool {
-				diff := deep.Equal(dumpOpts, tt.expectedDumpOptions)
-				if diff == nil {
+			m.On("Dump", mock.MatchedBy(func(dumpOpts core.DumpOptions) bool {
+				if equalIgnoreFields(dumpOpts, tt.expectedDumpOptions, []string{"Run"}) {
 					return true
 				}
-				t.Errorf("dumpOpts compare failed: %v", diff)
+				t.Errorf("dumpOpts compare failed: %#v %#v", dumpOpts, tt.expectedDumpOptions)
 				return false
 			})).Return(nil)
-			m.On("timer", mock.MatchedBy(func(timerOpts core.TimerOptions) bool {
+			m.On("Timer", mock.MatchedBy(func(timerOpts core.TimerOptions) bool {
 				diff := deep.Equal(timerOpts, tt.expectedTimerOptions)
 				if diff == nil {
 					return true
@@ -127,7 +126,7 @@ func TestDumpCmd(t *testing.T) {
 				return false
 			})).Return(nil)
 			if tt.expectedPruneOptions != nil {
-				m.On("prune", mock.MatchedBy(func(pruneOpts core.PruneOptions) bool {
+				m.On("Prune", mock.MatchedBy(func(pruneOpts core.PruneOptions) bool {
 					diff := deep.Equal(pruneOpts, *tt.expectedPruneOptions)
 					if diff == nil {
 						return true

@@ -6,12 +6,8 @@ import (
 	"os"
 	"path"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/databacker/mysql-backup/pkg/archive"
-	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/database"
-	"github.com/databacker/mysql-backup/pkg/storage"
 )
 
 const (
@@ -21,20 +17,22 @@ const (
 )
 
 // Restore restore a specific backup into the database
-func Restore(target storage.Storage, targetFile string, dbconn database.Connection, databasesMap map[string]string, compressor compression.Compressor) error {
-	log.Info("beginning restore")
+func (e *Executor) Restore(opts RestoreOptions) error {
+	logger := e.Logger.WithField("run", opts.Run.String())
+
+	logger.Info("beginning restore")
 	// execute pre-restore scripts if any
-	if err := preRestore(target.URL()); err != nil {
+	if err := preRestore(opts.Target.URL()); err != nil {
 		return fmt.Errorf("error running pre-restore: %v", err)
 	}
 
-	log.Debugf("restoring via %s protocol, temporary file location %s", target.Protocol(), tmpRestoreFile)
+	logger.Debugf("restoring via %s protocol, temporary file location %s", opts.Target.Protocol(), tmpRestoreFile)
 
-	copied, err := target.Pull(targetFile, tmpRestoreFile)
+	copied, err := opts.Target.Pull(opts.TargetFile, tmpRestoreFile, logger)
 	if err != nil {
-		return fmt.Errorf("failed to pull target %s: %v", target, err)
+		return fmt.Errorf("failed to pull target %s: %v", opts.Target, err)
 	}
-	log.Debugf("completed copying %d bytes", copied)
+	logger.Debugf("completed copying %d bytes", copied)
 
 	// successfully download file, now restore it
 	tmpdir, err := os.MkdirTemp("", "restore")
@@ -50,7 +48,7 @@ func Restore(target storage.Storage, targetFile string, dbconn database.Connecti
 	os.Remove(tmpRestoreFile)
 
 	// create my tar reader to put the files in the directory
-	cr, err := compressor.Uncompress(f)
+	cr, err := opts.Compressor.Uncompress(f)
 	if err != nil {
 		return fmt.Errorf("unable to create an uncompressor: %v", err)
 	}
@@ -76,12 +74,12 @@ func Restore(target storage.Storage, targetFile string, dbconn database.Connecti
 		defer file.Close()
 		readers = append(readers, file)
 	}
-	if err := database.Restore(dbconn, databasesMap, readers); err != nil {
+	if err := database.Restore(opts.DBConn, opts.DatabasesMap, readers); err != nil {
 		return fmt.Errorf("failed to restore database: %v", err)
 	}
 
 	// execute post-restore scripts if any
-	if err := postRestore(target.URL()); err != nil {
+	if err := postRestore(opts.Target.URL()); err != nil {
 		return fmt.Errorf("error running post-restove: %v", err)
 	}
 	return nil

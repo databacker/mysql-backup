@@ -20,7 +20,7 @@ const (
 )
 
 // Dump run a single dump, based on the provided opts
-func Dump(opts DumpOptions) error {
+func (e *Executor) Dump(opts DumpOptions) error {
 	targets := opts.Targets
 	safechars := opts.Safechars
 	dbnames := opts.DBNames
@@ -29,10 +29,11 @@ func Dump(opts DumpOptions) error {
 	compact := opts.Compact
 	suppressUseDatabase := opts.SuppressUseDatabase
 	maxAllowedPacket := opts.MaxAllowedPacket
+	logger := e.Logger.WithField("run", opts.Run.String())
 
 	now := time.Now()
 	timepart := now.Format(time.RFC3339)
-	log.Infof("beginning dump %s", timepart)
+	logger.Infof("beginning dump %s", timepart)
 	if safechars {
 		timepart = strings.ReplaceAll(timepart, ":", "-")
 	}
@@ -49,7 +50,7 @@ func Dump(opts DumpOptions) error {
 	}
 	defer os.RemoveAll(tmpdir)
 	// execute pre-backup scripts if any
-	if err := preBackup(timepart, path.Join(tmpdir, targetFilename), tmpdir, opts.PreBackupScripts, log.GetLevel() == log.DebugLevel); err != nil {
+	if err := preBackup(timepart, path.Join(tmpdir, targetFilename), tmpdir, opts.PreBackupScripts, logger.Level == log.DebugLevel); err != nil {
 		return fmt.Errorf("error running pre-restore: %v", err)
 	}
 
@@ -106,12 +107,12 @@ func Dump(opts DumpOptions) error {
 	f.Close()
 
 	// execute post-backup scripts if any
-	if err := postBackup(timepart, path.Join(tmpdir, targetFilename), tmpdir, opts.PostBackupScripts, log.GetLevel() == log.DebugLevel); err != nil {
+	if err := postBackup(timepart, path.Join(tmpdir, targetFilename), tmpdir, opts.PostBackupScripts, logger.Level == log.DebugLevel); err != nil {
 		return fmt.Errorf("error running pre-restore: %v", err)
 	}
 
 	// perform any renaming
-	newName, err := renameSource(timepart, path.Join(tmpdir, targetFilename), tmpdir, log.GetLevel() == log.DebugLevel)
+	newName, err := renameSource(timepart, path.Join(tmpdir, targetFilename), tmpdir, logger.Level == log.DebugLevel)
 	if err != nil {
 		return fmt.Errorf("failed rename source: %v", err)
 	}
@@ -120,7 +121,7 @@ func Dump(opts DumpOptions) error {
 	}
 
 	// perform any renaming
-	newName, err = renameTarget(timepart, path.Join(tmpdir, targetFilename), tmpdir, log.GetLevel() == log.DebugLevel)
+	newName, err = renameTarget(timepart, path.Join(tmpdir, targetFilename), tmpdir, logger.Level == log.DebugLevel)
 	if err != nil {
 		return fmt.Errorf("failed rename target: %v", err)
 	}
@@ -130,12 +131,12 @@ func Dump(opts DumpOptions) error {
 
 	// upload to each destination
 	for _, t := range targets {
-		log.Debugf("uploading via protocol %s from %s", t.Protocol(), targetFilename)
-		copied, err := t.Push(targetFilename, filepath.Join(tmpdir, sourceFilename))
+		logger.Debugf("uploading via protocol %s from %s", t.Protocol(), targetFilename)
+		copied, err := t.Push(targetFilename, filepath.Join(tmpdir, sourceFilename), logger)
 		if err != nil {
 			return fmt.Errorf("failed to push file: %v", err)
 		}
-		log.Debugf("completed copying %d bytes", copied)
+		logger.Debugf("completed copying %d bytes", copied)
 	}
 
 	return nil

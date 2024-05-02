@@ -3,23 +3,21 @@ package remote
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
-	"encoding/pem"
 	"fmt"
-	"math/big"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	utilremote "github.com/databacker/mysql-backup/pkg/internal/remote"
 )
 
 var (
-	validAlgos     = []string{digestSha256}
+	validAlgos     = []string{utilremote.DigestSha256}
 	validAlgosHash = map[string]bool{}
 )
 
@@ -34,6 +32,27 @@ func init() {
 // the "seed key". It must be 32 bytes long.
 // The certs should be a list of fingerprints in the format "algo:hex-fingerprint".
 func OpenConnection(u string, certs []string, credentials string) (resp *http.Response, err error) {
+	// open a connection to the URL.
+	// Uses mTLS, but rather than verifying the CA that signed the client cert,
+	// server should accept a self-signed cert. It then should check if the client's public key is in a known good list.
+	client, err := GetTLSClient(certs, credentials)
+	if err != nil {
+		return nil, fmt.Errorf("error creating TLS client: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating HTTP request: %w", err)
+	}
+
+	return client.Do(req)
+}
+
+// GetTLSClient gets a TLS client for a connection to a TLS server, given the URL, digests of acceptable certs, and curve25519 key for authentication.
+// The credentials should be base64-encoded curve25519 private key. This is curve25519 and *not* ed25519; ed25519 calls this
+// the "seed key". It must be 32 bytes long.
+// The certs should be a list of fingerprints in the format "algo:hex-fingerprint".
+func GetTLSClient(certs []string, credentials string) (client *http.Client, err error) {
 	// open a connection to the URL.
 	// Uses mTLS, but rather than verifying the CA that signed the client cert,
 	// server should accept a self-signed cert. It then should check if the client's public key is in a known good list.
@@ -63,12 +82,12 @@ func OpenConnection(u string, certs []string, credentials string) (resp *http.Re
 	}
 
 	key := ed25519.NewKeyFromSeed(keyBytes)
-	clientCert, err := selfSignedCertFromPrivateKey(key, "")
+	clientCert, err := utilremote.SelfSignedCertFromPrivateKey(key, "")
 	if err != nil {
 		return nil, fmt.Errorf("error creating client certificate: %w", err)
 	}
 
-	client := &http.Client{
+	client = &http.Client{
 		Transport: &http.Transport{
 			// Configure TLS via DialTLS
 			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -117,7 +136,7 @@ func OpenConnection(u string, certs []string, credentials string) (resp *http.Re
 						// the cert presented by the server was not signed by a known CA, so fall back to our own list
 						for _, rawCert := range rawCerts {
 							fingerprint := fmt.Sprintf("%x", sha256.Sum256(rawCert))
-							if trustedFingerprints, ok := trustedCertsByAlgo[digestSha256]; ok {
+							if trustedFingerprints, ok := trustedCertsByAlgo[utilremote.DigestSha256]; ok {
 								if _, ok := trustedFingerprints[fingerprint]; ok {
 									if validateCert(certs[0], host) {
 										return nil
@@ -135,54 +154,7 @@ func OpenConnection(u string, certs []string, credentials string) (resp *http.Re
 			},
 		},
 	}
-	req, err := http.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return nil, fmt.Errorf("error creating HTTP request: %w", err)
-	}
-
-	return client.Do(req)
-}
-
-// selfSignedCertFromPrivateKey creates a self-signed certificate from an ed25519 private key
-func selfSignedCertFromPrivateKey(privateKey ed25519.PrivateKey, hostname string) (*tls.Certificate, error) {
-	if privateKey == nil || len(privateKey) != ed25519.PrivateKeySize {
-		return nil, fmt.Errorf("invalid private key")
-	}
-	publicKey := privateKey.Public()
-
-	// Create a template for the certificate
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{clientOrg},
-		},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now().Add(certValidity),
-
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-	if hostname != "" {
-		template.DNSNames = append(template.DNSNames, hostname)
-	}
-
-	// Self-sign the certificate
-	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create certificate: %w", err)
-	}
-
-	// Encode and print the certificate
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-
-	// Create the TLS certificate to use in tls.Config
-	marshaledPrivateKey, err := x509.MarshalPKCS8PrivateKey(privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal private key: %w", err)
-	}
-	cert, err := tls.X509KeyPair(certPEM, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: marshaledPrivateKey}))
-	return &cert, err
+	return client, nil
 }
 
 // validateCert given a cert that we decided to trust its cert or signature, make sure its properties are correct:

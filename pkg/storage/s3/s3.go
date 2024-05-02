@@ -64,9 +64,9 @@ func New(u url.URL, opts ...Option) *S3 {
 	return s
 }
 
-func (s *S3) Pull(source, target string) (int64, error) {
+func (s *S3) Pull(source, target string, logger *log.Entry) (int64, error) {
 	// get the s3 client
-	client, err := s.getClient()
+	client, err := s.getClient(logger)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get AWS client: %v", err)
 	}
@@ -94,9 +94,9 @@ func (s *S3) Pull(source, target string) (int64, error) {
 	return n, nil
 }
 
-func (s *S3) Push(target, source string) (int64, error) {
+func (s *S3) Push(target, source string, logger *log.Entry) (int64, error) {
 	// get the s3 client
-	client, err := s.getClient()
+	client, err := s.getClient(logger)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get AWS client: %v", err)
 	}
@@ -132,9 +132,9 @@ func (s *S3) URL() string {
 	return s.url.String()
 }
 
-func (s *S3) ReadDir(dirname string) ([]fs.FileInfo, error) {
+func (s *S3) ReadDir(dirname string, logger *log.Entry) ([]fs.FileInfo, error) {
 	// get the s3 client
-	client, err := s.getClient()
+	client, err := s.getClient(logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AWS client: %v", err)
 	}
@@ -158,9 +158,9 @@ func (s *S3) ReadDir(dirname string) ([]fs.FileInfo, error) {
 	return files, nil
 }
 
-func (s *S3) Remove(target string) error {
+func (s *S3) Remove(target string, logger *log.Entry) error {
 	// Get the AWS client
-	client, err := s.getClient()
+	client, err := s.getClient(logger)
 	if err != nil {
 		return fmt.Errorf("failed to get AWS client: %v", err)
 	}
@@ -177,7 +177,7 @@ func (s *S3) Remove(target string) error {
 	return nil
 }
 
-func (s *S3) getClient() (*s3.Client, error) {
+func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 	// Get the AWS config
 	var opts []func(*config.LoadOptions) error
 	if s.endpoint != "" {
@@ -190,7 +190,7 @@ func (s *S3) getClient() (*s3.Client, error) {
 			),
 		)
 	}
-	if log.IsLevelEnabled(log.TraceLevel) {
+	if logger.Level == log.TraceLevel {
 		opts = append(opts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
 	}
 	if s.region != "" {

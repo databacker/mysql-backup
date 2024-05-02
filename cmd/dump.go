@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -20,7 +20,7 @@ const (
 	defaultMaxAllowedPacket = 4194304
 )
 
-func dumpCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
+func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 	if cmdConfig == nil {
 		return nil, fmt.Errorf("cmdConfig is nil")
 	}
@@ -37,7 +37,7 @@ func dumpCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 			bindFlags(cmd, v)
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Debug("starting dump")
+			cmdConfig.logger.Debug("starting dump")
 			// check targets
 			targetURLs := v.GetStringSlice("target")
 			var (
@@ -130,19 +130,6 @@ func dumpCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 					return fmt.Errorf("failure to get compression '%s': %v", compressionAlgo, err)
 				}
 			}
-			dumpOpts := core.DumpOptions{
-				Targets:             targets,
-				Safechars:           safechars,
-				DBNames:             include,
-				DBConn:              cmdConfig.dbconn,
-				Compressor:          compressor,
-				Exclude:             exclude,
-				PreBackupScripts:    preBackupScripts,
-				PostBackupScripts:   preBackupScripts,
-				SuppressUseDatabase: noDatabaseName,
-				Compact:             compact,
-				MaxAllowedPacket:    maxAllowedPacket,
-			}
 
 			// retention, if enabled
 			retention := v.GetString("retention")
@@ -173,23 +160,37 @@ func dumpCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 				Begin:     begin,
 				Frequency: frequency,
 			}
-			dump := core.Dump
-			prune := core.Prune
-			timer := core.TimerCommand
-			if execs != nil {
-				dump = execs.dump
-				prune = execs.prune
-				timer = execs.timer
+			var executor execs
+			executor = &core.Executor{}
+			if passedExecs != nil {
+				executor = passedExecs
 			}
+			executor.SetLogger(cmdConfig.logger)
+
 			// at this point, any errors should not have usage
 			cmd.SilenceUsage = true
-			if err := timer(timerOpts, func() error {
-				err := dump(dumpOpts)
+			if err := executor.Timer(timerOpts, func() error {
+				uid := uuid.New()
+				dumpOpts := core.DumpOptions{
+					Targets:             targets,
+					Safechars:           safechars,
+					DBNames:             include,
+					DBConn:              cmdConfig.dbconn,
+					Compressor:          compressor,
+					Exclude:             exclude,
+					PreBackupScripts:    preBackupScripts,
+					PostBackupScripts:   preBackupScripts,
+					SuppressUseDatabase: noDatabaseName,
+					Compact:             compact,
+					MaxAllowedPacket:    maxAllowedPacket,
+					Run:                 uid,
+				}
+				err := executor.Dump(dumpOpts)
 				if err != nil {
 					return fmt.Errorf("error running dump: %w", err)
 				}
 				if retention != "" {
-					if err := prune(core.PruneOptions{Targets: targets, Retention: retention}); err != nil {
+					if err := executor.Prune(core.PruneOptions{Targets: targets, Retention: retention}); err != nil {
 						return fmt.Errorf("error running prune: %w", err)
 					}
 				}
@@ -197,7 +198,7 @@ func dumpCmd(execs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
 			}); err != nil {
 				return fmt.Errorf("error running command: %w", err)
 			}
-			log.Info("Backup complete")
+			executor.GetLogger().Info("Backup complete")
 			return nil
 		},
 	}

@@ -3,15 +3,14 @@ package remote
 import (
 	"crypto/ed25519"
 	cryptorand "crypto/rand"
-	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	utilremote "github.com/databacker/mysql-backup/pkg/internal/remote"
+	utiltest "github.com/databacker/mysql-backup/pkg/internal/test"
 )
 
 func TestSelfSignedCertFromPrivateKey(t *testing.T) {
@@ -41,7 +40,7 @@ func TestSelfSignedCertFromPrivateKey(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Call the function with the private key
-			cert, err := selfSignedCertFromPrivateKey(test.privateKey, "")
+			cert, err := utilremote.SelfSignedCertFromPrivateKey(test.privateKey, "")
 			if (err != nil) != test.expectError {
 				t.Fatalf("selfSignedCertFromPrivateKey returned an error: %v", err)
 			}
@@ -68,52 +67,15 @@ func TestSelfSignedCertFromPrivateKey(t *testing.T) {
 }
 
 func TestOpenConnection(t *testing.T) {
-	// Generate a new private key
-	clientSeed1 := make([]byte, ed25519.SeedSize)
-	if _, err := io.ReadFull(cryptorand.Reader, clientSeed1); err != nil {
+	// Generate a private key that is not in the list of known keys
+	clientSeedUnknown := make([]byte, ed25519.SeedSize)
+	if _, err := io.ReadFull(cryptorand.Reader, clientSeedUnknown); err != nil {
 		t.Fatalf("failed to generate random seed: %v", err)
 	}
-	clientKey1 := ed25519.NewKeyFromSeed(clientSeed1)
-
-	clientSeed2 := make([]byte, ed25519.SeedSize)
-	if _, err := io.ReadFull(cryptorand.Reader, clientSeed2); err != nil {
-		t.Fatalf("failed to generate random seed: %v", err)
-	}
-
-	serverSeed := make([]byte, ed25519.SeedSize)
-	if _, err := io.ReadFull(cryptorand.Reader, serverSeed); err != nil {
-		t.Fatalf("failed to generate random seed: %v", err)
-	}
-	serverKey := ed25519.NewKeyFromSeed(serverSeed)
-
-	// Create a self-signed certificate from the private key
-	serverCert, err := selfSignedCertFromPrivateKey(serverKey, "127.0.0.1")
+	server, fingerprint, clientKeys, err := utiltest.StartServer(1, nil)
 	if err != nil {
-		t.Fatalf("failed to create self-signed certificate: %v", err)
+		t.Fatalf("failed to start server: %v", err)
 	}
-	fingerprint := fmt.Sprintf("%s:%s", digestSha256, fmt.Sprintf("%x", sha256.Sum256(serverCert.Certificate[0])))
-
-	// Start a local HTTPS server
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the client's public key is in the known list
-		peerCerts := r.TLS.PeerCertificates
-		if len(peerCerts) == 0 {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		peerPublicKey := peerCerts[0].PublicKey.(ed25519.PublicKey)
-		expectedPublicKey := clientKey1.Public().(ed25519.PublicKey)
-		if !peerPublicKey.Equal(expectedPublicKey) {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-	}))
-	server.TLS = &tls.Config{
-		ClientAuth:   tls.RequestClientCert,
-		ClientCAs:    x509.NewCertPool(),
-		Certificates: []tls.Certificate{*serverCert},
-	}
-	server.StartTLS()
 	defer server.Close()
 
 	tests := []struct {
@@ -125,21 +87,21 @@ func TestOpenConnection(t *testing.T) {
 	}{
 		{
 			name:             "client key in list",
-			clientPrivateKey: clientSeed1,
+			clientPrivateKey: clientKeys[0],
 			certs:            []string{fingerprint},
 			expectError:      false,
 			expectedStatus:   http.StatusOK,
 		},
 		{
 			name:             "client key not in list",
-			clientPrivateKey: clientSeed2,
+			clientPrivateKey: clientSeedUnknown,
 			certs:            []string{fingerprint},
 			expectError:      false,
 			expectedStatus:   http.StatusForbidden,
 		},
 		{
 			name:             "no certs",
-			clientPrivateKey: clientSeed1,
+			clientPrivateKey: clientKeys[0],
 			certs:            []string{},
 			expectError:      true,
 			expectedStatus:   http.StatusForbidden,

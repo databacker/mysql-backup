@@ -74,6 +74,9 @@ type DBCredentials struct {
 
 type Telemetry struct {
 	remote.Connection
+	// BufferSize is the size of the buffer for telemetry messages. It keeps BufferSize messages
+	// in memory before sending them remotely. The default of 0 is the same as 1, i.e. send every message.
+	BufferSize int `yaml:"buffer-size"`
 }
 
 var _ yaml.Unmarshaler = &Target{}

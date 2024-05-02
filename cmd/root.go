@@ -5,11 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/config"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/database"
-	"github.com/databacker/mysql-backup/pkg/storage"
+	databacklog "github.com/databacker/mysql-backup/pkg/log"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -18,10 +17,12 @@ import (
 )
 
 type execs interface {
-	dump(opts core.DumpOptions) error
-	restore(target storage.Storage, targetFile string, dbconn database.Connection, databasesMap map[string]string, compressor compression.Compressor) error
-	prune(opts core.PruneOptions) error
-	timer(timerOpts core.TimerOptions, cmd func() error) error
+	SetLogger(logger *log.Logger)
+	GetLogger() *log.Logger
+	Dump(opts core.DumpOptions) error
+	Restore(opts core.RestoreOptions) error
+	Prune(opts core.PruneOptions) error
+	Timer(timerOpts core.TimerOptions, cmd func() error) error
 }
 
 type subCommand func(execs, *cmdConfiguration) (*cobra.Command, error)
@@ -32,6 +33,7 @@ type cmdConfiguration struct {
 	dbconn        database.Connection
 	creds         credentials.Creds
 	configuration *config.ConfigSpec
+	logger        *log.Logger
 }
 
 const (
@@ -57,14 +59,15 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 		`,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			bindFlags(cmd, v)
+			var logger = log.New()
 			logLevel := v.GetInt("verbose")
 			switch logLevel {
 			case 0:
-				log.SetLevel(log.InfoLevel)
+				logger.SetLevel(log.InfoLevel)
 			case 1:
-				log.SetLevel(log.DebugLevel)
+				logger.SetLevel(log.DebugLevel)
 			case 2:
-				log.SetLevel(log.TraceLevel)
+				logger.SetLevel(log.TraceLevel)
 			}
 
 			// read the config file, if needed; the structure of the config differs quite some
@@ -105,6 +108,15 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 					cmdConfig.dbconn.Pass = actualConfig.Database.Credentials.Password
 				}
 				cmdConfig.configuration = actualConfig
+
+				if actualConfig.Telemetry.URL != "" {
+					// set up telemetry
+					loggerHook, err := databacklog.NewTelemetry(actualConfig.Telemetry, nil)
+					if err != nil {
+						return fmt.Errorf("unable to set up telemetry: %w", err)
+					}
+					logger.AddHook(loggerHook)
+				}
 			}
 
 			// override config with env var or CLI flag, if set
@@ -140,6 +152,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 					Domain:   v.GetString("smb-domain"),
 				},
 			}
+			cmdConfig.logger = logger
 			return nil
 		},
 	}

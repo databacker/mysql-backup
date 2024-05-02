@@ -52,6 +52,7 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/geoffgarside/ber v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect

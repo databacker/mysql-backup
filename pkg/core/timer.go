@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
-	log "github.com/sirupsen/logrus"
 )
 
 type TimerOptions struct {
@@ -164,11 +163,11 @@ func waitForCron(cronExpr string, from time.Time) (time.Duration, error) {
 	return next.Sub(from), nil
 }
 
-// TimerCommand runs a command on a timer
-func TimerCommand(timerOpts TimerOptions, cmd func() error) error {
+// Timer runs a command on a timer
+func (e *Executor) Timer(timerOpts TimerOptions, cmd func() error) error {
 	c, err := Timer(timerOpts)
 	if err != nil {
-		log.Errorf("error creating timer: %v", err)
+		e.Logger.Errorf("error creating timer: %v", err)
 		os.Exit(1)
 	}
 	// block and wait for it
