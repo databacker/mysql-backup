@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"net/url"
 	"testing"
 
@@ -49,6 +50,7 @@ func TestRestoreCmd(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			cmd.SetOutput(io.Discard)
 			cmd.SetArgs(append([]string{"restore"}, tt.args...))
 			err = cmd.Execute()
 			switch {

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"net/url"
 	"testing"
 
@@ -140,6 +141,7 @@ func TestDumpCmd(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			cmd.SetOutput(io.Discard)
 			cmd.SetArgs(append([]string{"dump"}, tt.args...))
 			err = cmd.Execute()
 			switch {
