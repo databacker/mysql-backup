@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"net/url"
 	"testing"
 
@@ -43,6 +44,7 @@ func TestPruneCmd(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			cmd.SetOutput(io.Discard)
 			cmd.SetArgs(append([]string{"prune"}, tt.args...))
 			err = cmd.Execute()
 			switch {
