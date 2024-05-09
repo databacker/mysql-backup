@@ -13,7 +13,8 @@ The environment variables, CLI flag options and config file options are similar,
 due to variances in how the various are structured. As a general rule:
 
 * Environment variables are all uppercase, with words separated by underscores, and most start with `DB_DUMP`. For example, `DB_DUMP_FREQ=60`.
-* CLI flags are all lowercase, with words separated by hyphens. Since the CLI has sub-commands, the `dump-` and `restore-` are unnecessary. For example, `mysql-backup dump --frequency=60` or `mysql-backup restore --target=/foo/file.gz`.
+* CLI flags are all lowercase, with words separated by hyphens, a.k.a. kebab-case. Since the CLI has sub-commands, the `dump-` and `restore-` are unnecessary. For example, `mysql-backup dump --frequency=60` or `mysql-backup restore --target=/foo/file.gz`.
+* Config file keys are camelCase, for example, `dump.maxAllowedPacket=6000`.
 
 For example, the following are equivalent.
 
@@ -69,7 +70,7 @@ The following are the environment variables, CLI flags and configuration file op
 | password for the database | BR | `pass` | `DB_PASS` | `database.credentials.password` |  |
 | names of databases to dump, comma-separated | B | `include` | `DB_NAMES` | `dump.include` | all databases in the server |
 | names of databases to exclude from the dump | B | `exclude` | `DB_NAMES_EXCLUDE` | `dump.exclude` |  |
-| do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `dump.no-database-name` | `false` |
+| do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |
 | restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
 | how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQ` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
 | what time to do the first dump or prune | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
@@ -79,19 +80,19 @@ The following are the environment variables, CLI flags and configuration file op
 | where to put the dump file; see [backup](./backup.md) | BP | `dump --target` | `DB_DUMP_TARGET` | `dump.targets` |  |
 | where the restore file exists; see [restore](./restore.md) | R | `restore --target` | `DB_RESTORE_TARGET` | `restore.target` |  |
 | replace any `:` in the dump filename with `-` | BP | `dump --safechars` | `DB_DUMP_SAFECHARS` | `database.safechars` | `false` |
-| AWS access key ID, used only if a target does not have one | BRP | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].credentials.access-key-id` |  |
-| AWS secret access key, used only if a target does not have one | BRP | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].credentials.secret-access-key` |  |
+| AWS access key ID, used only if a target does not have one | BRP | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].accessKeyId` |  |
+| AWS secret access key, used only if a target does not have one | BRP | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].secretAccessKey` |  |
 | AWS default region, used only if a target does not have one | BRP | `aws-region` | `AWS_REGION` | `dump.targets[s3-target].region` |  |
 | alternative endpoint URL for S3-interoperable systems, used only if a target does not have one | BR | `aws-endpoint-url` | `AWS_ENDPOINT_URL` | `dump.targets[s3-target].endpoint` |  |
-| SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].credentials.username` |  |
-| SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].credentials.password` |  |
+| SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].username` |  |
+| SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].password` |  |
 | compression to use, one of: `bzip2`, `gzip` | BP | `compression` | `DB_DUMP_COMPRESSION` | `dump.compression` | `gzip` |
 | when in container, run the dump or restore with `nice`/`ionice` | BR | `` | `NICE` | `` | `false` |
-| filename to save the target backup file | B | `dump --filename-pattern` | `DB_DUMP_FILENAME_PATTERN` | `dump.filename-pattern` |  |
-| directory with scripts to execute before backup | B | `dump --pre-backup-scripts` | `DB_DUMP_PRE_BACKUP_SCRIPTS` | `dump.scripts.pre-backup` | in container, `/scripts.d/pre-backup/` |
-| directory with scripts to execute after backup | B | `dump --post-backup-scripts` | `DB_DUMP_POST_BACKUP_SCRIPTS` | `dump.scripts.post-backup` | in container, `/scripts.d/post-backup/` |
-| directory with scripts to execute before restore | R | `restore --pre-restore-scripts` | `DB_DUMP_PRE_RESTORE_SCRIPTS` | `restore.pre-restore-scripts` | in container, `/scripts.d/pre-restore/` |
-| directory with scripts to execute after restore | R | `restore --post-restore-scripts` | `DB_DUMP_POST_RESTORE_SCRIPTS` | `restore.post-restore-scripts` | in container, `/scripts.d/post-restore/` |
+| filename to save the target backup file | B | `dump --filename-pattern` | `DB_DUMP_FILENAME_PATTERN` | `dump.filenamePattern` |  |
+| directory with scripts to execute before backup | B | `dump --pre-backup-scripts` | `DB_DUMP_PRE_BACKUP_SCRIPTS` | `dump.scripts.preBackup` | in container, `/scripts.d/pre-backup/` |
+| directory with scripts to execute after backup | B | `dump --post-backup-scripts` | `DB_DUMP_POST_BACKUP_SCRIPTS` | `dump.scripts.postBackup` | in container, `/scripts.d/post-backup/` |
+| directory with scripts to execute before restore | R | `restore --pre-restore-scripts` | `DB_DUMP_PRE_RESTORE_SCRIPTS` | `restore.scripts.preRestore` | in container, `/scripts.d/pre-restore/` |
+| directory with scripts to execute after restore | R | `restore --post-restore-scripts` | `DB_DUMP_POST_RESTORE_SCRIPTS` | `restore.scripts.postRestore` | in container, `/scripts.d/post-restore/` |
 | retention policy for backups | BP | `dump --retention` | `RETENTION` | `prune.retention` | Infinite |
 
 ## Configuration File
@@ -125,7 +126,7 @@ for details of each.
   * `include`: list of tables to include
   * `exclude`: list of tables to exclude
   * `safechars`: safe characters in filename
-  * `no-database-name`: remove `USE <database>` from dumpfile
+  * `noDatabaseName`: remove `USE <database>` from dumpfile
   * `schedule`: the schedule configuration
     * `frequency`: the frequency of the schedule
     * `begin`: the time to begin the schedule
@@ -133,16 +134,16 @@ for details of each.
     * `once`: run once and exit
   * `compression`: the compression to use
   * `compact`: compact the dump
-  * `max-allowed-packet`: max packet size
-  * `filename-pattern`: the filename pattern
+  * `maxAllowedPacket`: max packet size
+  * `filenamePattern`: the filename pattern
   * `scripts`:
-    * `pre-backup`: path to directory with pre-backup scripts
-    * `post-backup`: path to directory with post-backup scripts
+    * `preBackup`: path to directory with pre-backup scripts
+    * `postBackup`: path to directory with post-backup scripts
   * `targets`: list of names of known targets, defined in the `targets` section, where to save the backup
 * `restore`: the restore configuration
   * `scripts`:
-    * `pre-restore`: path to directory with pre-restore scripts
-    * `post-restore`: path to directory with post-restore scripts
+    * `preRestore`: path to directory with pre-restore scripts
+    * `postRestore`: path to directory with post-restore scripts
 * `database`: the database configuration
   * `server`: host:port
   * `port`: port (deprecated)
@@ -154,12 +155,12 @@ for details of each.
 * `targets`: target configurations, each of which can be reference by other sections. Key is the name of the target that is referenced elsewhere. Each one has the following structure:
   * `type`: the type of target, one of: file, s3, smb
   * `url`: the URL of the target
-  * `details`: access details for the target, depends on target type:
+  * `spec`: access details for the target, depends on target type:
     * Type s3:
       * `region`: the region
       * `endpoint`: the endpoint
-      * `access-key-id`: the access key ID (s3)
-      * `secret-access-key`: the secret access key (s3)
+      * `accessKeyId`: the access key ID (s3)
+      * `secretAccessKey`: the secret access key (s3)
     * Type smb:
       * `domain`: the domain (smb)
       * `username`: the username (smb)
