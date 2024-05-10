@@ -26,12 +26,12 @@ type Dump struct {
 	Include          []string      `yaml:"include"`
 	Exclude          []string      `yaml:"exclude"`
 	Safechars        bool          `yaml:"safechars"`
-	NoDatabaseName   bool          `yaml:"no-database-name"`
+	NoDatabaseName   bool          `yaml:"noDatabaseName"`
 	Schedule         Schedule      `yaml:"schedule"`
 	Compression      string        `yaml:"compression"`
 	Compact          bool          `yaml:"compact"`
-	MaxAllowedPacket int           `yaml:"max-allowed-packet"`
-	FilenamePattern  string        `yaml:"filename-pattern"`
+	MaxAllowedPacket int           `yaml:"maxAllowedPacket"`
+	FilenamePattern  string        `yaml:"filenamePattern"`
 	Scripts          BackupScripts `yaml:"scripts"`
 	Targets          []string      `yaml:"targets"`
 }
@@ -48,8 +48,8 @@ type Schedule struct {
 }
 
 type BackupScripts struct {
-	PreBackup  string `yaml:"pre-backup"`
-	PostBackup string `yaml:"post-backup"`
+	PreBackup  string `yaml:"preBackup"`
+	PostBackup string `yaml:"postBackup"`
 }
 
 type Restore struct {
@@ -57,8 +57,8 @@ type Restore struct {
 }
 
 type RestoreScripts struct {
-	PreRestore  string `yaml:"pre-restore"`
-	PostRestore string `yaml:"post-restore"`
+	PreRestore  string `yaml:"preRestore"`
+	PostRestore string `yaml:"postRestore"`
 }
 
 type Database struct {
@@ -76,7 +76,7 @@ type Telemetry struct {
 	remote.Connection
 	// BufferSize is the size of the buffer for telemetry messages. It keeps BufferSize messages
 	// in memory before sending them remotely. The default of 0 is the same as 1, i.e. send every message.
-	BufferSize int `yaml:"buffer-size"`
+	BufferSize int `yaml:"bufferSize"`
 }
 
 var _ yaml.Unmarshaler = &Target{}
@@ -159,8 +159,8 @@ func (s S3Target) Storage() (storage.Storage, error) {
 }
 
 type AWSCredentials struct {
-	AccessKeyId     string `yaml:"access-key-id"`
-	SecretAccessKey string `yaml:"secret-access-key"`
+	AccessKeyId     string `yaml:"accessKeyId"`
+	SecretAccessKey string `yaml:"secretAccessKey"`
 }
 
 type SMBTarget struct {

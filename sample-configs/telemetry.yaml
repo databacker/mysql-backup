@@ -35,7 +35,7 @@ spec:
       - table3
       - table4
     safechars: true # defaults to false
-    no-database-name: false # remove the `USE <database>` statement from backup files, defaults to false
+    noDatabaseName: false # remove the `USE <database>` statement from backup files, defaults to false
     # schedule to dump, can use one of: cron, frequency, once. If frequency is set, begin will be checked
     schedule:
       once: true # run only once and exit; ignores all other scheduling. Defaults to false
@@ -43,10 +43,10 @@ spec:
       frequency: 1440 # in minutes
       begin: 25 # minutes from initialization
     compression: gzip # defaults to gzip
-    filename-pattern: db_backup_{{ .now }}.{{ .compression }}
+    filenamePattern: db_backup_{{ .now }}.{{ .compression }}
     scripts:
-      pre-backup: /path/to/prescripts/
-      post-backup: /path/to/postscripts/
+      preBackup: /path/to/prescripts/
+      postBackup: /path/to/postscripts/
     # list of named targets to backup to, from the index below
     targets:
       - s3
@@ -56,8 +56,8 @@ spec:
 
   restore:
     scripts:
-      pre-restore: /path/to/prescripts/
-      post-restore: /path/to/postscripts/
+      preRestore: /path/to/prescripts/
+      postRestore: /path/to/postscripts/
 
   # database configuration
   database:
@@ -75,8 +75,8 @@ spec:
       region: us-west-1
       endpoint: https://s3.us-west-1.amazonaws.com
       credentials:
-        access-key-id: access_key_id
-        secret-access-key: secret_access_key
+        accessKeyId: access_key_id
+        secretAccessKey: secret_access_key
     file:
       type: file
       url: file:///tmp/databackup
