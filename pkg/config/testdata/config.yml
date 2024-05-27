@@ -1,0 +1,25 @@
+version: config.databack.io/v1
+kind: local
+
+spec: 
+  database:
+    server: abcd
+    port: 3306
+    credentials:
+      username: user2
+      password: xxxx2
+
+  targets:
+    local:
+      type: file
+      url: file:///foo/bar
+    other:
+      type: file
+      url: /foo/bar
+
+  dump:
+    targets:
+    - local
+
+  prune:
+    retention: "1h"

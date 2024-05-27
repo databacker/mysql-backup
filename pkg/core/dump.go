@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -10,15 +11,23 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/databacker/mysql-backup/pkg/archive"
 	"github.com/databacker/mysql-backup/pkg/database"
+	"github.com/databacker/mysql-backup/pkg/util"
 )
 
 // Dump run a single dump, based on the provided opts
-func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
+func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, error) {
 	results := DumpResults{Start: time.Now()}
-	defer func() { results.End = time.Now() }()
+	tracer := util.GetTracerFromContext(ctx)
+	ctx, span := tracer.Start(ctx, "dump")
+	defer func() {
+		results.End = time.Now()
+		span.End()
+	}()
 
 	targets := opts.Targets
 	safechars := opts.Safechars
@@ -41,6 +50,7 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 		timepart = strings.ReplaceAll(timepart, ":", "-")
 	}
 	results.Timestamp = timepart
+	span.SetAttributes(attribute.String("timestamp", timepart))
 
 	// sourceFilename: file that the uploader looks for when performing the upload
 	// targetFilename: the remote file that is actually uploaded
@@ -49,6 +59,7 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 	if err != nil {
 		return results, fmt.Errorf("failed to process filename pattern: %v", err)
 	}
+	span.SetAttributes(attribute.String("source-filename", sourceFilename), attribute.String("target-filename", targetFilename))
 
 	// create a temporary working directory
 	tmpdir, err := os.MkdirTemp("", "databacker_backup")
@@ -57,7 +68,7 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 	}
 	defer os.RemoveAll(tmpdir)
 	// execute pre-backup scripts if any
-	if err := preBackup(timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PreBackupScripts, logger.Level == log.DebugLevel); err != nil {
+	if err := preBackup(ctx, timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PreBackupScripts, logger.Level == log.DebugLevel); err != nil {
 		return results, fmt.Errorf("error running pre-restore: %v", err)
 	}
 
@@ -70,12 +81,14 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 
 	dw := make([]database.DumpWriter, 0)
 
-	// do we split the output by schema, or one big dump file?
+	// do we back up all schemas, or just provided ones
+	span.SetAttributes(attribute.Bool("provided-schemas", len(dbnames) == 0))
 	if len(dbnames) == 0 {
 		if dbnames, err = database.GetSchemas(dbconn); err != nil {
 			return results, fmt.Errorf("failed to list database schemas: %v", err)
 		}
 	}
+	span.SetAttributes(attribute.StringSlice("actual-schemas", dbnames))
 	for _, s := range dbnames {
 		outFile := path.Join(workdir, fmt.Sprintf("%s_%s.sql", s, timepart))
 		f, err := os.Create(outFile)
@@ -88,45 +101,62 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 		})
 	}
 	results.DumpStart = time.Now()
-	if err := database.Dump(dbconn, database.DumpOpts{
+	dbDumpCtx, dbDumpSpan := tracer.Start(ctx, "database_dump")
+	if err := database.Dump(dbDumpCtx, dbconn, database.DumpOpts{
 		Compact:             compact,
 		SuppressUseDatabase: suppressUseDatabase,
 		MaxAllowedPacket:    maxAllowedPacket,
 	}, dw); err != nil {
+		dbDumpSpan.SetStatus(codes.Error, err.Error())
+		dbDumpSpan.End()
 		return results, fmt.Errorf("failed to dump database: %v", err)
 	}
 	results.DumpEnd = time.Now()
+	dbDumpSpan.SetStatus(codes.Ok, "completed")
+	dbDumpSpan.End()
 
 	// create my tar writer to archive it all together
 	// WRONG: THIS WILL CAUSE IT TO TRY TO LOOP BACK ON ITSELF
+	_, tarSpan := tracer.Start(ctx, "output_tar")
 	outFile := path.Join(tmpdir, sourceFilename)
 	f, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
+		tarSpan.SetStatus(codes.Error, err.Error())
+		tarSpan.End()
 		return results, fmt.Errorf("failed to open output file '%s': %v", outFile, err)
 	}
 	defer f.Close()
 	cw, err := compressor.Compress(f)
 	if err != nil {
+		tarSpan.SetStatus(codes.Error, err.Error())
+		tarSpan.End()
 		return results, fmt.Errorf("failed to create compressor: %v", err)
 	}
 	if err := archive.Tar(workdir, cw); err != nil {
+		tarSpan.SetStatus(codes.Error, err.Error())
+		tarSpan.End()
 		return results, fmt.Errorf("error creating the compressed archive: %v", err)
 	}
 	// we need to close it explicitly before moving ahead
 	f.Close()
+	tarSpan.SetStatus(codes.Ok, "completed")
+	tarSpan.End()
 
 	// execute post-backup scripts if any
-	if err := postBackup(timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PostBackupScripts, logger.Level == log.DebugLevel); err != nil {
+	if err := postBackup(ctx, timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PostBackupScripts, logger.Level == log.DebugLevel); err != nil {
 		return results, fmt.Errorf("error running pre-restore: %v", err)
 	}
 
 	// upload to each destination
+	uploadCtx, uploadSpan := tracer.Start(ctx, "upload")
 	for _, t := range targets {
 		uploadResult := UploadResult{Target: t.URL(), Start: time.Now()}
 		targetCleanFilename := t.Clean(targetFilename)
 		logger.Debugf("uploading via protocol %s from %s to %s", t.Protocol(), sourceFilename, targetCleanFilename)
-		copied, err := t.Push(targetCleanFilename, filepath.Join(tmpdir, sourceFilename), logger)
+		copied, err := t.Push(uploadCtx, targetCleanFilename, filepath.Join(tmpdir, sourceFilename), logger)
 		if err != nil {
+			uploadSpan.SetStatus(codes.Error, err.Error())
+			uploadSpan.End()
 			return results, fmt.Errorf("failed to push file: %v", err)
 		}
 		logger.Debugf("completed copying %d bytes", copied)
@@ -134,12 +164,14 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 		uploadResult.End = time.Now()
 		results.Uploads = append(results.Uploads, uploadResult)
 	}
+	uploadSpan.SetStatus(codes.Ok, "completed")
+	uploadSpan.End()
 
 	return results, nil
 }
 
 // run pre-backup scripts, if they exist
-func preBackup(timestamp, dumpfile, dumpdir, preBackupDir string, debug bool) error {
+func preBackup(ctx context.Context, timestamp, dumpfile, dumpdir, preBackupDir string, debug bool) error {
 	// construct any additional environment
 	env := map[string]string{
 		"NOW":           timestamp,
@@ -147,10 +179,12 @@ func preBackup(timestamp, dumpfile, dumpdir, preBackupDir string, debug bool) er
 		"DUMPDIR":       dumpdir,
 		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
 	}
-	return runScripts(preBackupDir, env)
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "pre-backup")
+	defer span.End()
+	return runScripts(ctx, preBackupDir, env)
 }
 
-func postBackup(timestamp, dumpfile, dumpdir, postBackupDir string, debug bool) error {
+func postBackup(ctx context.Context, timestamp, dumpfile, dumpdir, postBackupDir string, debug bool) error {
 	// construct any additional environment
 	env := map[string]string{
 		"NOW":           timestamp,
@@ -158,7 +192,9 @@ func postBackup(timestamp, dumpfile, dumpdir, postBackupDir string, debug bool) 
 		"DUMPDIR":       dumpdir,
 		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
 	}
-	return runScripts(postBackupDir, env)
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "post-backup")
+	defer span.End()
+	return runScripts(ctx, postBackupDir, env)
 }
 
 // ProcessFilenamePattern takes a template pattern and processes it with the current time.

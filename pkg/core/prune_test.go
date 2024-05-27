@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -75,8 +76,9 @@ func TestPrune(t *testing.T) {
 		afterFiles  []string
 		err         error
 	}{
-		{"invalid format", PruneOptions{Retention: "100x", Now: now}, nil, nil, fmt.Errorf("invalid retention string: 100x")},
 		{"no targets", PruneOptions{Retention: "1h", Now: now}, nil, nil, fmt.Errorf("no targets")},
+		// 1 hour - file[1] is 1h+30m = 1.5h, so it should be pruned
+		{"invalid format", PruneOptions{Retention: "100x", Now: now}, filenames, filenames[0:1], fmt.Errorf("invalid retention string: 100x")},
 		// 1 hour - file[1] is 1h+30m = 1.5h, so it should be pruned
 		{"1 hour", PruneOptions{Retention: "1h", Now: now}, filenames, filenames[0:1], nil},
 		// 2 hours - file[2] is 2h+30m = 2.5h, so it should be pruned
@@ -96,6 +98,7 @@ func TestPrune(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			// create a temporary directory
 			workDir := t.TempDir()
 			// create beforeFiles in the directory and create a target, but only if there are beforeFiles
@@ -124,12 +127,14 @@ func TestPrune(t *testing.T) {
 			executor := Executor{
 				Logger: logger,
 			}
-			err := executor.Prune(tt.opts)
+			err := executor.Prune(ctx, tt.opts)
 			switch {
 			case (err == nil && tt.err != nil) || (err != nil && tt.err == nil):
 				t.Errorf("expected error %v, got %v", tt.err, err)
 			case err != nil && tt.err != nil && err.Error() != tt.err.Error():
 				t.Errorf("expected error %v, got %v", tt.err, err)
+			case err != nil:
+				return
 			}
 			// check files match
 			files, err := os.ReadDir(workDir)

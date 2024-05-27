@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"reflect"
 
 	"github.com/databacker/mysql-backup/pkg/core"
@@ -19,17 +20,17 @@ func newMockExecs() *mockExecs {
 	return m
 }
 
-func (m *mockExecs) Dump(opts core.DumpOptions) (core.DumpResults, error) {
+func (m *mockExecs) Dump(ctx context.Context, opts core.DumpOptions) (core.DumpResults, error) {
 	args := m.Called(opts)
 	return core.DumpResults{}, args.Error(0)
 }
 
-func (m *mockExecs) Restore(opts core.RestoreOptions) error {
+func (m *mockExecs) Restore(ctx context.Context, opts core.RestoreOptions) error {
 	args := m.Called(opts)
 	return args.Error(0)
 }
 
-func (m *mockExecs) Prune(opts core.PruneOptions) error {
+func (m *mockExecs) Prune(ctx context.Context, opts core.PruneOptions) error {
 	args := m.Called(opts)
 	return args.Error(0)
 }

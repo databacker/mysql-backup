@@ -1,6 +1,7 @@
 package smb
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -50,7 +51,7 @@ func New(u url.URL, opts ...Option) *SMB {
 	return s
 }
 
-func (s *SMB) Pull(source, target string, logger *log.Entry) (int64, error) {
+func (s *SMB) Pull(ctx context.Context, source, target string, logger *log.Entry) (int64, error) {
 	var (
 		copied int64
 		err    error
@@ -74,7 +75,7 @@ func (s *SMB) Pull(source, target string, logger *log.Entry) (int64, error) {
 	return copied, err
 }
 
-func (s *SMB) Push(target, source string, logger *log.Entry) (int64, error) {
+func (s *SMB) Push(ctx context.Context, target, source string, logger *log.Entry) (int64, error) {
 	var (
 		copied int64
 		err    error
@@ -109,7 +110,7 @@ func (s *SMB) URL() string {
 	return s.url.String()
 }
 
-func (s *SMB) ReadDir(dirname string, logger *log.Entry) ([]os.FileInfo, error) {
+func (s *SMB) ReadDir(ctx context.Context, dirname string, logger *log.Entry) ([]os.FileInfo, error) {
 	var (
 		err   error
 		infos []os.FileInfo
@@ -121,7 +122,7 @@ func (s *SMB) ReadDir(dirname string, logger *log.Entry) ([]os.FileInfo, error) 
 	return infos, err
 }
 
-func (s *SMB) Remove(target string, logger *log.Entry) error {
+func (s *SMB) Remove(ctx context.Context, target string, logger *log.Entry) error {
 	return s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
 		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
 		return fs.Remove(smbFilename)

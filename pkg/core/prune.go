@@ -1,119 +1,148 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/databacker/mysql-backup/pkg/storage"
+	"github.com/databacker/mysql-backup/pkg/util"
+	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // filenameRE is a regular expression to match a backup filename
 var filenameRE = regexp.MustCompile(`^db_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2})[:-](\d{2})[:-](\d{2})Z\.\w+$`)
 
 // Prune prune older backups
-func (e *Executor) Prune(opts PruneOptions) error {
+func (e *Executor) Prune(ctx context.Context, opts PruneOptions) error {
+	tracer := util.GetTracerFromContext(ctx)
+	tracerCtx, span := tracer.Start(ctx, "prune")
+	defer span.End()
 	logger := e.Logger.WithField("run", opts.Run.String())
 	logger.Level = e.Logger.Level
 	logger.Info("beginning prune")
 	var (
-		candidates []string
-		now        = opts.Now
+		now = opts.Now
 	)
 	if now.IsZero() {
 		now = time.Now()
-	}
-	retainHours, err1 := convertToHours(opts.Retention)
-	retainCount, err2 := convertToCount(opts.Retention)
-	if err1 != nil && err2 != nil {
-		return fmt.Errorf("invalid retention string: %s", opts.Retention)
 	}
 	if len(opts.Targets) == 0 {
 		return errors.New("no targets")
 	}
 
-	for _, target := range opts.Targets {
-		var pruned int
-
-		logger.Debugf("pruning target %s", target)
-		files, err := target.ReadDir(".", logger)
-		if err != nil {
-			return fmt.Errorf("failed to read directory: %v", err)
-		}
-
-		// create a slice with the filenames and their calculated times - these are *not* the timestamp times, but the times calculated from the filenames
-		var filesWithTimes []fileWithTime
-
-		for _, fileInfo := range files {
-			filename := fileInfo.Name()
-			matches := filenameRE.FindStringSubmatch(filename)
-			if matches == nil {
-				logger.Debugf("ignoring filename that is not standard backup pattern: %s", filename)
-				continue
-			}
-			logger.Debugf("checking filename that is standard backup pattern: %s", filename)
-
-			// Parse the date from the filename
-			year, month, day, hour, minute, second := matches[1], matches[2], matches[3], matches[4], matches[5], matches[6]
-			dateTimeStr := fmt.Sprintf("%s-%s-%sT%s:%s:%sZ", year, month, day, hour, minute, second)
-			filetime, err := time.Parse(time.RFC3339, dateTimeStr)
-			if err != nil {
-				logger.Debugf("Error parsing date from filename %s: %v; ignoring", filename, err)
-				continue
-			}
-			filesWithTimes = append(filesWithTimes, fileWithTime{
-				filename: filename,
-				filetime: filetime,
-			})
-		}
-
-		switch {
-		case retainHours > 0:
-			// if we had retainHours, we go through all of the files and find any whose timestamp is older than now-retainHours
-			for _, f := range filesWithTimes {
-				// Check if the file is within 'retain' hours from 'now'
-				age := now.Sub(f.filetime).Hours()
-				if age < float64(retainHours) {
-					logger.Debugf("file %s is %f hours old", f.filename, age)
-					logger.Debugf("keeping file %s", f.filename)
-					continue
-				}
-				logger.Debugf("Adding candidate file: %s", f.filename)
-				candidates = append(candidates, f.filename)
-			}
-		case retainCount > 0:
-			// if we had retainCount, we sort all of the files by timestamp, and add to the list all except the retainCount most recent
-			slices.SortFunc(filesWithTimes, func(i, j fileWithTime) int {
-				switch {
-				case i.filetime.Before(j.filetime):
-					return -1
-				case i.filetime.After(j.filetime):
-					return 1
-				}
-				return 0
-			})
-			slices.Reverse(filesWithTimes)
-			if retainCount >= len(filesWithTimes) {
-				for i := 0 + retainCount; i < len(filesWithTimes); i++ {
-					logger.Debugf("Adding candidate file %s:", filesWithTimes[i].filename)
-					candidates = append(candidates, filesWithTimes[i].filename)
-				}
-			}
-		default:
-			return fmt.Errorf("invalid retention string: %s", opts.Retention)
-		}
-
-		// we have the list, remove them all
-		for _, filename := range candidates {
-			if err := target.Remove(filename, logger); err != nil {
-				return fmt.Errorf("failed to remove file %s: %v", filename, err)
-			}
-			pruned++
-		}
-		logger.Debugf("pruning %d files from target %s", pruned, target)
+	retainHours, err1 := convertToHours(opts.Retention)
+	retainCount, err2 := convertToCount(opts.Retention)
+	if (err1 != nil && err2 != nil) || (retainHours <= 0 && retainCount <= 0) {
+		return fmt.Errorf("invalid retention string: %s", opts.Retention)
 	}
 
+	for _, target := range opts.Targets {
+		if err := pruneTarget(tracerCtx, logger, target, now, retainHours, retainCount); err != nil {
+			return fmt.Errorf("failed to prune target %s: %v", target, err)
+		}
+	}
+
+	return nil
+}
+
+// pruneTarget prunes an individual target
+func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Storage, now time.Time, retainHours, retainCount int) error {
+	var (
+		pruned                           int
+		candidates, ignored, invalidDate []string
+	)
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, fmt.Sprintf("pruneTarget %s", target.URL()))
+	defer span.End()
+
+	logger.Debugf("pruning target %s", target)
+	files, err := target.ReadDir(ctx, ".", logger)
+	if err != nil {
+		span.SetStatus(codes.Error, fmt.Sprintf("failed to read directory: %v", err))
+		return fmt.Errorf("failed to read directory: %v", err)
+	}
+
+	// create a slice with the filenames and their calculated times - these are *not* the timestamp times, but the times calculated from the filenames
+	var filesWithTimes []fileWithTime
+
+	for _, fileInfo := range files {
+		filename := fileInfo.Name()
+		matches := filenameRE.FindStringSubmatch(filename)
+		if matches == nil {
+			logger.Debugf("ignoring filename that is not standard backup pattern: %s", filename)
+			ignored = append(ignored, filename)
+			continue
+		}
+		logger.Debugf("checking filename that is standard backup pattern: %s", filename)
+
+		// Parse the date from the filename
+		year, month, day, hour, minute, second := matches[1], matches[2], matches[3], matches[4], matches[5], matches[6]
+		dateTimeStr := fmt.Sprintf("%s-%s-%sT%s:%s:%sZ", year, month, day, hour, minute, second)
+		filetime, err := time.Parse(time.RFC3339, dateTimeStr)
+		if err != nil {
+			logger.Debugf("Error parsing date from filename %s: %v; ignoring", filename, err)
+			invalidDate = append(invalidDate, filename)
+			continue
+		}
+		filesWithTimes = append(filesWithTimes, fileWithTime{
+			filename: filename,
+			filetime: filetime,
+		})
+	}
+
+	switch {
+	case retainHours > 0:
+		// if we had retainHours, we go through all of the files and find any whose timestamp is older than now-retainHours
+		for _, f := range filesWithTimes {
+			// Check if the file is within 'retain' hours from 'now'
+			age := now.Sub(f.filetime).Hours()
+			if age < float64(retainHours) {
+				logger.Debugf("file %s is %f hours old", f.filename, age)
+				logger.Debugf("keeping file %s", f.filename)
+				continue
+			}
+			logger.Debugf("Adding candidate file: %s", f.filename)
+			candidates = append(candidates, f.filename)
+		}
+	case retainCount > 0:
+		// if we had retainCount, we sort all of the files by timestamp, and add to the list all except the retainCount most recent
+		slices.SortFunc(filesWithTimes, func(i, j fileWithTime) int {
+			switch {
+			case i.filetime.Before(j.filetime):
+				return -1
+			case i.filetime.After(j.filetime):
+				return 1
+			}
+			return 0
+		})
+		slices.Reverse(filesWithTimes)
+		if retainCount >= len(filesWithTimes) {
+			for i := 0 + retainCount; i < len(filesWithTimes); i++ {
+				logger.Debugf("Adding candidate file %s:", filesWithTimes[i].filename)
+				candidates = append(candidates, filesWithTimes[i].filename)
+			}
+		}
+	default:
+		span.SetStatus(codes.Error, "invalid retention time")
+		return fmt.Errorf("invalid retention time %d count %d hours", retainCount, retainHours)
+	}
+
+	// we have the list, remove them all
+	span.SetAttributes(attribute.StringSlice("candidates", candidates), attribute.StringSlice("ignored", ignored), attribute.StringSlice("invalidDate", invalidDate))
+	for _, filename := range candidates {
+		if err := target.Remove(ctx, filename, logger); err != nil {
+			return fmt.Errorf("failed to remove file %s: %v", filename, err)
+		}
+		pruned++
+	}
+	logger.Debugf("pruning %d files from target %s", pruned, target)
+	span.SetStatus(codes.Ok, fmt.Sprintf("pruned %d files", pruned))
 	return nil
 }
 

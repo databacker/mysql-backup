@@ -65,7 +65,7 @@ func New(u url.URL, opts ...Option) *S3 {
 	return s
 }
 
-func (s *S3) Pull(source, target string, logger *log.Entry) (int64, error) {
+func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry) (int64, error) {
 	// get the s3 client
 	client, err := s.getClient(logger)
 	if err != nil {
@@ -95,7 +95,7 @@ func (s *S3) Pull(source, target string, logger *log.Entry) (int64, error) {
 	return n, nil
 }
 
-func (s *S3) Push(target, source string, logger *log.Entry) (int64, error) {
+func (s *S3) Push(ctx context.Context, target, source string, logger *log.Entry) (int64, error) {
 	// get the s3 client
 	client, err := s.getClient(logger)
 	if err != nil {
@@ -142,7 +142,7 @@ func (s *S3) URL() string {
 	return s.url.String()
 }
 
-func (s *S3) ReadDir(dirname string, logger *log.Entry) ([]fs.FileInfo, error) {
+func (s *S3) ReadDir(ctx context.Context, dirname string, logger *log.Entry) ([]fs.FileInfo, error) {
 	// get the s3 client
 	client, err := s.getClient(logger)
 	if err != nil {
@@ -168,7 +168,7 @@ func (s *S3) ReadDir(dirname string, logger *log.Entry) ([]fs.FileInfo, error) {
 	return files, nil
 }
 
-func (s *S3) Remove(target string, logger *log.Entry) error {
+func (s *S3) Remove(ctx context.Context, target string, logger *log.Entry) error {
 	// Get the AWS client
 	client, err := s.getClient(logger)
 	if err != nil {
