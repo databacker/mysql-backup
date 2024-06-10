@@ -210,9 +210,49 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 		if key != 0 {
 			b.WriteString(",")
 		}
+		// Scan() returns all of the following types, according to https://pkg.go.dev/database/sql#Rows.Scan
+		//*string
+		//*[]byte
+		//*int, *int8, *int16, *int32, *int64
+		//*uint, *uint8, *uint16, *uint32, *uint64
+		//*bool
+		//*float32, *float64
+		//*interface{}
+		//*RawBytes
+		//*Rows (cursor value)
+		//any type implementing Scanner (see Scanner docs) (i.e. the Null* types)
+
 		switch s := value.(type) {
 		case nil:
 			b.WriteString(nullType)
+		case *string:
+			fmt.Fprintf(&b, "'%s'", sanitize(*s))
+		case *int:
+			fmt.Fprintf(&b, "%d", *s)
+		case *int8:
+			fmt.Fprintf(&b, "%d", *s)
+		case *int32:
+			fmt.Fprintf(&b, "%d", *s)
+		case *int64:
+			fmt.Fprintf(&b, "%d", *s)
+		case *uint:
+			fmt.Fprintf(&b, "%d", *s)
+		case *uint8:
+			fmt.Fprintf(&b, "%d", *s)
+		case *uint32:
+			fmt.Fprintf(&b, "%d", *s)
+		case *uint64:
+			fmt.Fprintf(&b, "%d", *s)
+		case *float32:
+			fmt.Fprintf(&b, "%f", *s)
+		case *float64:
+			fmt.Fprintf(&b, "%f", *s)
+		case *bool:
+			if *s {
+				b.WriteString("1")
+			} else {
+				b.WriteString("0")
+			}
 		case *sql.NullString:
 			if s.Valid {
 				fmt.Fprintf(&b, "'%s'", sanitize(s.String))
