@@ -231,6 +231,8 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 			fmt.Fprintf(&b, "%d", *s)
 		case *int8:
 			fmt.Fprintf(&b, "%d", *s)
+		case *int16:
+			fmt.Fprintf(&b, "%d", *s)
 		case *int32:
 			fmt.Fprintf(&b, "%d", *s)
 		case *int64:
@@ -238,6 +240,8 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 		case *uint:
 			fmt.Fprintf(&b, "%d", *s)
 		case *uint8:
+			fmt.Fprintf(&b, "%d", *s)
+		case *uint16:
 			fmt.Fprintf(&b, "%d", *s)
 		case *uint32:
 			fmt.Fprintf(&b, "%d", *s)
