@@ -179,10 +179,13 @@ func (s *S3) Remove(target string, logger *log.Entry) error {
 
 func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 	// Get the AWS config
-	var opts []func(*config.LoadOptions) error
+	var (
+		cfgOpts    []func(*config.LoadOptions) error
+		clientOpts []func(*s3.Options)
+	)
 	if s.endpoint != "" {
 		cleanEndpoint := getEndpoint(s.endpoint)
-		opts = append(opts,
+		cfgOpts = append(cfgOpts,
 			config.WithEndpointResolverWithOptions(
 				aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 					return aws.Endpoint{URL: cleanEndpoint}, nil
@@ -191,27 +194,33 @@ func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 		)
 	}
 	if logger.Level == log.TraceLevel {
-		opts = append(opts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
+		cfgOpts = append(cfgOpts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
 	}
 	if s.region != "" {
-		opts = append(opts, config.WithRegion(s.region))
+		cfgOpts = append(cfgOpts, config.WithRegion(s.region))
 	}
 	if s.accessKeyId != "" {
-		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+		cfgOpts = append(cfgOpts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			s.accessKeyId,
 			s.secretAccessKey,
 			"",
 		)))
 	}
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		opts...,
+		cfgOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %v", err)
 	}
 
+	// build client options list with path style config
+	clientOpts = append(clientOpts, func(opts *s3.Options) {
+		opts.UsePathStyle = s.pathStyle
+	})
+
 	// Create a new S3 service client
-	return s3.NewFromConfig(cfg), nil
+
+	return s3.NewFromConfig(cfg, clientOpts...), nil
 }
 
 // getEndpoint returns a clean (for AWS client) endpoint. Normally, this is unchanged,

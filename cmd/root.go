@@ -5,15 +5,16 @@ import (
 	"os"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	"github.com/databacker/mysql-backup/pkg/config"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/database"
 	databacklog "github.com/databacker/mysql-backup/pkg/log"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 type execs interface {
@@ -185,6 +186,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	pflags.String("aws-access-key-id", "", "Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-secret-access-key", "", "Secret Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-region", "", "Region for s3 and s3 interoperable systems; ignored if not using s3.")
+	pflags.Bool("aws-use-path-style", false, "Force the use of legacy path-style bucket routing; ignored if not using s3.")
 
 	// smb options
 	pflags.String("smb-user", "", "SMB username")
