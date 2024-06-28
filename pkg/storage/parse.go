@@ -48,6 +48,9 @@ func ParseURL(url string, creds credentials.Creds) (Storage, error) {
 		if creds.AWS.SecretAccessKey != "" {
 			opts = append(opts, s3.WithSecretAccessKey(creds.AWS.SecretAccessKey))
 		}
+		if creds.AWS.S3UsePathStyle {
+			opts = append(opts, s3.WithPathStyle())
+		}
 		store = s3.New(*u, opts...)
 	default:
 		return nil, fmt.Errorf("unknown url protocol: %s", u.Scheme)

@@ -16,4 +16,5 @@ type AWSCreds struct {
 	SecretAccessKey string
 	Endpoint        string
 	Region          string
+	S3UsePathStyle  bool
 }

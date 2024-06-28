@@ -57,6 +57,9 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 		AWS_ACCESS_KEY_ID: AWS Key ID
 		AWS_SECRET_ACCESS_KEY: AWS Secret Access Key
 		AWS_REGION: Region in which the bucket resides
+
+		It also supports one non-standard option:
+		AWS_S3_USE_PATH_STYLE: false
 		`,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			bindFlags(cmd, v)
@@ -146,6 +149,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 					AccessKeyID:     v.GetString("aws-access-key-id"),
 					SecretAccessKey: v.GetString("aws-secret-access-key"),
 					Region:          v.GetString("aws-region"),
+					S3UsePathStyle:  v.GetBool("aws-s3-use-path-style"),
 				},
 				SMB: credentials.SMBCreds{
 					Username: v.GetString("smb-user"),
@@ -186,7 +190,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	pflags.String("aws-access-key-id", "", "Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-secret-access-key", "", "Secret Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-region", "", "Region for s3 and s3 interoperable systems; ignored if not using s3.")
-	pflags.Bool("aws-use-path-style", false, "Force the use of legacy path-style bucket routing; ignored if not using s3.")
+	pflags.Bool("aws-s3-use-path-style", false, "Force the use of legacy path-style bucket routing; ignored if not using s3.")
 
 	// smb options
 	pflags.String("smb-user", "", "SMB username")

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// smartParse parse a url, but convert "/" into "file:///"
+// SmartParse parse a url, but convert "/" into "file:///"
 func SmartParse(raw string) (*url.URL, error) {
 	if strings.HasPrefix(raw, "/") {
 		raw = "file://" + raw
