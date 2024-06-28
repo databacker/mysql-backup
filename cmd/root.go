@@ -5,15 +5,16 @@ import (
 	"os"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+
 	"github.com/databacker/mysql-backup/pkg/config"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/database"
 	databacklog "github.com/databacker/mysql-backup/pkg/log"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 )
 
 type execs interface {
@@ -56,6 +57,9 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 		AWS_ACCESS_KEY_ID: AWS Key ID
 		AWS_SECRET_ACCESS_KEY: AWS Secret Access Key
 		AWS_REGION: Region in which the bucket resides
+
+		It also supports one non-standard option:
+		AWS_S3_USE_PATH_STYLE: false
 		`,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			bindFlags(cmd, v)
@@ -145,6 +149,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 					AccessKeyID:     v.GetString("aws-access-key-id"),
 					SecretAccessKey: v.GetString("aws-secret-access-key"),
 					Region:          v.GetString("aws-region"),
+					S3UsePathStyle:  v.GetBool("aws-s3-use-path-style"),
 				},
 				SMB: credentials.SMBCreds{
 					Username: v.GetString("smb-user"),
@@ -185,6 +190,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	pflags.String("aws-access-key-id", "", "Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-secret-access-key", "", "Secret Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-region", "", "Region for s3 and s3 interoperable systems; ignored if not using s3.")
+	pflags.Bool("aws-s3-use-path-style", false, "Force the use of legacy path-style bucket routing; ignored if not using s3.")
 
 	// smb options
 	pflags.String("smb-user", "", "SMB username")

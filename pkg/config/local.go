@@ -3,13 +3,14 @@ package config
 import (
 	"fmt"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/databacker/mysql-backup/pkg/remote"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
 	"github.com/databacker/mysql-backup/pkg/storage/s3"
 	"github.com/databacker/mysql-backup/pkg/storage/smb"
 	"github.com/databacker/mysql-backup/pkg/util"
-	"gopkg.in/yaml.v3"
 )
 
 type ConfigSpec struct {
@@ -129,11 +130,12 @@ func (t *Target) UnmarshalYAML(n *yaml.Node) error {
 }
 
 type S3Target struct {
-	Type        string         `yaml:"type"`
-	URL         string         `yaml:"url"`
-	Region      string         `yaml:"region"`
-	Endpoint    string         `yaml:"endpoint"`
-	Credentials AWSCredentials `yaml:"credentials"`
+	Type         string         `yaml:"type"`
+	URL          string         `yaml:"url"`
+	Region       string         `yaml:"region"`
+	Endpoint     string         `yaml:"endpoint"`
+	Credentials  AWSCredentials `yaml:"credentials"`
+	UsePathStyle bool           `yaml:"usePathStyle"`
 }
 
 func (s S3Target) Storage() (storage.Storage, error) {
@@ -147,6 +149,9 @@ func (s S3Target) Storage() (storage.Storage, error) {
 	}
 	if s.Endpoint != "" {
 		opts = append(opts, s3.WithEndpoint(s.Endpoint))
+	}
+	if s.UsePathStyle {
+		opts = append(opts, s3.WithPathStyle())
 	}
 	if s.Credentials.AccessKeyId != "" {
 		opts = append(opts, s3.WithAccessKeyId(s.Credentials.AccessKeyId))

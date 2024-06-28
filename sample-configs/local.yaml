@@ -61,6 +61,7 @@ spec:
       details:
         region: us-west-1
         endpoint: https://s3.us-west-1.amazonaws.com
+        usePathStyle: false
         accessKeyId: access_key_id
         secretAccessKey: secret_access_key
     file:

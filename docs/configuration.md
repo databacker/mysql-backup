@@ -61,39 +61,40 @@ Various sample configuration files are available in the [sample-configs](../samp
 
 The following are the environment variables, CLI flags and configuration file options for: backup(B), restore (R), prune (P).
 
-| Purpose | Backup / Restore / Prune | CLI Flag | Env Var | Config Key | Default |
-| --- | --- | --- | --- | --- | --- |
-| config file path | BRP | `config` | `DB_DUMP_CONFIG` |  |  |
-| hostname or unix domain socket path (starting with a slash) to connect to database. Required. | BR | `server` | `DB_SERVER` | `database.server` |  |
-| port to use to connect to database. Optional. | BR | `port` | `DB_PORT` | `database.port` | 3306 |
-| username for the database | BR | `user` | `DB_USER` | `database.credentials.username` |  |
-| password for the database | BR | `pass` | `DB_PASS` | `database.credentials.password` |  |
-| names of databases to dump, comma-separated | B | `include` | `DB_NAMES` | `dump.include` | all databases in the server |
-| names of databases to exclude from the dump | B | `exclude` | `DB_NAMES_EXCLUDE` | `dump.exclude` |  |
-| do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |
-| restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
-| how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQ` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
-| what time to do the first dump or prune | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
-| cron schedule for dumps or prunes | BP | `dump --cron` | `DB_DUMP_CRON` | `dump.schedule.cron` |  |
-| run the backup or prune a single time and exit | BP | `dump --once` | `RUN_ONCE` | `dump.schedule.once` | `false` |
-| enable debug logging | BRP | `debug` | `DEBUG` | `logging` | `false` |
-| where to put the dump file; see [backup](./backup.md) | BP | `dump --target` | `DB_DUMP_TARGET` | `dump.targets` |  |
-| where the restore file exists; see [restore](./restore.md) | R | `restore --target` | `DB_RESTORE_TARGET` | `restore.target` |  |
-| replace any `:` in the dump filename with `-` | BP | `dump --safechars` | `DB_DUMP_SAFECHARS` | `database.safechars` | `false` |
-| AWS access key ID, used only if a target does not have one | BRP | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].accessKeyId` |  |
-| AWS secret access key, used only if a target does not have one | BRP | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].secretAccessKey` |  |
-| AWS default region, used only if a target does not have one | BRP | `aws-region` | `AWS_REGION` | `dump.targets[s3-target].region` |  |
-| alternative endpoint URL for S3-interoperable systems, used only if a target does not have one | BR | `aws-endpoint-url` | `AWS_ENDPOINT_URL` | `dump.targets[s3-target].endpoint` |  |
-| SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].username` |  |
-| SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].password` |  |
-| compression to use, one of: `bzip2`, `gzip` | BP | `compression` | `DB_DUMP_COMPRESSION` | `dump.compression` | `gzip` |
-| when in container, run the dump or restore with `nice`/`ionice` | BR | `` | `NICE` | `` | `false` |
-| filename to save the target backup file | B | `dump --filename-pattern` | `DB_DUMP_FILENAME_PATTERN` | `dump.filenamePattern` |  |
-| directory with scripts to execute before backup | B | `dump --pre-backup-scripts` | `DB_DUMP_PRE_BACKUP_SCRIPTS` | `dump.scripts.preBackup` | in container, `/scripts.d/pre-backup/` |
-| directory with scripts to execute after backup | B | `dump --post-backup-scripts` | `DB_DUMP_POST_BACKUP_SCRIPTS` | `dump.scripts.postBackup` | in container, `/scripts.d/post-backup/` |
-| directory with scripts to execute before restore | R | `restore --pre-restore-scripts` | `DB_DUMP_PRE_RESTORE_SCRIPTS` | `restore.scripts.preRestore` | in container, `/scripts.d/pre-restore/` |
-| directory with scripts to execute after restore | R | `restore --post-restore-scripts` | `DB_DUMP_POST_RESTORE_SCRIPTS` | `restore.scripts.postRestore` | in container, `/scripts.d/post-restore/` |
-| retention policy for backups | BP | `dump --retention` | `RETENTION` | `prune.retention` | Infinite |
+| Purpose                                                                                        | Backup / Restore / Prune | CLI Flag                         | Env Var                        | Config Key                                | Default                                  |
+|------------------------------------------------------------------------------------------------|--------------------------|----------------------------------|--------------------------------|-------------------------------------------|------------------------------------------|
+| config file path                                                                               | BRP                      | `config`                         | `DB_DUMP_CONFIG`               |                                           |                                          |
+| hostname or unix domain socket path (starting with a slash) to connect to database. Required.  | BR                       | `server`                         | `DB_SERVER`                    | `database.server`                         |                                          |
+| port to use to connect to database. Optional.                                                  | BR                       | `port`                           | `DB_PORT`                      | `database.port`                           | 3306                                     |
+| username for the database                                                                      | BR                       | `user`                           | `DB_USER`                      | `database.credentials.username`           |                                          |
+| password for the database                                                                      | BR                       | `pass`                           | `DB_PASS`                      | `database.credentials.password`           |                                          |
+| names of databases to dump, comma-separated                                                    | B                        | `include`                        | `DB_NAMES`                     | `dump.include`                            | all databases in the server              |
+| names of databases to exclude from the dump                                                    | B                        | `exclude`                        | `DB_NAMES_EXCLUDE`             | `dump.exclude`                            |                                          |
+| do not include `USE <database>;` statement in the dump                                         | B                        | `no-database-name`               | `NO_DATABASE_NAME`             | `dump.noDatabaseName`                     | `false`                                  |
+| restore to a specific database                                                                 | R                        | `restore --database`             | `RESTORE_DATABASE`             | `restore.database`                        |                                          |
+| how often to do a dump or prune, in minutes                                                    | BP                       | `dump --frequency`               | `DB_DUMP_FREQ`                 | `dump.schedule.frequency`                 | `1440` (in minutes), i.e. once per day   |
+| what time to do the first dump or prune                                                        | BP                       | `dump --begin`                   | `DB_DUMP_BEGIN`                | `dump.schedule.begin`                     | `0`, i.e. immediately                    |
+| cron schedule for dumps or prunes                                                              | BP                       | `dump --cron`                    | `DB_DUMP_CRON`                 | `dump.schedule.cron`                      |                                          |
+| run the backup or prune a single time and exit                                                 | BP                       | `dump --once`                    | `RUN_ONCE`                     | `dump.schedule.once`                      | `false`                                  |
+| enable debug logging                                                                           | BRP                      | `debug`                          | `DEBUG`                        | `logging`                                 | `false`                                  |
+| where to put the dump file; see [backup](./backup.md)                                          | BP                       | `dump --target`                  | `DB_DUMP_TARGET`               | `dump.targets`                            |                                          |
+| where the restore file exists; see [restore](./restore.md)                                     | R                        | `restore --target`               | `DB_RESTORE_TARGET`            | `restore.target`                          |                                          |
+| replace any `:` in the dump filename with `-`                                                  | BP                       | `dump --safechars`               | `DB_DUMP_SAFECHARS`            | `database.safechars`                      | `false`                                  |
+| AWS access key ID, used only if a target does not have one                                     | BRP                      | `aws-access-key-id`              | `AWS_ACCESS_KEY_ID`            | `dump.targets[s3-target].accessKeyId`     |                                          |
+| AWS secret access key, used only if a target does not have one                                 | BRP                      | `aws-secret-access-key`          | `AWS_SECRET_ACCESS_KEY`        | `dump.targets[s3-target].secretAccessKey` |                                          |
+| AWS default region, used only if a target does not have one                                    | BRP                      | `aws-region`                     | `AWS_REGION`                   | `dump.targets[s3-target].region`          |                                          |
+| Use legacy path style s3 bucket routing                                                        | BRP                      | `aws-s3-use-path-style`          | `AWS_S3_USE_PATH_STYLE`        | `dump.targets[s3-target].usePathStyle`    | `false`                                  |
+| alternative endpoint URL for S3-interoperable systems, used only if a target does not have one | BR                       | `aws-endpoint-url`               | `AWS_ENDPOINT_URL`             | `dump.targets[s3-target].endpoint`        |                                          |
+| SMB username, used only if a target does not have one                                          | BRP                      | `smb-user`                       | `SMB_USER`                     | `dump.targets[smb-target].username`       |                                          |
+| SMB password, used only if a target does not have one                                          | BRP                      | `smb-pass`                       | `SMB_PASS`                     | `dump.targets[smb-target].password`       |                                          |
+| compression to use, one of: `bzip2`, `gzip`                                                    | BP                       | `compression`                    | `DB_DUMP_COMPRESSION`          | `dump.compression`                        | `gzip`                                   |
+| when in container, run the dump or restore with `nice`/`ionice`                                | BR                       | ``                               | `NICE`                         | ``                                        | `false`                                  |
+| filename to save the target backup file                                                        | B                        | `dump --filename-pattern`        | `DB_DUMP_FILENAME_PATTERN`     | `dump.filenamePattern`                    |                                          |
+| directory with scripts to execute before backup                                                | B                        | `dump --pre-backup-scripts`      | `DB_DUMP_PRE_BACKUP_SCRIPTS`   | `dump.scripts.preBackup`                  | in container, `/scripts.d/pre-backup/`   |
+| directory with scripts to execute after backup                                                 | B                        | `dump --post-backup-scripts`     | `DB_DUMP_POST_BACKUP_SCRIPTS`  | `dump.scripts.postBackup`                 | in container, `/scripts.d/post-backup/`  |
+| directory with scripts to execute before restore                                               | R                        | `restore --pre-restore-scripts`  | `DB_DUMP_PRE_RESTORE_SCRIPTS`  | `restore.scripts.preRestore`              | in container, `/scripts.d/pre-restore/`  |
+| directory with scripts to execute after restore                                                | R                        | `restore --post-restore-scripts` | `DB_DUMP_POST_RESTORE_SCRIPTS` | `restore.scripts.postRestore`             | in container, `/scripts.d/post-restore/` |
+| retention policy for backups                                                                   | BP                       | `dump --retention`               | `RETENTION`                    | `prune.retention`                         | Infinite                                 |
 
 ## Configuration File
 
