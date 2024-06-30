@@ -24,8 +24,8 @@ The scheduling options have an order of priority:
 
 You can set it to run just once via:
 
-* Environment variable: `RUN_ONCE=true`
-* CLI flag: `dump --run-once`
+* Environment variable: `DB_DUMP_ONCE=true`
+* CLI flag: `dump --once`
 * Config file:
 ```yaml
 dump:
