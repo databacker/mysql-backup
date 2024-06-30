@@ -53,7 +53,7 @@ docker container create \
 -e DB_SERVER=mysql \
 -e DB_USER=$MYSQLUSER \
 -e DB_PASS=$MYSQLPW \
--e RUN_ONCE=1 \
+-e DB_DUMP_ONCE=1 \
 -e MYSQLDUMP_OPTS="${MYSQLDUMP_OPTS}" \
 ${BACKUP_IMAGE})
 docker container start $cid_dump
