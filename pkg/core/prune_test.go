@@ -52,7 +52,7 @@ func TestPrune(t *testing.T) {
 	now := time.Date(2021, 1, 1, 0, 30, 0, 0, time.UTC)
 	hoursAgo := []float32{0.25, 1, 2, 3, 24, 36, 48, 60, 72, 167, 168, 240, 336, 504, 576, 744, 720, 1000, 1440, 1800, 2160, 8760, 12000, 17520}
 	// convert to filenames
-	var filenames []string
+	var filenames, safefilenames []string
 	for _, h := range hoursAgo {
 		// convert the time diff into a duration, do not forget the negative
 		duration, err := time.ParseDuration(fmt.Sprintf("-%fh", h))
@@ -65,6 +65,8 @@ func TestPrune(t *testing.T) {
 		// convert that into the filename
 		filename := fmt.Sprintf("db_backup_%sZ.gz", relativeTime.Format("2006-01-02T15:04:05"))
 		filenames = append(filenames, filename)
+		safefilename := fmt.Sprintf("db_backup_%sZ.gz", relativeTime.Format("2006-01-02T15-04-05"))
+		safefilenames = append(safefilenames, safefilename)
 	}
 	tests := []struct {
 		name        string
@@ -83,6 +85,14 @@ func TestPrune(t *testing.T) {
 		{"2 days", PruneOptions{Retention: "2d", Now: now}, filenames, filenames[0:6], nil},
 		// 3 weeks - file[13] is 504h+30m = 504.5h, so it should be pruned
 		{"3 weeks", PruneOptions{Retention: "3w", Now: now}, filenames, filenames[0:13], nil},
+		// repeat for safe file names
+		{"1 hour safe names", PruneOptions{Retention: "1h", Now: now}, safefilenames, safefilenames[0:1], nil},
+		// 2 hours - file[2] is 2h+30m = 2.5h, so it should be pruned
+		{"2 hours safe names", PruneOptions{Retention: "2h", Now: now}, safefilenames, safefilenames[0:2], nil},
+		// 2 days - file[6] is 48h+30m = 48.5h, so it should be pruned
+		{"2 days safe names", PruneOptions{Retention: "2d", Now: now}, safefilenames, safefilenames[0:6], nil},
+		// 3 weeks - file[13] is 504h+30m = 504.5h, so it should be pruned
+		{"3 weeks safe names", PruneOptions{Retention: "3w", Now: now}, safefilenames, safefilenames[0:13], nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
