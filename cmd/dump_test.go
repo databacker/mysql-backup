@@ -106,6 +106,30 @@ func TestDumpCmd(t *testing.T) {
 		{"incompatible flags: cron/frequency", []string{"--server", "abc", "--target", "file:///foo/bar", "--cron", "0 0 * * *", "--frequency", "10"}, "", true, core.DumpOptions{
 			DBConn: database.Connection{Host: "abcd", Port: 3306, User: "user2", Pass: "xxxx2"},
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
+
+		// pre- and post-backup scripts
+		{"prebackup scripts", []string{"--server", "abc", "--target", "file:///foo/bar", "--pre-backup-scripts", "/prebackup"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
+			PreBackupScripts: "/prebackup",
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+		{"postbackup scripts", []string{"--server", "abc", "--target", "file:///foo/bar", "--post-backup-scripts", "/postbackup"}, "", false, core.DumpOptions{
+			Targets:           []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket:  defaultMaxAllowedPacket,
+			Compressor:        &compression.GzipCompressor{},
+			DBConn:            database.Connection{Host: "abc", Port: defaultPort},
+			PostBackupScripts: "/postbackup",
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+		{"prebackup and postbackup scripts", []string{"--server", "abc", "--target", "file:///foo/bar", "--post-backup-scripts", "/postbackup", "--pre-backup-scripts", "/prebackup"}, "", false, core.DumpOptions{
+			Targets:           []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket:  defaultMaxAllowedPacket,
+			Compressor:        &compression.GzipCompressor{},
+			DBConn:            database.Connection{Host: "abc", Port: defaultPort},
+			PreBackupScripts:  "/prebackup",
+			PostBackupScripts: "/postbackup",
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 	}
 
 	for _, tt := range tests {
