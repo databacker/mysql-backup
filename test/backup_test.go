@@ -306,13 +306,13 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 	mysqlCreateCmd := []string{"mysql", "-hlocalhost", "--protocol=tcp", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "-e", `
 	use tester;
 	create table t1
-	(id int, name varchar(20), d date, t time, dt datetime, ts timestamp);
-	INSERT INTO t1 (id,name,d,t,dt,ts)
+	(id int, name varchar(20), j json, d date, t time, dt datetime, ts timestamp);
+	INSERT INTO t1 (id,name,j,d,t,dt,ts)
 	VALUES
-	(1, "John", "2012-11-01", "00:15:00", "2012-11-01 00:15:00", "2012-11-01 00:15:00"),
-	(2, "Jill", "2012-11-02", "00:16:00", "2012-11-02 00:16:00", "2012-11-02 00:16:00"),
-	(3, "Sam", "2012-11-03", "00:17:00", "2012-11-03 00:17:00", "2012-11-03 00:17:00"),
-	(4, "Sarah", "2012-11-04", "00:18:00", "2012-11-04 00:18:00", "2012-11-04 00:18:00");
+	(1, "John", '{"a":"b"}', "2012-11-01", "00:15:00", "2012-11-01 00:15:00", "2012-11-01 00:15:00"),
+	(2, "Jill", '{"c":true}', "2012-11-02", "00:16:00", "2012-11-02 00:16:00", "2012-11-02 00:16:00"),
+	(3, "Sam", '{"d":24}', "2012-11-03", "00:17:00", "2012-11-03 00:17:00", "2012-11-03 00:17:00"),
+	(4, "Sarah", '{"a":"b"}', "2012-11-04", "00:18:00", "2012-11-04 00:18:00", "2012-11-04 00:18:00");
 	create view view1 as select id, name from t1;
 	`}
 	attachResp, exitCode, err := d.execInContainer(ctx, mysqlCID, mysqlCreateCmd)
@@ -320,11 +320,11 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 		return fmt.Errorf("failed to attach to exec: %w", err)
 	}
 	defer attachResp.Close()
-	if exitCode != 0 {
-		return fmt.Errorf("failed to create table: %w", err)
-	}
 	var bufo, bufe bytes.Buffer
 	_, _ = stdcopy.StdCopy(&bufo, &bufe, attachResp.Reader)
+	if exitCode != 0 {
+		return fmt.Errorf("failed to create table: %s", bufe.String())
+	}
 
 	// Dump the database - do both compact and non-compact
 	mysqlDumpCompactCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--compact", "--databases", "tester"}

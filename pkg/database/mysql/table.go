@@ -370,6 +370,8 @@ func reflectColumnType(tp *sql.ColumnType) reflect.Type {
 		return reflect.TypeOf(NullDate{})
 	case "TIME":
 		return reflect.TypeOf(sql.NullString{})
+	case "JSON":
+		return reflect.TypeOf(sql.NullString{})
 	}
 
 	// unknown datatype
