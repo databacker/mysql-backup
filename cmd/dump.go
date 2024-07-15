@@ -99,6 +99,10 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if preBackupScripts == "" && cmdConfig.configuration != nil {
 				preBackupScripts = cmdConfig.configuration.Dump.Scripts.PreBackup
 			}
+			postBackupScripts := v.GetString("post-backup-scripts")
+			if postBackupScripts == "" && cmdConfig.configuration != nil {
+				postBackupScripts = cmdConfig.configuration.Dump.Scripts.PostBackup
+			}
 			noDatabaseName := v.GetBool("no-database-name")
 			if !v.IsSet("no-database-name") && cmdConfig.configuration != nil {
 				noDatabaseName = cmdConfig.configuration.Dump.NoDatabaseName
@@ -179,7 +183,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					Compressor:          compressor,
 					Exclude:             exclude,
 					PreBackupScripts:    preBackupScripts,
-					PostBackupScripts:   preBackupScripts,
+					PostBackupScripts:   postBackupScripts,
 					SuppressUseDatabase: noDatabaseName,
 					Compact:             compact,
 					MaxAllowedPacket:    maxAllowedPacket,
