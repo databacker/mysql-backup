@@ -55,7 +55,7 @@ There is **no** default configuration file. To use a configuration file, you **m
 
 ## Sample Configuration Files
 
-Various sample configuration files are available in the [sample-configs](../sample-configs/) directory.
+Various sample configuration files are available in the [examples/configs](../examples/configs/) directory.
 
 ## Configuration Options
 

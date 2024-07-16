@@ -265,7 +265,7 @@ The content is a string that contains a pattern to be used for the filename. The
 
 **Example run:**
 
-```
+```sh
 mysql-backup dump --source-filename-pattern="db-plus-wordpress_{{.now}}.gz"
 ```
 
@@ -324,18 +324,18 @@ services:
     ....
 ```
 
-The scripts are _executed_ in the [entrypoint](https://github.com/databack/mysql-backup/blob/master/entrypoint) script, which means it has access to all exported environment variables. The following are available, but we are happy to export more as required (just open an issue or better yet, a pull request):
+The following environment variables are available:
 
-* `DUMPFILE`: full path in the container to the output file
+* `DUMPFILE`: full path in the container to the dump output file, and the file that will be uploaded to the target
 * `NOW`: date of the backup, as included in `DUMPFILE` and given by `date -u +"%Y-%m-%dT%H:%M:%SZ"`
 * `DUMPDIR`: path to the destination directory so for example you can copy a new tarball including some other files along with the sql dump.
 * `DEBUG`: To enable debug mode in post-backup scripts.
 
 In addition, all of the environment variables set for the container will be available to the script.
 
-For example, the following script will rename the backup file after the dump is done:
+For example, the following script will append data to the backup file after the dump is done:
 
-````bash
+```bash
 #!/bin/bash
 # Rename backup file.
 if [[ -n "$DEBUG" ]]; then
@@ -344,16 +344,16 @@ fi
 
 if [ -e ${DUMPFILE} ];
 then
-  now=$(date +"%Y-%m-%d-%H_%M")
-  new_name=db_backup-${now}.gz
-  old_name=$(basename ${DUMPFILE})
-  echo "Renaming backup file from ${old_name} to ${new_name}"
-  mv ${DUMPFILE} ${DUMPDIR}/${new_name}
+  mv ${DUMPFILE} ${DUMPFILE}.tmp
+  tar -zcvf /tmp/extra-files.tgz /path/to/extra/files
+  cat ${DUMPFILE}.tmp /tmp/extra-files.tgz > ${DUMPFILE}
 else
   echo "ERROR: Backup file ${DUMPFILE} does not exist!"
 fi
+```
 
-````
+**Important:** For post-processing, remember that at the end of the script, the dump file must be in
+the location specified by the `DUMPFILE` variable. If you move it, you **must** move it back.
 
 ### Encrypting the Backup
 
