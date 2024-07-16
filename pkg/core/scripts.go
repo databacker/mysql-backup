@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -35,22 +34,4 @@ func runScripts(dir string, env map[string]string) error {
 		}
 	}
 	return nil
-}
-
-func oneScript(target string, env map[string]string) ([]byte, error) {
-	// execute the file
-	envSlice := os.Environ()
-	for k, v := range env {
-		envSlice = append(envSlice, fmt.Sprintf("%s=%s", k, v))
-	}
-	cmd := exec.Command(target)
-	cmd.Env = envSlice
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("error running file %s: %v", target, err)
-	}
-	return stdout.Bytes(), nil
 }
