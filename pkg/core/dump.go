@@ -14,11 +14,6 @@ import (
 	"github.com/databacker/mysql-backup/pkg/database"
 )
 
-const (
-	sourceRenameCmd = "/scripts.d/source.sh"
-	targetRenameCmd = "/scripts.d/target.sh"
-)
-
 // Dump run a single dump, based on the provided opts
 func (e *Executor) Dump(opts DumpOptions) error {
 	targets := opts.Targets
@@ -111,24 +106,6 @@ func (e *Executor) Dump(opts DumpOptions) error {
 		return fmt.Errorf("error running pre-restore: %v", err)
 	}
 
-	// perform any renaming
-	newName, err := renameSource(timepart, path.Join(tmpdir, targetFilename), tmpdir, logger.Level == log.DebugLevel)
-	if err != nil {
-		return fmt.Errorf("failed rename source: %v", err)
-	}
-	if newName != "" {
-		sourceFilename = newName
-	}
-
-	// perform any renaming
-	newName, err = renameTarget(timepart, path.Join(tmpdir, targetFilename), tmpdir, logger.Level == log.DebugLevel)
-	if err != nil {
-		return fmt.Errorf("failed rename target: %v", err)
-	}
-	if newName != "" {
-		targetFilename = newName
-	}
-
 	// upload to each destination
 	for _, t := range targets {
 		logger.Debugf("uploading via protocol %s from %s", t.Protocol(), targetFilename)
@@ -163,67 +140,4 @@ func postBackup(timestamp, dumpfile, dumpdir, postBackupDir string, debug bool) 
 		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
 	}
 	return runScripts(postBackupDir, env)
-}
-
-func renameSource(timestamp, dumpfile, dumpdir string, debug bool) (string, error) {
-	_, err := os.Stat(sourceRenameCmd)
-	if err != nil && os.IsNotExist(err) {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("error reading rename scrpt %s: %v", sourceRenameCmd, err)
-	}
-	env := map[string]string{
-		"NOW":           timestamp,
-		"DUMPFILE":      path.Join(dumpdir, dumpfile),
-		"DUMPDIR":       dumpdir,
-		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
-	}
-
-	// it exists so try to run it
-	results, err := oneScript(sourceRenameCmd, env)
-	if err != nil {
-		return "", fmt.Errorf("error executing rename script %s: %v", sourceRenameCmd, err)
-	}
-	results = trimBadChars(results)
-	newName := strings.TrimSpace(string(results))
-
-	return newName, nil
-}
-
-func renameTarget(timestamp, dumpfile, dumpdir string, debug bool) (string, error) {
-	_, err := os.Stat(targetRenameCmd)
-	if err != nil && os.IsNotExist(err) {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("error reading rename script %s: %v", targetRenameCmd, err)
-	}
-	env := map[string]string{
-		"NOW":           timestamp,
-		"DUMPFILE":      path.Join(dumpdir, dumpfile),
-		"DUMPDIR":       dumpdir,
-		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
-	}
-
-	// it exists so try to run it
-	results, err := oneScript(targetRenameCmd, env)
-	if err != nil {
-		return "", fmt.Errorf("error executing rename script %s: %v", targetRenameCmd, err)
-	}
-	results = trimBadChars(results)
-	newName := strings.TrimSpace(string(results))
-
-	return newName, nil
-}
-
-// trimBadChars eliminate these characters '\040\011\012\015'
-func trimBadChars(b []byte) []byte {
-	out := make([]byte, 0)
-	for _, c := range b {
-		if c != 040 && c != 011 && c != 012 && c != 015 {
-			out = append(out, c)
-		}
-	}
-	return out
 }
