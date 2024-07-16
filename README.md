@@ -21,8 +21,7 @@ Please see [CONTRIBUTORS.md](./CONTRIBUTORS.md) for a list of contributors.
 ## Versions
 
 This is the latest version, based on the complete rebuild of the codebase for 1.0.0 release based on
-golang, completed in late 2023. The README for versions prior to 1.0.0, based on bash, is available
-[here](./README-bash.md).
+golang, completed in late 2023.
 
 ## Support
 
