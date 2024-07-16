@@ -20,5 +20,10 @@ COPY --from=build /out/mysql-backup /mysql-backup
 
 COPY entrypoint /entrypoint
 
+ENV DB_DUMP_PRE_BACKUP_SCRIPTS="/scripts.d/pre-backup/"
+ENV DB_DUMP_POST_BACKUP_SCRIPTS="/scripts.d/post-backup/"
+ENV DB_DUMP_PRE_RESTORE_SCRIPTS="/scripts.d/pre-restore/"
+ENV DB_DUMP_POST_RESTORE_SCRIPTS="/scripts.d/post-restore/"
+
 # start
 ENTRYPOINT ["/entrypoint"]
