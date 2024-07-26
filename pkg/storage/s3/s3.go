@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -151,7 +152,7 @@ func (s *S3) ReadDir(dirname string, logger *log.Entry) ([]fs.FileInfo, error) {
 		files = append(files, &s3FileInfo{
 			name:         *item.Key,
 			lastModified: *item.LastModified,
-			size:         item.Size,
+			size:         *item.Size,
 		})
 	}
 
@@ -179,15 +180,14 @@ func (s *S3) Remove(target string, logger *log.Entry) error {
 
 func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 	// Get the AWS config
-	var opts []func(*config.LoadOptions) error
+	var (
+		opts   []func(*config.LoadOptions) error // global client options
+		s3opts []func(*s3.Options)               // s3 client options
+	)
 	if s.endpoint != "" {
 		cleanEndpoint := getEndpoint(s.endpoint)
-		opts = append(opts,
-			config.WithEndpointResolverWithOptions(
-				aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-					return aws.Endpoint{URL: cleanEndpoint}, nil
-				}),
-			),
+		s3opts = append(s3opts,
+			s3.WithEndpointResolverV2(&staticResolver{endpoint: cleanEndpoint}),
 		)
 	}
 	if logger.Level == log.TraceLevel {
@@ -211,7 +211,7 @@ func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 	}
 
 	// Create a new S3 service client
-	return s3.NewFromConfig(cfg), nil
+	return s3.NewFromConfig(cfg, s3opts...), nil
 }
 
 // getEndpoint returns a clean (for AWS client) endpoint. Normally, this is unchanged,
@@ -231,6 +231,24 @@ func getEndpoint(endpoint string) string {
 		}
 	}
 	return e
+}
+
+// endpointResolver is a custom endpoint resolver that always returns the same endpoint.
+type staticResolver struct {
+	endpoint string
+}
+
+func (s *staticResolver) ResolveEndpoint(ctx context.Context, params s3.EndpointParameters) (
+	smithyendpoints.Endpoint, error,
+) {
+	// This value will be used as-is when making the request.
+	u, err := url.Parse(s.endpoint)
+	if err != nil {
+		return smithyendpoints.Endpoint{}, err
+	}
+	return smithyendpoints.Endpoint{
+		URI: *u,
+	}, nil
 }
 
 type s3FileInfo struct {
