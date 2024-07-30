@@ -26,16 +26,9 @@ jobs:
         uses: actions/setup-go@v1
         with:
           go-version: 1.21
-      - name: Build with xgo
-        uses: crazy-max/ghaction-xgo@v3
-        with:
-          xgo_version: latest
-          go_version: 1.21
-          dest: dist
-          targets: windows/386,windows/amd64,windows/arm64,linux/386,linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
-          v: true
-          x: true
-          ldflags: -s -w
+      - name: Build for all platforms
+        run: |
+          make build-all
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
