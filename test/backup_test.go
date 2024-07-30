@@ -254,7 +254,7 @@ func (d *dockerContext) startContainer(image, name, portMap string, binds []stri
 		return
 	}
 	cid = resp.ID
-	err = d.cli.ContainerStart(ctx, cid, types.ContainerStartOptions{})
+	err = d.cli.ContainerStart(ctx, cid, container.StartOptions{})
 	if err != nil {
 		return
 	}
@@ -371,7 +371,7 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 func (d *dockerContext) logContainers(cids ...string) error {
 	ctx := context.Background()
 	for _, cid := range cids {
-		logOptions := types.ContainerLogsOptions{
+		logOptions := container.LogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 		}
@@ -395,7 +395,7 @@ func (d *dockerContext) rmContainers(cids ...string) error {
 			return fmt.Errorf("failed to kill container %s: %w", cid, err)
 		}
 
-		rmOpts := types.ContainerRemoveOptions{
+		rmOpts := container.RemoveOptions{
 			RemoveVolumes: true,
 			Force:         true,
 		}
