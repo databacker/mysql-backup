@@ -4,10 +4,31 @@ TAG ?= $(shell git log -n 1 --pretty=format:"%H")
 IMAGE ?= databack/mysql-backup
 BUILDIMAGE ?= $(IMAGE):build
 TARGET ?= $(IMAGE):$(TAG)
-ARCH ?= linux/amd64,linux/arm64
+OCIPLATFORMS ?= linux/amd64,linux/arm64
+LOCALPLATFORMS ?= linux/386 linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64 windows/386
+DIST ?= dist
+GOOS?=$(shell uname -s | tr '[:upper:]' '[:lower:]')
+GOARCH?=$(shell uname -m)
+BIN ?= $(DIST)/mysql-backup-$(GOOS)-$(GOARCH)
 
-build:
-	docker buildx build -t $(BUILDIMAGE) --platform $(ARCH)  .
+build-docker:
+	docker buildx build -t $(BUILDIMAGE) --platform $(OCIPLATFORMS) .
+
+.PRECIOUS: $(foreach platform,$(LOCALPLATFORMS),$(DIST)/mysql-backup-$(subst /,-,$(platform)))
+
+build-all: $(foreach platform,$(LOCALPLATFORMS),build-local-$(subst /,-,$(platform)))
+
+build-local-%: $(DIST)/mysql-backup-%;
+
+$(DIST):
+	mkdir -p $@
+
+$(DIST)/mysql-backup-%: GOOS=$(word 1,$(subst -, ,$*))
+$(DIST)/mysql-backup-%: GOARCH=$(word 2,$(subst -, ,$*))
+$(DIST)/mysql-backup-%: $(DIST) 
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $@ .
+
+build-local: $(BIN)
 
 push: build
 	docker tag $(BUILDIMAGE) $(TARGET)
