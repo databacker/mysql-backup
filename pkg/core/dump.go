@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"html/template"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,6 +25,7 @@ func (e *Executor) Dump(opts DumpOptions) error {
 	compact := opts.Compact
 	suppressUseDatabase := opts.SuppressUseDatabase
 	maxAllowedPacket := opts.MaxAllowedPacket
+	filenamePattern := opts.FilenamePattern
 	logger := e.Logger.WithField("run", opts.Run.String())
 
 	now := time.Now()
@@ -36,7 +38,10 @@ func (e *Executor) Dump(opts DumpOptions) error {
 	// sourceFilename: file that the uploader looks for when performing the upload
 	// targetFilename: the remote file that is actually uploaded
 	sourceFilename := fmt.Sprintf("db_backup_%s.%s", timepart, compressor.Extension())
-	targetFilename := sourceFilename
+	targetFilename, err := processFilenamePattern(filenamePattern, now, timepart, compressor.Extension())
+	if err != nil {
+		return fmt.Errorf("failed to process filename pattern: %v", err)
+	}
 
 	// create a temporary working directory
 	tmpdir, err := os.MkdirTemp("", "databacker_backup")
@@ -45,7 +50,7 @@ func (e *Executor) Dump(opts DumpOptions) error {
 	}
 	defer os.RemoveAll(tmpdir)
 	// execute pre-backup scripts if any
-	if err := preBackup(timepart, path.Join(tmpdir, targetFilename), tmpdir, opts.PreBackupScripts, logger.Level == log.DebugLevel); err != nil {
+	if err := preBackup(timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PreBackupScripts, logger.Level == log.DebugLevel); err != nil {
 		return fmt.Errorf("error running pre-restore: %v", err)
 	}
 
@@ -102,13 +107,13 @@ func (e *Executor) Dump(opts DumpOptions) error {
 	f.Close()
 
 	// execute post-backup scripts if any
-	if err := postBackup(timepart, path.Join(tmpdir, targetFilename), tmpdir, opts.PostBackupScripts, logger.Level == log.DebugLevel); err != nil {
+	if err := postBackup(timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PostBackupScripts, logger.Level == log.DebugLevel); err != nil {
 		return fmt.Errorf("error running pre-restore: %v", err)
 	}
 
 	// upload to each destination
 	for _, t := range targets {
-		logger.Debugf("uploading via protocol %s from %s", t.Protocol(), targetFilename)
+		logger.Debugf("uploading via protocol %s from %s to %s", t.Protocol(), sourceFilename, targetFilename)
 		copied, err := t.Push(targetFilename, filepath.Join(tmpdir, sourceFilename), logger)
 		if err != nil {
 			return fmt.Errorf("failed to push file: %v", err)
@@ -140,4 +145,30 @@ func postBackup(timestamp, dumpfile, dumpdir, postBackupDir string, debug bool) 
 		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
 	}
 	return runScripts(postBackupDir, env)
+}
+
+// processFilenamePattern takes a template pattern and processes it with the current time.
+// Passes the timestamp as a string, because it sometimes gets changed for safechars.
+func processFilenamePattern(pattern string, now time.Time, timestamp, ext string) (string, error) {
+	if pattern == "" {
+		pattern = DefaultFilenamePattern
+	}
+	tmpl, err := template.New("filename").Parse(pattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse filename pattern: %v", err)
+	}
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, map[string]string{
+		"now":         timestamp,
+		"year":        now.Format("2006"),
+		"month":       now.Format("01"),
+		"day":         now.Format("02"),
+		"hour":        now.Format("15"),
+		"minute":      now.Format("04"),
+		"second":      now.Format("05"),
+		"compression": ext,
+	}); err != nil {
+		return "", fmt.Errorf("failed to execute filename pattern: %v", err)
+	}
+	return buf.String(), nil
 }
