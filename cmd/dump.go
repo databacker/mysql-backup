@@ -199,7 +199,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					Run:                 uid,
 					FilenamePattern:     filenamePattern,
 				}
-				err := executor.Dump(dumpOpts)
+				_, err := executor.Dump(dumpOpts)
 				if err != nil {
 					return fmt.Errorf("error running dump: %w", err)
 				}

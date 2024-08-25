@@ -28,6 +28,10 @@ func (f *File) Push(target, source string, logger *log.Entry) (int64, error) {
 	return copyFile(source, filepath.Join(f.path, target))
 }
 
+func (f *File) Clean(filename string) string {
+	return filename
+}
+
 func (f *File) Protocol() string {
 	return "file"
 }

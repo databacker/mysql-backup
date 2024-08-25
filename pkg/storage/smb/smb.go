@@ -80,7 +80,7 @@ func (s *SMB) Push(target, source string, logger *log.Entry) (int64, error) {
 		err    error
 	)
 	err = s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
-		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
+		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, target)
 		from, err := os.Open(source)
 		if err != nil {
 			return err
@@ -95,6 +95,10 @@ func (s *SMB) Push(target, source string, logger *log.Entry) (int64, error) {
 		return err
 	})
 	return copied, err
+}
+
+func (s *SMB) Clean(filename string) string {
+	return strings.ReplaceAll(filename, ":", "-")
 }
 
 func (s *SMB) Protocol() string {
