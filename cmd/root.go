@@ -61,6 +61,10 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			bindFlags(cmd, v)
 			var logger = log.New()
 			logLevel := v.GetInt("verbose")
+			debugSet := v.IsSet("debug")
+			if !v.IsSet("verbose") && (v.GetBool("debug") || (debugSet && v.GetString("debug") == "true")) {
+				logLevel = 1
+			}
 			switch logLevel {
 			case 0:
 				logger.SetLevel(log.InfoLevel)
@@ -179,6 +183,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 
 	// debug via CLI or env var or default
 	pflags.IntP("verbose", "v", 0, "set log level, 1 is debug, 2 is trace")
+	pflags.Bool("debug", false, "set log level to debug, equivalent of --verbose=1; if both set, --version always overrides")
 
 	// aws options
 	pflags.String("aws-endpoint-url", "", "Specify an alternative endpoint for s3 interoperable systems e.g. Digitalocean; ignored if not using s3.")

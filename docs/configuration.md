@@ -76,7 +76,7 @@ The following are the environment variables, CLI flags and configuration file op
 | what time to do the first dump or prune | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
 | cron schedule for dumps or prunes | BP | `dump --cron` | `DB_DUMP_CRON` | `dump.schedule.cron` |  |
 | run the backup or prune a single time and exit | BP | `dump --once` | `DB_DUMP_ONCE` | `dump.schedule.once` | `false` |
-| enable debug logging | BRP | `debug` | `DEBUG` | `logging` | `false` |
+| enable debug logging | BRP | `debug` | `DB_DEBUG` | `logging` | `false` |
 | where to put the dump file; see [backup](./backup.md) | BP | `dump --target` | `DB_DUMP_TARGET` | `dump.targets` |  |
 | where the restore file exists; see [restore](./restore.md) | R | `restore --target` | `DB_RESTORE_TARGET` | `restore.target` |  |
 | replace any `:` in the dump filename with `-` | BP | `dump --safechars` | `DB_DUMP_SAFECHARS` | `database.safechars` | `false` |
