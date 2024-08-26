@@ -77,6 +77,21 @@ type backupTarget struct {
 	localPath string
 }
 
+type testOptions struct {
+	compact      bool
+	targets      []string
+	dc           *dockerContext
+	base         string
+	prePost      bool
+	backupData   []byte
+	mysql        containerPort
+	smb          containerPort
+	s3           string
+	s3backend    gofakes3.Backend
+	checkCommand checkCommand
+	dumpOptions  core.DumpOptions
+}
+
 func (t backupTarget) String() string {
 	return t.s
 }
@@ -246,7 +261,7 @@ func (d *dockerContext) startContainer(image, name, portMap string, binds []stri
 			containerPort: struct{}{},
 		}
 		hostConfig.PortBindings = nat.PortMap{
-			containerPort: []nat.PortBinding{{HostIP: "0.0.0.0"}},
+			containerPort: []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: ""}},
 		}
 	}
 	resp, err := d.cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, name)
@@ -263,8 +278,29 @@ func (d *dockerContext) startContainer(image, name, portMap string, binds []stri
 	if portMap == "" {
 		return
 	}
-	inspect, err := d.cli.ContainerInspect(ctx, cid)
-	if err != nil {
+	var (
+		maxRetries = 3
+		delay      = 500 * time.Millisecond
+		inspect    types.ContainerJSON
+	)
+	for i := 0; i < maxRetries; i++ {
+		// Inspect the container
+		inspect, err = d.cli.ContainerInspect(ctx, cid)
+		if err != nil {
+			return
+		}
+
+		// Check the desired status
+		if inspect.State.Running && len(inspect.NetworkSettings.Ports[containerPort]) > 0 {
+			break
+		}
+
+		// Wait for delay ms before trying again
+		time.Sleep(delay)
+	}
+
+	if len(inspect.NetworkSettings.Ports[containerPort]) == 0 {
+		err = fmt.Errorf("no port mapping found for container %s %s port %s", cid, name, containerPort)
 		return
 	}
 	portStr := inspect.NetworkSettings.Ports[containerPort][0].HostPort
@@ -417,50 +453,6 @@ func (d *dockerContext) rmContainers(cids ...string) error {
 // - check that the backup now is there in the right format
 // - clear the target
 
-func runDumpTest(dc *dockerContext, compact bool, base string, targets []backupTarget, sequence int, smb, mysql containerPort, s3 string) error {
-	dbconn := database.Connection{
-		User: mysqlUser,
-		Pass: mysqlPass,
-		Host: "localhost",
-		Port: mysql.port,
-	}
-	var targetVals []storage.Storage
-	// all targets should have the same sequence, with varying subsequence, so take any one
-	var id string
-	for _, target := range targets {
-		t := target.String()
-		id = target.ID()
-		t = target.WithPrefix(base)
-		localPath := target.LocalPath()
-		if err := os.MkdirAll(localPath, 0o755); err != nil {
-			return fmt.Errorf("failed to create local path %s: %w", localPath, err)
-		}
-		store, err := storage.ParseURL(t, credentials.Creds{AWS: credentials.AWSCreds{Endpoint: s3}})
-		if err != nil {
-			return fmt.Errorf("invalid target url: %v", err)
-		}
-		targetVals = append(targetVals, store)
-
-	}
-	dumpOpts := core.DumpOptions{
-		Targets:           targetVals,
-		DBConn:            dbconn,
-		Compressor:        &compression.GzipCompressor{},
-		Compact:           compact,
-		PreBackupScripts:  filepath.Join(base, "backups", id, "pre-backup"),
-		PostBackupScripts: filepath.Join(base, "backups", id, "post-backup"),
-	}
-	timerOpts := core.TimerOptions{
-		Once: true,
-	}
-	executor := &core.Executor{}
-	executor.SetLogger(log.New())
-
-	return executor.Timer(timerOpts, func() error {
-		return executor.Dump(dumpOpts)
-	})
-}
-
 func setup(dc *dockerContext, base, backupFile, compactBackupFile string) (mysql, smb containerPort, s3url string, s3backend gofakes3.Backend, err error) {
 	if err := dc.makeSMB(smbImage); err != nil {
 		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to build smb image: %v", err)
@@ -532,6 +524,28 @@ log_queries_not_using_indexes = 1
 	return
 }
 
+// backupTargetsToStorage convert a list of backupTarget to a list of core.Storage
+func backupTargetsToStorage(targets []backupTarget, base, s3 string) ([]storage.Storage, error) {
+	var targetVals []storage.Storage
+	// all targets should have the same sequence, with varying subsequence, so take any one
+	for _, tgt := range targets {
+		tg := tgt.String()
+		tg = tgt.WithPrefix(base)
+		localPath := tgt.LocalPath()
+		if err := os.MkdirAll(localPath, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create local path %s: %v", localPath, err)
+		}
+		store, err := storage.ParseURL(tg, credentials.Creds{AWS: credentials.AWSCreds{Endpoint: s3}})
+		if err != nil {
+			return nil, fmt.Errorf("invalid target url: %v", err)
+		}
+		targetVals = append(targetVals, store)
+
+	}
+	return targetVals, nil
+}
+
+// targetToTargets take a target string, which can contain multiple target URLs, and convert it to a list of backupTarget
 func targetToTargets(target string, sequence int, smb containerPort, base string) ([]backupTarget, error) {
 	var (
 		targets    = strings.Fields(target)
@@ -580,36 +594,77 @@ func targetToTargets(target string, sequence int, smb containerPort, base string
 	return allTargets, nil
 }
 
-type checkCommand func(t *testing.T, base string, validBackup []byte, s3backend gofakes3.Backend, targets []backupTarget)
+type checkCommand func(t *testing.T, base string, validBackup []byte, s3backend gofakes3.Backend, targets []backupTarget, results core.DumpResults)
 
-func runTest(t *testing.T, dc *dockerContext, compact bool, targets []string, base string, prePost bool, backupData []byte, mysql, smb containerPort, s3 string, s3backend gofakes3.Backend, checkCommand checkCommand) {
+func runTest(t *testing.T, opts testOptions) {
 	// run backups for each target
-	for i, target := range targets {
+	for i, target := range opts.targets {
 		t.Run(target, func(t *testing.T) {
 			// should add t.Parallel() here for parallel execution, but later
 			log.Debugf("Running test for target '%s'", target)
-			allTargets, err := targetToTargets(target, i, smb, base)
+			allTargets, err := targetToTargets(target, i, opts.smb, opts.base)
 			if err != nil {
 				t.Fatalf("failed to parse target: %v", err)
 			}
 			log.Debugf("Populating data for target %s", target)
-			if err := populateVol(base, allTargets); err != nil {
+			if err := populateVol(opts.base, allTargets); err != nil {
 				t.Fatalf("failed to populate volume for target %s: %v", target, err)
 			}
-			if err := populatePrePost(base, allTargets); err != nil {
+			if err := populatePrePost(opts.base, allTargets); err != nil {
 				t.Fatalf("failed to populate pre-post for target %s: %v", target, err)
 			}
 			log.Debugf("Running backup for target %s", target)
-			if err := runDumpTest(dc, compact, base, allTargets, i, smb, mysql, s3); err != nil {
+			opts.dumpOptions.DBConn = database.Connection{
+				User: mysqlUser,
+				Pass: mysqlPass,
+				Host: "localhost",
+				Port: opts.mysql.port,
+			}
+			// take []backupTarget and convert to []storage.Storage that can be passed to DumpOptions
+			targetVals, err := backupTargetsToStorage(allTargets, opts.base, opts.s3)
+			if err != nil {
+				t.Fatalf("failed to convert backup targets to storage: %v", err)
+			}
+
+			id := allTargets[0].ID()
+
+			opts.dumpOptions.Targets = targetVals
+			opts.dumpOptions.PreBackupScripts = filepath.Join(opts.base, "backups", id, "pre-backup")
+			opts.dumpOptions.PostBackupScripts = filepath.Join(opts.base, "backups", id, "post-backup")
+
+			timerOpts := core.TimerOptions{
+				Once: true,
+			}
+			executor := &core.Executor{}
+			executor.SetLogger(log.New())
+
+			var results core.DumpResults
+			if err := executor.Timer(timerOpts, func() error {
+				ret, err := executor.Dump(opts.dumpOptions)
+				results = ret
+				return err
+			}); err != nil {
 				t.Fatalf("failed to run dump test: %v", err)
 			}
 
-			checkCommand(t, base, backupData, s3backend, allTargets)
+			// check that the filename matches the pattern
+			for i, upload := range results.Uploads {
+				expected, err := core.ProcessFilenamePattern(opts.dumpOptions.FilenamePattern, results.Time, results.Timestamp, opts.dumpOptions.Compressor.Extension())
+				if err != nil {
+					t.Fatalf("failed to process filename pattern: %v", err)
+				}
+				clean := opts.dumpOptions.Targets[i].Clean(expected)
+				if upload.Filename != clean {
+					t.Fatalf("filename %s does not match expected %s", upload.Filename, clean)
+				}
+			}
+
+			opts.checkCommand(t, opts.base, opts.backupData, opts.s3backend, allTargets, results)
 		})
 	}
 }
 
-func checkDumpTest(t *testing.T, base string, expected []byte, s3backend gofakes3.Backend, targets []backupTarget) {
+func checkDumpTest(t *testing.T, base string, expected []byte, s3backend gofakes3.Backend, targets []backupTarget, results core.DumpResults) {
 	// all of it is in the volume we created, so check from there
 	var (
 		backupDataReader io.Reader
@@ -646,6 +701,8 @@ func checkDumpTest(t *testing.T, base string, expected []byte, s3backend gofakes
 			return
 		}
 
+		targetFilename := results.Uploads[i].Filename
+
 		switch scheme {
 		case "s3":
 			// because we had to add the bucket at the beginning of the path, because fakes3
@@ -655,46 +712,17 @@ func checkDumpTest(t *testing.T, base string, expected []byte, s3backend gofakes
 			// we still will remove the bucketName
 			p = strings.TrimPrefix(p, "/")
 			p = strings.TrimPrefix(p, bucketName+"/")
-			objList, err := s3backend.ListBucket(
-				bucketName,
-				&gofakes3.Prefix{HasPrefix: true, Prefix: p},
-				gofakes3.ListBucketPage{},
-			)
+			p = filepath.Join(p, targetFilename)
+			obj, err := s3backend.GetObject(bucketName, p, nil)
 			if err != nil {
-				t.Fatalf("failed to get backup objects from s3: %v", err)
+				t.Fatalf("failed to get backup object %s from s3: %v", p, err)
 				return
 			}
-			for _, objInfo := range objList.Contents {
-				if strings.HasSuffix(objInfo.Key, ".tgz") {
-					obj, err := s3backend.GetObject(bucketName, objInfo.Key, nil)
-					if err != nil {
-						t.Fatalf("failed to get backup object %s from s3: %v", objInfo.Key, err)
-						return
-					}
-					backupDataReader = obj.Contents
-					break
-				}
-			}
+			backupDataReader = obj.Contents
 		default:
+			var err error
 			bdir := target.LocalPath()
-
-			var backupFile string
-			entries, err := os.ReadDir(bdir)
-			if err != nil {
-				t.Fatalf("failed to read backup directory %s: %v", bdir, err)
-				return
-			}
-			for _, entry := range entries {
-				if strings.HasSuffix(entry.Name(), ".tgz") {
-					backupFile = entry.Name()
-					break
-				}
-			}
-			if backupFile == "" {
-				assert.NotEmpty(t, backupFile, "missing backup tgz file %s", id)
-				continue
-			}
-			backupFile = filepath.Join(bdir, backupFile)
+			backupFile := filepath.Join(bdir, targetFilename)
 			backupDataReader, err = os.Open(backupFile)
 			if err != nil {
 				t.Fatalf("failed to read backup file %s: %v", backupFile, err)
@@ -840,16 +868,62 @@ func TestIntegration(t *testing.T) {
 
 		// check just the contents of a compact backup
 		t.Run("full", func(t *testing.T) {
-			runTest(t, dc, false, []string{
-				"/full-backups/",
-			}, base, false, backupData, mysql, smb, s3, s3backend, checkDumpTest)
+			dumpOpts := core.DumpOptions{
+				Compressor: &compression.GzipCompressor{},
+				Compact:    false,
+			}
+			runTest(t, testOptions{
+				targets:      []string{"/full-backups/"},
+				dc:           dc,
+				base:         base,
+				backupData:   backupData,
+				mysql:        mysql,
+				smb:          smb,
+				s3:           s3,
+				s3backend:    s3backend,
+				dumpOptions:  dumpOpts,
+				checkCommand: checkDumpTest,
+			})
 		})
 
 		// check just the contents of a backup without minimizing metadata (i.e. non-compact)
 		t.Run("compact", func(t *testing.T) {
-			runTest(t, dc, true, []string{
-				"/compact-backups/",
-			}, base, false, compactBackupData, mysql, smb, s3, s3backend, checkDumpTest)
+			dumpOpts := core.DumpOptions{
+				Compressor: &compression.GzipCompressor{},
+				Compact:    true,
+			}
+			runTest(t, testOptions{
+				targets:      []string{"/compact-backups/"},
+				dc:           dc,
+				base:         base,
+				backupData:   compactBackupData,
+				mysql:        mysql,
+				smb:          smb,
+				s3:           s3,
+				s3backend:    s3backend,
+				dumpOptions:  dumpOpts,
+				checkCommand: checkDumpTest,
+			})
+		})
+
+		t.Run("pattern", func(t *testing.T) {
+			dumpOpts := core.DumpOptions{
+				Compressor:      &compression.GzipCompressor{},
+				Compact:         false,
+				FilenamePattern: "backup-{{ .Sequence }}-{{ .Subsequence }}.tgz",
+			}
+			runTest(t, testOptions{
+				targets:      []string{"/full-backups/"},
+				dc:           dc,
+				base:         base,
+				backupData:   backupData,
+				mysql:        mysql,
+				smb:          smb,
+				s3:           s3,
+				s3backend:    s3backend,
+				dumpOptions:  dumpOpts,
+				checkCommand: checkDumpTest,
+			})
 		})
 
 		// test targets
@@ -864,16 +938,30 @@ func TestIntegration(t *testing.T) {
 			if err := os.Setenv("AWS_SECRET_ACCESS_KEY", "1234567"); err != nil {
 				t.Fatalf("failed to set AWS_SECRET_ACCESS_KEY: %v", err)
 			}
-			runTest(t, dc, false, []string{
-				"/backups/",
-				"file:///backups/",
-				"smb://smb/noauth/",
-				"smb://user:pass@smb/auth",
-				"smb://CONF;user:pass@smb/auth",
-				fmt.Sprintf("s3://%s/", bucketName),
-				"file:///backups/ file:///backups/",
-			}, base, true, backupData, mysql, smb, s3, s3backend, checkDumpTest)
+			dumpOpts := core.DumpOptions{
+				Compressor: &compression.GzipCompressor{},
+				Compact:    false,
+			}
+			runTest(t, testOptions{
+				targets: []string{
+					"/backups/",
+					"file:///backups/",
+					"smb://smb/noauth/",
+					"smb://user:pass@smb/auth",
+					"smb://CONF;user:pass@smb/auth",
+					fmt.Sprintf("s3://%s/", bucketName),
+					"file:///backups/ file:///backups/",
+				},
+				dc:           dc,
+				base:         base,
+				backupData:   backupData,
+				mysql:        mysql,
+				smb:          smb,
+				s3:           s3,
+				s3backend:    s3backend,
+				dumpOptions:  dumpOpts,
+				checkCommand: checkDumpTest,
+			})
 		})
-
 	})
 }

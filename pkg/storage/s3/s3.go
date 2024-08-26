@@ -125,6 +125,10 @@ func (s *S3) Push(target, source string, logger *log.Entry) (int64, error) {
 	return 0, nil
 }
 
+func (s *S3) Clean(filename string) string {
+	return filename
+}
+
 func (s *S3) Protocol() string {
 	return "s3"
 }

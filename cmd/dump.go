@@ -18,6 +18,7 @@ const (
 	defaultBegin            = "+0"
 	defaultFrequency        = 1440
 	defaultMaxAllowedPacket = 4194304
+	defaultFilenamePattern  = core.DefaultFilenamePattern
 )
 
 func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
@@ -140,6 +141,14 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if retention == "" && cmdConfig.configuration != nil {
 				retention = cmdConfig.configuration.Prune.Retention
 			}
+			filenamePattern := v.GetString("filename-pattern")
+
+			if !v.IsSet("filename-pattern") && cmdConfig.configuration != nil {
+				filenamePattern = cmdConfig.configuration.Dump.FilenamePattern
+			}
+			if filenamePattern == "" {
+				filenamePattern = defaultFilenamePattern
+			}
 
 			// timer options
 			once := v.GetBool("once")
@@ -188,8 +197,9 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					Compact:             compact,
 					MaxAllowedPacket:    maxAllowedPacket,
 					Run:                 uid,
+					FilenamePattern:     filenamePattern,
 				}
-				err := executor.Dump(dumpOpts)
+				_, err := executor.Dump(dumpOpts)
 				if err != nil {
 					return fmt.Errorf("error running dump: %w", err)
 				}
@@ -247,7 +257,7 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	flags.String("compression", defaultCompression, "Compression to use. Supported are: `gzip`, `bzip2`")
 
 	// source filename pattern
-	flags.String("filename-pattern", "db_backup_{{ .now }}.{{ .compression }}", "Pattern to use for filename in target. See documentation.")
+	flags.String("filename-pattern", defaultFilenamePattern, "Pattern to use for filename in target. See documentation.")
 
 	// pre-backup scripts
 	flags.String("pre-backup-scripts", "", "Directory wherein any file ending in `.sh` will be run pre-backup.")

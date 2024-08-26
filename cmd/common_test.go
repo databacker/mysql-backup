@@ -19,9 +19,9 @@ func newMockExecs() *mockExecs {
 	return m
 }
 
-func (m *mockExecs) Dump(opts core.DumpOptions) error {
+func (m *mockExecs) Dump(opts core.DumpOptions) (core.DumpResults, error) {
 	args := m.Called(opts)
-	return args.Error(0)
+	return core.DumpResults{}, args.Error(0)
 }
 
 func (m *mockExecs) Restore(opts core.RestoreOptions) error {

@@ -19,7 +19,7 @@ import (
 type execs interface {
 	SetLogger(logger *log.Logger)
 	GetLogger() *log.Logger
-	Dump(opts core.DumpOptions) error
+	Dump(opts core.DumpOptions) (core.DumpResults, error)
 	Restore(opts core.RestoreOptions) error
 	Prune(opts core.PruneOptions) error
 	Timer(timerOpts core.TimerOptions, cmd func() error) error

@@ -20,4 +20,5 @@ type DumpOptions struct {
 	SuppressUseDatabase bool
 	MaxAllowedPacket    int
 	Run                 uuid.UUID
+	FilenamePattern     string
 }
