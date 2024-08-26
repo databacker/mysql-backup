@@ -12,7 +12,7 @@ precedence over the config file option.
 The environment variables, CLI flag options and config file options are similar, but not exactly the same,
 due to variances in how the various are structured. As a general rule:
 
-* Environment variables are all uppercase, with words separated by underscores, and most start with `DB_DUMP`. For example, `DB_DUMP_FREQ=60`.
+* Environment variables are all uppercase, with words separated by underscores, and most start with `DB_DUMP`. For example, `DB_DUMP_FREQUENCY=60`.
 * CLI flags are all lowercase, with words separated by hyphens, a.k.a. kebab-case. Since the CLI has sub-commands, the `dump-` and `restore-` are unnecessary. For example, `mysql-backup dump --frequency=60` or `mysql-backup restore --target=/foo/file.gz`.
 * Config file keys are camelCase, for example, `dump.maxAllowedPacket=6000`.
 
@@ -20,7 +20,7 @@ For example, the following are equivalent.
 
 Set dump frequency to 60 minutes:
 
-* Environment variable: `DB_DUMP_FREQ=60`
+* Environment variable: `DB_DUMP_FREQUENCY=60`
 * CLI flag: `mysql-backup dump --frequency=60`
 * Config file:
 ```yaml
@@ -72,7 +72,7 @@ The following are the environment variables, CLI flags and configuration file op
 | names of databases to exclude from the dump | B | `exclude` | `DB_NAMES_EXCLUDE` | `dump.exclude` |  |
 | do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |
 | restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
-| how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQ` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
+| how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQUENCY` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
 | what time to do the first dump or prune | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
 | cron schedule for dumps or prunes | BP | `dump --cron` | `DB_DUMP_CRON` | `dump.schedule.cron` |  |
 | run the backup or prune a single time and exit | BP | `dump --once` | `DB_DUMP_ONCE` | `dump.schedule.once` | `false` |

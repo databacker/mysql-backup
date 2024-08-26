@@ -66,7 +66,7 @@ Similarly, you can delay start by 2 hours by setting the delayed start to `120`.
 
 You can set the frequency start via:
 
-* Environment variable: `DB_DUMP_FREQ=60`
+* Environment variable: `DB_DUMP_FREQUENCY=60`
 * CLI flag: `dump --frequency=60`
 * Config file:
 ```yaml
