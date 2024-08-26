@@ -292,7 +292,7 @@ mysql-backup dump --pre-backup-scripts=/path/to/pre-backup/scripts --post-backup
 **Example run container:**
 
 ```bash
-docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQ=60 \
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQUENCY=60 \
   -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-container:db \
   -v /path/to/pre-backup/scripts:/scripts.d/pre-backup \
   -v /path/to/post-backup/scripts:/scripts.d/post-backup \
@@ -316,7 +316,7 @@ services:
      - DB_DUMP_TARGET=/db
      - DB_USER=user123
      - DB_PASS=pass123
-     - DB_DUMP_FREQ=60
+     - DB_DUMP_FREQUENCY=60
      - DB_DUMP_BEGIN=2330
      - DB_SERVER=mysql_db
   mysql_db:
