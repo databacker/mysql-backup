@@ -5,6 +5,9 @@ on:
   push:
     branches:
      - master
+     - main
+    paths-ignore:
+     - '**/*.md'
 
 env:
   IMAGE_NAME: "databack/mysql-backup"
