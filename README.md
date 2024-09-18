@@ -110,13 +110,13 @@ Examples:
 ### Restore specific databases
 If you have multiple schemas in your database, you can choose to restore only some of them.
 
-To do this, you must dump your database using `DB_DUMP_BY_SCHEMA=true`, then restore using `DB_NAMES` to specify the schemas you want restored.
+To do this, you must restore using `DB_NAMES` to specify the schemas you want restored.
 
 When doing this, schemas will be restored with their original name. To restore under other names, you must use `SINGLE_DATABASE=true` on both dump and restore, and you can only do it one schema at a time.
 
 #### Examples:
 1. Dump a multi-schemas database and restore only some of them:
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_BY_SCHEMA=true -v /local/path:/backup databack/mysql-backup dump `
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -v /local/path:/backup databack/mysql-backup dump `
    * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e DB_NAMES="database1 database3" -v /local/path:/backup databack/mysql-backup restore`
 2. Dump and restore a schema under a different name:
    * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e SINGLE_DATABASE=true -e DB_NAMES=database1 -v /local/path:/backup databack/mysql-backup dump`

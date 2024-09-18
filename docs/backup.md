@@ -13,7 +13,7 @@ to a target. That target can be one of:
 
 By default, all databases in the database server are backed up, and the system databases
 named `information_schema`, `performance_schema`, `sys` and `mysql` are excluded.
-This only applies if `DB_DUMP_BY_SCHEMA` is set to `true`. For example, if you set `DB_NAMES_EXCLUDE=database1 db2` and `DB_DUMP_BY_SCHEMA=true` then these two databases will not be dumped.
+For example, if you set `DB_NAMES_EXCLUDE=database1 db2` then these two databases will not be dumped.
 
 **Dumping just some databases**
 
