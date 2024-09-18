@@ -18,14 +18,42 @@ jobs:
   report:
     name: Report
     runs-on: ubuntu-latest
+    outputs:
+      non_docs_changed: ${{ steps.fileschanged.outputs.non_doc_files_changed }}
     steps:
     - name: ref
       run: echo ${{ github.ref }}
     - name: event_name
       run: echo ${{ github.event_name }}
+    - name: checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+    - name: fileschanged
+      run: |
+        case '${{ github.event_name }}' in
+          push)
+            firstCommit='${{ github.event.commits[0].id }}'
+            lastCommit='${{ github.event.commits[-1].id }}'
+            ;;
+          pull_request)
+            firstCommit='${{ github.event.pull_request.base.sha }}'
+            lastCommit='${{ github.event.pull_request.head.sha }}'
+            ;;
+        esac
+        changedFiles=$(git diff --name-only --diff-filter=d "${firstCommit}" "${lastCommit}")
+        echo "Files changed: $changedFiles"
+        NON_MD_FILES=$(echo "$changedFiles" | grep -v '\.md$' || true)
+        if [ -n "$NON_MD_FILES" ]; then
+          echo "non_doc_files_changed=true" >> $GITHUB_ENV
+        else
+          echo "non_doc_files_changed=false" >> $GITHUB_ENV
+        fi
   ci:
     name: CI
     runs-on: ubuntu-latest
+    needs: [ report ]
+    if: needs.report.outputs.non_docs_changed == 'true'
     steps:
     - name: checkout
       uses: actions/checkout@v3
