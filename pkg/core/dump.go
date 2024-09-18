@@ -71,7 +71,7 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 
 	// do we split the output by schema, or one big dump file?
 	if len(dbnames) == 0 {
-		if dbnames, err = database.GetSchemas(dbconn); err != nil {
+		if dbnames, err = database.GetSchemas(dbconn, opts.SystemDatabases); err != nil {
 			return results, fmt.Errorf("failed to list database schemas: %v", err)
 		}
 	}

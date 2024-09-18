@@ -33,7 +33,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 		Long: `Backup a database to a target location, once or on a schedule.
 		Can choose to dump all databases, only some by name, or all but excluding some.
 		The databases "information_schema", "performance_schema", "sys" and "mysql" are
-		excluded by default, unless you explicitly list them.`,
+		excluded by default, unless you explicitly list them, or unless you pass the --system-databases option.`,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			bindFlags(cmd, v)
 		},
@@ -115,6 +115,10 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			maxAllowedPacket := v.GetInt("max-allowed-packet")
 			if !v.IsSet("max-allowed-packet") && cmdConfig.configuration != nil && cmdConfig.configuration.Dump.MaxAllowedPacket != 0 {
 				maxAllowedPacket = cmdConfig.configuration.Dump.MaxAllowedPacket
+			}
+			dumpSystemDatabases := v.GetBool("system-databases")
+			if !v.IsSet("system-databases") && cmdConfig.configuration != nil {
+				dumpSystemDatabases = cmdConfig.configuration.Dump.SystemDatabases
 			}
 
 			// compression algorithm: check config, then CLI/env var overrides
@@ -198,6 +202,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					MaxAllowedPacket:    maxAllowedPacket,
 					Run:                 uid,
 					FilenamePattern:     filenamePattern,
+					SystemDatabases:     dumpSystemDatabases,
 				}
 				_, err := executor.Dump(dumpOpts)
 				if err != nil {
@@ -237,6 +242,9 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 
 	// single database, do not include `USE database;` in dump
 	flags.Bool("no-database-name", false, "Omit `USE <database>;` in the dump, so it can be restored easily to a different database.")
+
+	// include the system databases normally excluded from a dump.
+	flags.Bool("system-databases", false, "Include the system databases in the dump.")
 
 	// frequency
 	flags.Int("frequency", defaultFrequency, "how often to run backups, in minutes")

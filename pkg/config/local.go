@@ -34,6 +34,7 @@ type Dump struct {
 	FilenamePattern  string        `yaml:"filenamePattern"`
 	Scripts          BackupScripts `yaml:"scripts"`
 	Targets          []string      `yaml:"targets"`
+	SystemDatabases  bool          `yaml:"systemDatabases"`
 }
 
 type Prune struct {

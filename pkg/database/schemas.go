@@ -16,7 +16,7 @@ func init() {
 	}
 }
 
-func GetSchemas(dbconn Connection) ([]string, error) {
+func GetSchemas(dbconn Connection, systemDatabases bool) ([]string, error) {
 	db, err := sql.Open("mysql", dbconn.MySQL())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection to database: %v", err)
@@ -38,7 +38,7 @@ func GetSchemas(dbconn Connection) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error getting database name: %v", err)
 		}
-		if _, ok := excludeSchemas[name]; ok {
+		if _, ok := excludeSchemas[name]; ok && !systemDatabases {
 			continue
 		}
 		names = append(names, name)

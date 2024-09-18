@@ -70,6 +70,7 @@ The following are the environment variables, CLI flags and configuration file op
 | password for the database | BR | `pass` | `DB_PASS` | `database.credentials.password` |  |
 | names of databases to dump, comma-separated | B | `include` | `DB_NAMES` | `dump.include` | all databases in the server |
 | names of databases to exclude from the dump | B | `exclude` | `DB_NAMES_EXCLUDE` | `dump.exclude` |  |
+| include system databases in the dump | B | `system-databases` | `DB_SYSTEM_DATABASES` | `dump.systemDatabases` | `false` |
 | do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |
 | restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
 | how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQUENCY` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |

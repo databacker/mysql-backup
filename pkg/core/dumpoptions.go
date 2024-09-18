@@ -21,4 +21,5 @@ type DumpOptions struct {
 	MaxAllowedPacket    int
 	Run                 uuid.UUID
 	FilenamePattern     string
+	SystemDatabases     bool // whether to include system databases in the dump
 }
