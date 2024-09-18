@@ -1,5 +1,7 @@
 # Backup Scheduling
 
+Test nothing
+
 `mysql-backup` can be run either once, doing a backup and exiting, or as a long-running task,
 backing up on schedule.
 
