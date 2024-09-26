@@ -31,23 +31,15 @@ jobs:
         fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
     - id: fileschanged
       run: |
-        case '${{ github.event_name }}' in
-          push)
-            firstCommit='${{ github.event.commits[0].id }}'
-            lastCommit='${{ github.event.commits[-1].id }}'
-            ;;
-          pull_request)
-            firstCommit='${{ github.event.pull_request.base.sha }}'
-            lastCommit='${{ github.event.pull_request.head.sha }}'
-            ;;
-        esac
+        firstCommit='${{ github.event.before }}'
+        lastCommit='${{ github.event.after }}'
         changedFiles=$(git diff --name-only --diff-filter=d "${firstCommit}" "${lastCommit}")
         echo "Files changed: $changedFiles"
         NON_MD_FILES=$(echo "$changedFiles" | grep -v '\.md$' || true)
         if [ -n "$NON_MD_FILES" ]; then
-          echo "non_doc_files_changed=true" >> $GITHUB_ENV
+          echo "non_doc_files_changed=true" >> $GITHUB_OUTPUT
         else
-          echo "non_doc_files_changed=false" >> $GITHUB_ENV
+          echo "non_doc_files_changed=false" >> $GITHUB_OUTPUT
         fi
   ci:
     name: CI
