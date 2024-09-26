@@ -1,12 +1,11 @@
 name: Deploy
 on:
-  push:
-    branches:
-     - master
-     - main
-    paths-ignore:
-     - '**/*.md'
-
+  workflow_run:
+    # https://docs.github.com/zh/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#workflow_run
+    workflows:
+      - Continuous Integration
+    types:
+      - completed
 env:
   IMAGE_NAME: "databack/mysql-backup"
 
