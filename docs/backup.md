@@ -337,7 +337,7 @@ For example, the following script will append data to the backup file after the 
 
 ```bash
 #!/bin/bash
-# Rename backup file.
+# Append data from /path/to/extra/files to the backup file after the dump is done.
 if [[ -n "$DEBUG" ]]; then
   set -x
 fi
