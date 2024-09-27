@@ -33,8 +33,8 @@ jobs:
       run: |
         case '${{ github.event_name }}' in
           push)
-            firstCommit='${{ github.event.commits[0].id }}'
-            lastCommit='${{ github.event.commits[-1].id }}'
+            firstCommit='${{ github.event.before }}'
+            lastCommit='${{ github.event.after }}'
             ;;
           pull_request)
             firstCommit='${{ github.event.pull_request.base.sha }}'
@@ -45,9 +45,9 @@ jobs:
         echo "Files changed: $changedFiles"
         NON_MD_FILES=$(echo "$changedFiles" | grep -v '\.md$' || true)
         if [ -n "$NON_MD_FILES" ]; then
-          echo "non_doc_files_changed=true" >> $GITHUB_ENV
+          echo "non_doc_files_changed=true" >> $GITHUB_OUTPUT
         else
-          echo "non_doc_files_changed=false" >> $GITHUB_ENV
+          echo "non_doc_files_changed=false" >> $GITHUB_OUTPUT
         fi
   ci:
     name: CI
