@@ -15,6 +15,7 @@ var filenameRE = regexp.MustCompile(`^db_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2})[
 // Prune prune older backups
 func (e *Executor) Prune(opts PruneOptions) error {
 	logger := e.Logger.WithField("run", opts.Run.String())
+	logger.Level = e.Logger.Level
 	logger.Info("beginning prune")
 	var (
 		candidates []string

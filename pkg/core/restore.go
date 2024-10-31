@@ -19,6 +19,7 @@ const (
 // Restore restore a specific backup into the database
 func (e *Executor) Restore(opts RestoreOptions) error {
 	logger := e.Logger.WithField("run", opts.Run.String())
+	logger.Level = e.Logger.Level
 
 	logger.Info("beginning restore")
 	// execute pre-restore scripts if any
