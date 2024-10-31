@@ -74,6 +74,7 @@ func (t *telemetry) Fire(entry *log.Entry) error {
 				defer func() { ch <- len(entries) }()
 			}
 			l := entry.Logger.WithField(sourceField, sourceTelemetry)
+			l.Level = entry.Logger.Level
 			remoteEntries := make([]LogEntry, len(entries))
 			for i, entry := range entries {
 				// send the structured data to the telemetry endpoint

@@ -30,6 +30,7 @@ func (e *Executor) Dump(opts DumpOptions) (DumpResults, error) {
 	maxAllowedPacket := opts.MaxAllowedPacket
 	filenamePattern := opts.FilenamePattern
 	logger := e.Logger.WithField("run", opts.Run.String())
+	logger.Level = e.Logger.Level
 
 	now := time.Now()
 	results.Time = now
