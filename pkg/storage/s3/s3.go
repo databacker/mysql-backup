@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -113,10 +114,14 @@ func (s *S3) Push(target, source string, logger *log.Entry) (int64, error) {
 	}
 	defer f.Close()
 
+	// S3 always prepends a /, so if it already has one, it would become //
+	// For some services, that is ok, but for others, it causes issues.
+	key = strings.TrimPrefix(path.Join(key, target), "/")
+
 	// Write the contents of the file to the S3 object
 	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String(path.Join(key, target)),
+		Key:    aws.String(key),
 		Body:   f,
 	})
 	if err != nil {
