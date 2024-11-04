@@ -113,6 +113,7 @@ func (s *S3) Push(target, source string, logger *log.Entry) (int64, error) {
 		return 0, fmt.Errorf("failed to read input file %q, %v", source, err)
 	}
 	defer f.Close()
+	countingReader := NewCountingReader(f)
 
 	// S3 always prepends a /, so if it already has one, it would become //
 	// For some services, that is ok, but for others, it causes issues.
@@ -122,12 +123,12 @@ func (s *S3) Push(target, source string, logger *log.Entry) (int64, error) {
 	_, err = uploader.Upload(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
-		Body:   f,
+		Body:   countingReader,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to upload file, %v", err)
 	}
-	return 0, nil
+	return countingReader.Bytes(), nil
 }
 
 func (s *S3) Clean(filename string) string {
