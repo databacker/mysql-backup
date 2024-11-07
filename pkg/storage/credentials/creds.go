@@ -15,5 +15,6 @@ type AWSCreds struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	Endpoint        string
+	PathStyle       bool
 	Region          string
 }

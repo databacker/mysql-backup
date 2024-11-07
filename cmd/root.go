@@ -51,11 +51,13 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 		Short: "backup or restore one or more mysql-compatible databases",
 		Long: `Backup or restore one or more mysql-compatible databases.
 		In addition to the provided command-line flag options and environment variables,
-		when using s3-storage, supports the standard AWS options:
+		when using s3-storage, supports the following AWS options:
 		
 		AWS_ACCESS_KEY_ID: AWS Key ID
 		AWS_SECRET_ACCESS_KEY: AWS Secret Access Key
 		AWS_REGION: Region in which the bucket resides
+		AWS_ENDPOINT_URL: Endpoint URL to use instead of default s3.<region>.amazonaws.com
+		AWS_PATH_STYLE: Use path-style URLs for S3 requests instead of virtual-hosted-style URLs
 		`,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			bindFlags(cmd, v)
@@ -146,6 +148,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			cmdConfig.creds = credentials.Creds{
 				AWS: credentials.AWSCreds{
 					Endpoint:        v.GetString("aws-endpoint-url"),
+					PathStyle:       v.GetBool("aws-path-style"),
 					AccessKeyID:     v.GetString("aws-access-key-id"),
 					SecretAccessKey: v.GetString("aws-secret-access-key"),
 					Region:          v.GetString("aws-region"),
@@ -187,6 +190,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 
 	// aws options
 	pflags.String("aws-endpoint-url", "", "Specify an alternative endpoint for s3 interoperable systems e.g. Digitalocean; ignored if not using s3.")
+	pflags.Bool("aws-path-style", false, "Use path-style addressing of buckets instead of default virtual-host-style; ignored if not using s3.")
 	pflags.String("aws-access-key-id", "", "Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-secret-access-key", "", "Secret Access Key for s3 and s3 interoperable systems; ignored if not using s3.")
 	pflags.String("aws-region", "", "Region for s3 and s3 interoperable systems; ignored if not using s3.")
