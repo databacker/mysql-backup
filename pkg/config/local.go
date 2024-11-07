@@ -133,6 +133,7 @@ type S3Target struct {
 	URL         string         `yaml:"url"`
 	Region      string         `yaml:"region"`
 	Endpoint    string         `yaml:"endpoint"`
+	PathStyle   bool           `yaml:"pathStyle"`
 	Credentials AWSCredentials `yaml:"credentials"`
 }
 
@@ -147,6 +148,9 @@ func (s S3Target) Storage() (storage.Storage, error) {
 	}
 	if s.Endpoint != "" {
 		opts = append(opts, s3.WithEndpoint(s.Endpoint))
+	}
+	if s.PathStyle {
+		opts = append(opts, s3.WithPathStyle())
 	}
 	if s.Credentials.AccessKeyId != "" {
 		opts = append(opts, s3.WithAccessKeyId(s.Credentials.AccessKeyId))

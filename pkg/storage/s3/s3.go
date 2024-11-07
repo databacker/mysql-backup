@@ -15,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -190,34 +189,43 @@ func (s *S3) Remove(target string, logger *log.Entry) error {
 
 func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 	// Get the AWS config
-	var (
-		opts   []func(*config.LoadOptions) error // global client options
-		s3opts []func(*s3.Options)               // s3 client options
-	)
-	if s.endpoint != "" {
-		cleanEndpoint := getEndpoint(s.endpoint)
-		s3opts = append(s3opts,
-			s3.WithEndpointResolverV2(&staticResolver{endpoint: cleanEndpoint}),
-		)
-	}
+	var configOpts []func(*config.LoadOptions) error // global client options
 	if logger.Level == log.TraceLevel {
-		opts = append(opts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
+		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
 	}
 	if s.region != "" {
-		opts = append(opts, config.WithRegion(s.region))
+		configOpts = append(configOpts, config.WithRegion(s.region))
 	}
 	if s.accessKeyId != "" {
-		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+		configOpts = append(configOpts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			s.accessKeyId,
 			s.secretAccessKey,
 			"",
 		)))
 	}
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		opts...,
+		configOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %v", err)
+	}
+
+	// Get the S3 client
+	var s3opts []func(*s3.Options) // s3 client options
+	if s.endpoint != "" {
+		cleanEndpoint := getEndpoint(s.endpoint)
+		s3opts = append(s3opts,
+			func(o *s3.Options) {
+				o.BaseEndpoint = &cleanEndpoint
+			},
+		)
+	}
+	if s.pathStyle {
+		s3opts = append(s3opts,
+			func(o *s3.Options) {
+				o.UsePathStyle = true
+			},
+		)
 	}
 
 	// Create a new S3 service client
@@ -241,24 +249,6 @@ func getEndpoint(endpoint string) string {
 		}
 	}
 	return e
-}
-
-// endpointResolver is a custom endpoint resolver that always returns the same endpoint.
-type staticResolver struct {
-	endpoint string
-}
-
-func (s *staticResolver) ResolveEndpoint(ctx context.Context, params s3.EndpointParameters) (
-	smithyendpoints.Endpoint, error,
-) {
-	// This value will be used as-is when making the request.
-	u, err := url.Parse(s.endpoint)
-	if err != nil {
-		return smithyendpoints.Endpoint{}, err
-	}
-	return smithyendpoints.Endpoint{
-		URI: *u,
-	}, nil
 }
 
 type s3FileInfo struct {

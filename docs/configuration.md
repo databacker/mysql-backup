@@ -84,6 +84,7 @@ The following are the environment variables, CLI flags and configuration file op
 | AWS secret access key, used only if a target does not have one | BRP | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].secretAccessKey` |  |
 | AWS default region, used only if a target does not have one | BRP | `aws-region` | `AWS_REGION` | `dump.targets[s3-target].region` |  |
 | alternative endpoint URL for S3-interoperable systems, used only if a target does not have one | BR | `aws-endpoint-url` | `AWS_ENDPOINT_URL` | `dump.targets[s3-target].endpoint` |  |
+| path-style addressing for S3 bucket instead of default virtual-host-style addressing | BR | `aws-path-style` | `AWS_PATH_STYLE` | `dump.targets[s3-target].pathStyle` |  |
 | SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].username` |  |
 | SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].password` |  |
 | compression to use, one of: `bzip2`, `gzip` | BP | `compression` | `DB_DUMP_COMPRESSION` | `dump.compression` | `gzip` |
@@ -159,12 +160,13 @@ for details of each.
     * Type s3:
       * `region`: the region
       * `endpoint`: the endpoint
-      * `accessKeyId`: the access key ID (s3)
-      * `secretAccessKey`: the secret access key (s3)
+      * `pathStyle` (boolean): use path-style bucket addressing instead of virtual-host style bucket addressing, see [AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+      * `accessKeyId`: the access key ID
+      * `secretAccessKey`: the secret access key
     * Type smb:
-      * `domain`: the domain (smb)
-      * `username`: the username (smb)
-      * `password`: the password (smb)
+      * `domain`: the domain
+      * `username`: the username
+      * `password`: the password
 * `logging`: the log level, one of: error,warning,info,debug,trace; default is info
 * `telemetry`: configuration for sending telemetry data (optional)
   * `url`: URL to telemetry service
