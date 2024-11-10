@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -13,7 +14,7 @@ type DumpOpts struct {
 	MaxAllowedPacket    int
 }
 
-func Dump(dbconn Connection, opts DumpOpts, writers []DumpWriter) error {
+func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpWriter) error {
 
 	// TODO: dump data for each writer:
 	// per schema

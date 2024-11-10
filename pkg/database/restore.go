@@ -14,7 +14,7 @@ var (
 	createRegex = regexp.MustCompile(`(?i)^(CREATE\s+DATABASE\s*(\/\*.*\*\/\s*)?` + "`" + `)([^\s]+)(` + "`" + `\s*(\s*\/\*.*\*\/\s*)?\s*;$)`)
 )
 
-func Restore(dbconn Connection, databasesMap map[string]string, readers []io.ReadSeeker) error {
+func Restore(ctx context.Context, dbconn Connection, databasesMap map[string]string, readers []io.ReadSeeker) error {
 	db, err := sql.Open("mysql", dbconn.MySQL())
 	if err != nil {
 		return fmt.Errorf("failed to open connection to database: %v", err)
@@ -22,7 +22,6 @@ func Restore(dbconn Connection, databasesMap map[string]string, readers []io.Rea
 	defer db.Close()
 
 	// load data into database by reading from each reader
-	ctx := context.Background()
 	for _, r := range readers {
 		tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 		if err != nil {

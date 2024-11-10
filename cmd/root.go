@@ -1,27 +1,35 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
-	"github.com/databacker/mysql-backup/pkg/config"
-	"github.com/databacker/mysql-backup/pkg/core"
-	"github.com/databacker/mysql-backup/pkg/database"
-	databacklog "github.com/databacker/mysql-backup/pkg/log"
-	"github.com/databacker/mysql-backup/pkg/storage/credentials"
+	"github.com/databacker/api/go/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+
+	"github.com/databacker/mysql-backup/pkg/config"
+	"github.com/databacker/mysql-backup/pkg/core"
+	"github.com/databacker/mysql-backup/pkg/database"
+	"github.com/databacker/mysql-backup/pkg/remote"
+	"github.com/databacker/mysql-backup/pkg/storage/credentials"
 )
 
 type execs interface {
 	SetLogger(logger *log.Logger)
 	GetLogger() *log.Logger
-	Dump(opts core.DumpOptions) (core.DumpResults, error)
-	Restore(opts core.RestoreOptions) error
-	Prune(opts core.PruneOptions) error
+	Dump(ctx context.Context, opts core.DumpOptions) (core.DumpResults, error)
+	Restore(ctx context.Context, opts core.RestoreOptions) error
+	Prune(ctx context.Context, opts core.PruneOptions) error
 	Timer(timerOpts core.TimerOptions, cmd func() error) error
 }
 
@@ -32,7 +40,7 @@ var subCommands = []subCommand{dumpCmd, restoreCmd, pruneCmd}
 type cmdConfiguration struct {
 	dbconn        database.Connection
 	creds         credentials.Creds
-	configuration *config.ConfigSpec
+	configuration *api.ConfigSpec
 	logger        *log.Logger
 }
 
@@ -45,6 +53,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 		v         *viper.Viper
 		cmd       *cobra.Command
 		cmdConfig = &cmdConfiguration{}
+		ctx       = context.Background()
 	)
 	cmd = &cobra.Command{
 		Use:   "mysql-backup",
@@ -79,7 +88,10 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 			// read the config file, if needed; the structure of the config differs quite some
 			// from the necessarily flat env vars/CLI flags, so we can't just use viper's
 			// automatic config file support.
-			var actualConfig *config.ConfigSpec
+			var (
+				actualConfig    *api.ConfigSpec
+				tracerExporters []sdktrace.SpanExporter
+			)
 
 			if configFilePath := v.GetString("config-file"); configFilePath != "" {
 				var (
@@ -101,27 +113,39 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 
 			// set up database connection
 			if actualConfig != nil {
-				if actualConfig.Database.Server != "" {
-					cmdConfig.dbconn.Host = actualConfig.Database.Server
-				}
-				if actualConfig.Database.Port != 0 {
-					cmdConfig.dbconn.Port = actualConfig.Database.Port
-				}
-				if actualConfig.Database.Credentials.Username != "" {
-					cmdConfig.dbconn.User = actualConfig.Database.Credentials.Username
-				}
-				if actualConfig.Database.Credentials.Password != "" {
-					cmdConfig.dbconn.Pass = actualConfig.Database.Credentials.Password
+				if actualConfig.Database != nil {
+					if actualConfig.Database.Server != nil && *actualConfig.Database.Server != "" {
+						cmdConfig.dbconn.Host = *actualConfig.Database.Server
+					}
+					if actualConfig.Database.Port != nil && *actualConfig.Database.Port != 0 {
+						cmdConfig.dbconn.Port = *actualConfig.Database.Port
+					}
+					if actualConfig.Database.Credentials.Username != nil && *actualConfig.Database.Credentials.Username != "" {
+						cmdConfig.dbconn.User = *actualConfig.Database.Credentials.Username
+					}
+					if actualConfig.Database.Credentials.Password != nil && *actualConfig.Database.Credentials.Password != "" {
+						cmdConfig.dbconn.Pass = *actualConfig.Database.Credentials.Password
+					}
 				}
 				cmdConfig.configuration = actualConfig
 
-				if actualConfig.Telemetry.URL != "" {
-					// set up telemetry
-					loggerHook, err := databacklog.NewTelemetry(actualConfig.Telemetry, nil)
+				if actualConfig.Telemetry != nil && actualConfig.Telemetry.URL != nil && *actualConfig.Telemetry.URL != "" {
+
+					// set up telemetry with tracing
+					u, err := url.Parse(*actualConfig.Telemetry.URL)
+					if err != nil {
+						return fmt.Errorf("invalid telemetry URL: %w", err)
+					}
+					tlsConfig, err := remote.GetTLSConfig(u.Hostname(), *actualConfig.Telemetry.Certificates, *actualConfig.Telemetry.Credentials)
 					if err != nil {
 						return fmt.Errorf("unable to set up telemetry: %w", err)
 					}
-					logger.AddHook(loggerHook)
+
+					tracerExporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(*actualConfig.Telemetry.URL), otlptracehttp.WithTLSClientConfig(tlsConfig))
+					if err != nil {
+						return fmt.Errorf("unable to set up telemetry: %w", err)
+					}
+					tracerExporters = append(tracerExporters, tracerExporter)
 				}
 			}
 
@@ -160,6 +184,20 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				},
 			}
 			cmdConfig.logger = logger
+
+			if v.GetBool("trace-stderr") {
+				exp, err := stdouttrace.New(stdouttrace.WithPrettyPrint(), stdouttrace.WithWriter(os.Stderr))
+				if err != nil {
+					return fmt.Errorf("failed to initialize stdouttrace exporter: %w", err)
+				}
+				tracerExporters = append(tracerExporters, exp)
+			}
+			var tracerProviderOpts []sdktrace.TracerProviderOption
+			for _, exp := range tracerExporters {
+				tracerProviderOpts = append(tracerProviderOpts, sdktrace.WithBatcher(exp))
+			}
+			otel.SetTracerProvider(sdktrace.NewTracerProvider(tracerProviderOpts...))
+
 			return nil
 		},
 	}
@@ -187,6 +225,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	// debug via CLI or env var or default
 	pflags.IntP("verbose", "v", 0, "set log level, 1 is debug, 2 is trace")
 	pflags.Bool("debug", false, "set log level to debug, equivalent of --verbose=1; if both set, --version always overrides")
+	pflags.Bool("trace-stderr", false, "trace to stderr, in addition to any configured telemetry")
 
 	// aws options
 	pflags.String("aws-endpoint-url", "", "Specify an alternative endpoint for s3 interoperable systems e.g. Digitalocean; ignored if not using s3.")

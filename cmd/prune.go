@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/databacker/mysql-backup/pkg/core"
-	"github.com/databacker/mysql-backup/pkg/storage"
+	"github.com/databacker/mysql-backup/pkg/util"
 )
 
 func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, error) {
@@ -32,69 +33,33 @@ func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, e
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmdConfig.logger.Debug("starting prune")
+			ctx := context.Background()
+			// this is the tracer that we will use throughout the entire run
+			defer func() {
+				tp := getTracerProvider()
+				tp.ForceFlush(ctx)
+				_ = tp.Shutdown(ctx)
+			}()
+			tracer := getTracer("prune")
+			ctx = util.ContextWithTracer(ctx, tracer)
+			_, startupSpan := tracer.Start(ctx, "startup")
 			retention := v.GetString("retention")
 			targetURLs := v.GetStringSlice("target")
-			var (
-				targets []storage.Storage
-				err     error
-			)
 
-			if len(targetURLs) > 0 {
-				for _, t := range targetURLs {
-					store, err := storage.ParseURL(t, cmdConfig.creds)
-					if err != nil {
-						return fmt.Errorf("invalid target url: %v", err)
-					}
-					targets = append(targets, store)
-				}
-			} else {
-				// try the config file
-				if cmdConfig.configuration != nil {
-					// parse the target objects, then the ones listed for the backup
-					targetStructures := cmdConfig.configuration.Targets
-					dumpTargets := cmdConfig.configuration.Dump.Targets
-					for _, t := range dumpTargets {
-						var store storage.Storage
-						if target, ok := targetStructures[t]; !ok {
-							return fmt.Errorf("target %s from dump configuration not found in targets configuration", t)
-						} else {
-							store, err = target.Storage.Storage()
-							if err != nil {
-								return fmt.Errorf("target %s from dump configuration has invalid URL: %v", t, err)
-							}
-						}
-						targets = append(targets, store)
-					}
-				}
+			targets, err := parseTargets(targetURLs, cmdConfig)
+			if err != nil {
+				return fmt.Errorf("error parsing targets: %v", err)
+			}
+			if len(targets) == 0 {
+				return fmt.Errorf("no targets specified")
 			}
 
-			if retention == "" && cmdConfig.configuration != nil {
-				retention = cmdConfig.configuration.Prune.Retention
+			if retention == "" && cmdConfig.configuration != nil && cmdConfig.configuration.Prune.Retention != nil {
+				retention = *cmdConfig.configuration.Prune.Retention
 			}
 
 			// timer options
-			once := v.GetBool("once")
-			if !v.IsSet("once") && cmdConfig.configuration != nil {
-				once = cmdConfig.configuration.Dump.Schedule.Once
-			}
-			cron := v.GetString("cron")
-			if cron == "" && cmdConfig.configuration != nil {
-				cron = cmdConfig.configuration.Dump.Schedule.Cron
-			}
-			begin := v.GetString("begin")
-			if begin == "" && cmdConfig.configuration != nil {
-				begin = cmdConfig.configuration.Dump.Schedule.Begin
-			}
-			frequency := v.GetInt("frequency")
-			if frequency == 0 && cmdConfig.configuration != nil {
-				frequency = cmdConfig.configuration.Dump.Schedule.Frequency
-			}
-			timerOpts := core.TimerOptions{
-				Once:      once,
-				Cron:      cron,
-				Begin:     begin,
-				Frequency: frequency,
-			}
+			timerOpts := parseTimerOptions(v, cmdConfig.configuration)
 
 			var executor execs
 			executor = &core.Executor{}
@@ -102,10 +67,12 @@ func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, e
 				executor = passedExecs
 			}
 			executor.SetLogger(cmdConfig.logger)
+			// done with the startup
+			startupSpan.End()
 
 			if err := executor.Timer(timerOpts, func() error {
 				uid := uuid.New()
-				return executor.Prune(core.PruneOptions{Targets: targets, Retention: retention, Run: uid})
+				return executor.Prune(ctx, core.PruneOptions{Targets: targets, Retention: retention, Run: uid})
 			}); err != nil {
 				return fmt.Errorf("error running prune: %w", err)
 			}

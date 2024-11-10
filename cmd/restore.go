@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/databacker/api/go/api"
 	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/storage"
@@ -29,6 +31,15 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmdConfig.logger.Debug("starting restore")
+			ctx := context.Background()
+			tracer := getTracer("restore")
+			defer func() {
+				tp := getTracerProvider()
+				tp.ForceFlush(ctx)
+				_ = tp.Shutdown(ctx)
+			}()
+			ctx = util.ContextWithTracer(ctx, tracer)
+			_, startupSpan := tracer.Start(ctx, "startup")
 			targetFile := args[0]
 			target := v.GetString("target")
 			// get databases namesand mappings
@@ -50,8 +61,8 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 				compressor      compression.Compressor
 				err             error
 			)
-			if cmdConfig.configuration != nil {
-				compressionAlgo = cmdConfig.configuration.Dump.Compression
+			if cmdConfig.configuration != nil && cmdConfig.configuration.Dump.Compression != nil {
+				compressionAlgo = *cmdConfig.configuration.Dump.Compression
 			}
 			compressionVar := v.GetString("compression")
 			if compressionVar != "" {
@@ -79,10 +90,15 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 				if cmdConfig.configuration == nil {
 					return fmt.Errorf("no configuration file found")
 				}
-				if target, ok := cmdConfig.configuration.Targets[targetName]; !ok {
+				var targetStructures map[string]api.Target
+				if cmdConfig.configuration.Targets != nil {
+					targetStructures = *cmdConfig.configuration.Targets
+				}
+
+				if target, ok := targetStructures[targetName]; !ok {
 					return fmt.Errorf("target %s not found in configuration", targetName)
 				} else {
-					if store, err = target.Storage.Storage(); err != nil {
+					if store, err = storage.FromTarget(target); err != nil {
 						return fmt.Errorf("error creating storage for target %s: %v", targetName, err)
 					}
 				}
@@ -112,7 +128,8 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 				DBConn:       cmdConfig.dbconn,
 				Run:          uid,
 			}
-			if err := executor.Restore(restoreOpts); err != nil {
+			startupSpan.End()
+			if err := executor.Restore(ctx, restoreOpts); err != nil {
 				return fmt.Errorf("error restoring: %v", err)
 			}
 			passedExecs.GetLogger().Info("Restore complete")

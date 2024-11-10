@@ -640,7 +640,8 @@ func runTest(t *testing.T, opts testOptions) {
 
 			var results core.DumpResults
 			if err := executor.Timer(timerOpts, func() error {
-				ret, err := executor.Dump(opts.dumpOptions)
+				ctx := context.Background()
+				ret, err := executor.Dump(ctx, opts.dumpOptions)
 				results = ret
 				return err
 			}); err != nil {
