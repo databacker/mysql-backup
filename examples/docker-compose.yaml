@@ -47,7 +47,6 @@ services:
       AWS_SECRET_ACCESS_KEY: SUPERKEYPOWERSON
       AWS_ENDPOINT_URL: https://minio.mydomain.local
       COMPRESSION: bzip2
-      TZ: UTC
     command: dump
     depends_on:
       test-database:
