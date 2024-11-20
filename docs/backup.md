@@ -319,6 +319,7 @@ services:
      - DB_DUMP_FREQUENCY=60
      - DB_DUMP_BEGIN=2330
      - DB_SERVER=mysql_db
+    command: dump
   mysql_db:
     image: mysql
     ....
