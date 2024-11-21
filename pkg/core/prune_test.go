@@ -87,6 +87,9 @@ func TestPrune(t *testing.T) {
 		{"2 days", PruneOptions{Retention: "2d", Now: now}, filenames, filenames[0:6], nil},
 		// 3 weeks - file[13] is 504h+30m = 504.5h, so it should be pruned
 		{"3 weeks", PruneOptions{Retention: "3w", Now: now}, filenames, filenames[0:13], nil},
+		// 2 most recent files
+		{"2 most recent", PruneOptions{Retention: "2c", Now: now}, filenames, filenames[0:2], nil},
+
 		// repeat for safe file names
 		{"1 hour safe names", PruneOptions{Retention: "1h", Now: now}, safefilenames, safefilenames[0:1], nil},
 		// 2 hours - file[2] is 2h+30m = 2.5h, so it should be pruned
@@ -95,6 +98,8 @@ func TestPrune(t *testing.T) {
 		{"2 days safe names", PruneOptions{Retention: "2d", Now: now}, safefilenames, safefilenames[0:6], nil},
 		// 3 weeks - file[13] is 504h+30m = 504.5h, so it should be pruned
 		{"3 weeks safe names", PruneOptions{Retention: "3w", Now: now}, safefilenames, safefilenames[0:13], nil},
+		// 2 most recent files
+		{"2 most recent safe names", PruneOptions{Retention: "2c", Now: now}, safefilenames, safefilenames[0:2], nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -146,9 +151,10 @@ func TestPrune(t *testing.T) {
 			for _, file := range files {
 				afterFiles = append(afterFiles, file.Name())
 			}
-			slices.Sort(afterFiles)
-			slices.Sort(tt.afterFiles)
-			assert.ElementsMatch(t, tt.afterFiles, afterFiles)
+			afterFilesSorted, ttAfterFilesSorted := slices.Clone(afterFiles), slices.Clone(tt.afterFiles)
+			slices.Sort(afterFilesSorted)
+			slices.Sort(ttAfterFilesSorted)
+			assert.ElementsMatch(t, ttAfterFilesSorted, afterFilesSorted)
 		})
 	}
 }

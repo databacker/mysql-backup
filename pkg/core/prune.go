@@ -122,7 +122,7 @@ func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Stora
 			return 0
 		})
 		slices.Reverse(filesWithTimes)
-		if retainCount >= len(filesWithTimes) {
+		if retainCount < len(filesWithTimes) {
 			for i := 0 + retainCount; i < len(filesWithTimes); i++ {
 				logger.Debugf("Adding candidate file %s:", filesWithTimes[i].filename)
 				candidates = append(candidates, filesWithTimes[i].filename)
