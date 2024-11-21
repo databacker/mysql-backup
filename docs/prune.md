@@ -31,7 +31,7 @@ When enabled, it will prune any backups that fit the pruning criteria.
 
 Pruning can be on the basis of the _age_ of a specific backup, or the _number_ of backups. Both are set by the configuration setting:
 
-* Environment variable: `RETENTION=<value>`
+* Environment variable: `DB_DUMP_RETENTION=<value>`
 * CLI flag: `dump --retention=<value>` or `prune --retention=<value>`
 * Config file:
 ```yaml

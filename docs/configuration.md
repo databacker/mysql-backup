@@ -94,7 +94,7 @@ The following are the environment variables, CLI flags and configuration file op
 | directory with scripts to execute after backup | B | `dump --post-backup-scripts` | `DB_DUMP_POST_BACKUP_SCRIPTS` | `dump.scripts.postBackup` | in container, `/scripts.d/post-backup/` |
 | directory with scripts to execute before restore | R | `restore --pre-restore-scripts` | `DB_DUMP_PRE_RESTORE_SCRIPTS` | `restore.scripts.preRestore` | in container, `/scripts.d/pre-restore/` |
 | directory with scripts to execute after restore | R | `restore --post-restore-scripts` | `DB_DUMP_POST_RESTORE_SCRIPTS` | `restore.scripts.postRestore` | in container, `/scripts.d/post-restore/` |
-| retention policy for backups | BP | `dump --retention` | `RETENTION` | `prune.retention` | Infinite |
+| retention policy for backups | BP | `dump --retention` | `DB_DUMP_RETENTION` | `prune.retention` | Infinite |
 
 ## Configuration File
 
