@@ -172,11 +172,10 @@ func TestDumpCmd(t *testing.T) {
 			})).Return(nil)
 			if tt.expectedPruneOptions != nil {
 				m.On("Prune", mock.MatchedBy(func(pruneOpts core.PruneOptions) bool {
-					diff := deep.Equal(pruneOpts, *tt.expectedPruneOptions)
-					if diff == nil {
+					if equalIgnoreFields(pruneOpts, *tt.expectedPruneOptions, []string{"Run"}) {
 						return true
 					}
-					t.Errorf("pruneOpts compare failed: %v", diff)
+					t.Errorf("pruneOpts compare failed: %#v %#v", pruneOpts, tt.expectedPruneOptions)
 					return false
 				})).Return(nil)
 			}

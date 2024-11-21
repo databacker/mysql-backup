@@ -188,7 +188,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					return fmt.Errorf("error running dump: %w", err)
 				}
 				if retention != "" {
-					if err := executor.Prune(tracerCtx, core.PruneOptions{Targets: targets, Retention: retention}); err != nil {
+					if err := executor.Prune(tracerCtx, core.PruneOptions{Targets: targets, Retention: retention, Run: uid}); err != nil {
 						dumpSpan.SetStatus(codes.Error, fmt.Sprintf("error running prune: %v", err))
 						return fmt.Errorf("error running prune: %w", err)
 					}
