@@ -72,6 +72,12 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfc
 github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/databacker/api/go/api v0.0.0-20241128084006-ed33dc044eaa h1:cDI48+AG1mPMdvgGWz/SLpNKhzDiGZwfSSww9VvvWuI=
 github.com/databacker/api/go/api v0.0.0-20241128084006-ed33dc044eaa/go.mod h1:bQhbl71Lk1ATni0H+u249hjoQ8ShAdVNcNjnw6z+SbE=
+github.com/databacker/api/go/api v0.0.0-20241201124314-f86f0bf46c54 h1:NirzpOdczBCCwBlmfdYLcroaFYIdR2bJkeDjwJKaxQE=
+github.com/databacker/api/go/api v0.0.0-20241201124314-f86f0bf46c54/go.mod h1:bQhbl71Lk1ATni0H+u249hjoQ8ShAdVNcNjnw6z+SbE=
+github.com/databacker/api/go/api v0.0.0-20241201140600-cb4443d89ac3 h1:RhB+NKRnj6T+2mbmvy1me2zglATss01byA9Nar+0pbk=
+github.com/databacker/api/go/api v0.0.0-20241201140600-cb4443d89ac3/go.mod h1:bQhbl71Lk1ATni0H+u249hjoQ8ShAdVNcNjnw6z+SbE=
+github.com/databacker/api/go/api v0.0.0-20241202154620-01b0380f21cb h1:9PthuA+o1wBZuTkNc2LLXQfI5+Myy+ok8nD3bQzd7DA=
+github.com/databacker/api/go/api v0.0.0-20241202154620-01b0380f21cb/go.mod h1:bQhbl71Lk1ATni0H+u249hjoQ8ShAdVNcNjnw6z+SbE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
