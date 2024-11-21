@@ -61,7 +61,7 @@ func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Stora
 	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, fmt.Sprintf("pruneTarget %s", target.URL()))
 	defer span.End()
 
-	logger.Debugf("pruning target %s", target)
+	logger.Debugf("pruning target %s", target.URL())
 	files, err := target.ReadDir(ctx, ".", logger)
 	if err != nil {
 		span.SetStatus(codes.Error, fmt.Sprintf("failed to read directory: %v", err))
