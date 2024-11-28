@@ -49,7 +49,7 @@ services:
       COMPRESSION: bzip2
     command: dump
     depends_on:
-      test-database:
+      mysql:
         condition: service_healthy
       
   mysql-backup-multiple-targets:
@@ -67,7 +67,7 @@ services:
       TZ: UTC
     command: dump
     depends_on:
-      test-database:
+      mysql:
         condition: service_healthy
     volumes:
       - backup:/db
