@@ -1,7 +1,6 @@
 package config
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -47,8 +46,7 @@ func ProcessConfig(r io.Reader) (actualConfig *api.ConfigSpec, err error) {
 			// is incorrect.
 			// We fix this by converting the spec part of the config into json,
 			// as yaml is a valid subset of json, and then unmarshalling that.
-			jsonBytes := yamlToJSON(specBytes)
-			if err := json.Unmarshal(jsonBytes, &spec); err != nil {
+			if err := yaml.Unmarshal(specBytes, &spec); err != nil {
 				return nil, fmt.Errorf("parsed yaml had kind local, but spec invalid")
 			}
 			actualConfig = &spec
@@ -92,16 +90,4 @@ func getRemoteConfig(spec api.RemoteSpec) (conf api.Config, err error) {
 	}
 
 	return baseConf, nil
-}
-
-func yamlToJSON(yamlBytes []byte) []byte {
-	var m map[string]interface{}
-	if err := yaml.Unmarshal(yamlBytes, &m); err != nil {
-		return nil
-	}
-	jsonBytes, err := json.Marshal(m)
-	if err != nil {
-		return nil
-	}
-	return jsonBytes
 }
