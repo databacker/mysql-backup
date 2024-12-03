@@ -132,7 +132,7 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 			if err := executor.Restore(ctx, restoreOpts); err != nil {
 				return fmt.Errorf("error restoring: %v", err)
 			}
-			passedExecs.GetLogger().Info("Restore complete")
+			executor.GetLogger().Info("Restore complete")
 			return nil
 		},
 	}
