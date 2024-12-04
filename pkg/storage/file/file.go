@@ -2,6 +2,7 @@ package file
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/url"
@@ -66,13 +67,13 @@ func (f *File) Remove(ctx context.Context, target string, logger *log.Entry) err
 func copyFile(from, to string) (int64, error) {
 	src, err := os.Open(from)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to open source file %s: %w", from, err)
 	}
 	defer src.Close()
 
 	dst, err := os.Create(to)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to create target file %s: %w", to, err)
 	}
 	defer dst.Close()
 	n, err := io.Copy(dst, src)
