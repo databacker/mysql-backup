@@ -74,7 +74,19 @@ const headerTmpl = `-- Go SQL Dump {{ .DumpVersion }}
 --
 -- Host: {{.Host}}    Database: {{.Database}}
 -- ------------------------------------------------------
--- Server version	{{ .ServerVersion }}
+-- Server version    {{ .ServerVersion }}
+
+-- Define the database name variable
+SET @DB_NAME := '{{.Database}}';
+
+-- Replace '{{.Database}}' with the actual database name if provided as an argument
+-- You can pass the database name as an argument in the command line while running the script:
+-- mysql -u username -p < script.sql --database=new_db_name
+-- The database name passed will override '{{.Database}}'
+
+-- Check if the DB_NAME variable is set in the MySQL interactive mode
+-- If not set, it will use the default value defined above
+USE IFNULL(@DB_NAME, '{{.Database}}');
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -96,6 +108,7 @@ const createUseDatabaseHeader = `
 CREATE DATABASE /*!32312 IF NOT EXISTS*/ ` + "`{{.Database}}`" + ` /*!40100 DEFAULT CHARACTER SET {{ .Charset }} COLLATE {{ .Collation }} */ /*!80016 DEFAULT ENCRYPTION='N' */;
 
 USE ` + "`{{.Database}}`;"
+
 
 // takes a *metaData
 const footerTmpl = `/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
