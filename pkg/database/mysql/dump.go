@@ -74,7 +74,7 @@ const headerTmpl = `-- Go SQL Dump {{ .DumpVersion }}
 --
 -- Host: {{.Host}}    Database: {{.Database}}
 -- ------------------------------------------------------
--- Server version    {{ .ServerVersion }}
+-- Server version	{{ .ServerVersion }}
 
 -- Define the database name variable
 SET @DB_NAME := '{{.Database}}';
