@@ -45,7 +45,7 @@ func (e *Executor) Prune(ctx context.Context, opts PruneOptions) error {
 
 	for _, target := range opts.Targets {
 		if err := pruneTarget(tracerCtx, logger, target, now, retainHours, retainCount); err != nil {
-			return fmt.Errorf("failed to prune target %s: %v", target, err)
+			return fmt.Errorf("failed to prune target %s: %v", target.URL(), err)
 		}
 	}
 
@@ -141,7 +141,7 @@ func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Stora
 		}
 		pruned++
 	}
-	logger.Debugf("pruning %d files from target %s", pruned, target)
+	logger.Debugf("pruning %d files from target %s", pruned, target.URL())
 	span.SetStatus(codes.Ok, fmt.Sprintf("pruned %d files", pruned))
 	return nil
 }
