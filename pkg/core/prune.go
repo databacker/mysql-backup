@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -62,7 +63,7 @@ func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Stora
 	defer span.End()
 
 	logger.Debugf("pruning target %s", target.URL())
-	files, err := target.ReadDir(ctx, ".", logger)
+	files, err := target.ReadDir(ctx, "", logger)
 	if err != nil {
 		span.SetStatus(codes.Error, fmt.Sprintf("failed to read directory: %v", err))
 		return fmt.Errorf("failed to read directory: %v", err)
@@ -73,7 +74,10 @@ func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Stora
 
 	for _, fileInfo := range files {
 		filename := fileInfo.Name()
-		matches := filenameRE.FindStringSubmatch(filename)
+		// this should be the basename, but sometimes it is a full path, like in S3, so we will be careful to trim
+		// to basename. If it already is basename, nothing should be affected
+		baseFilename := path.Base(filename)
+		matches := filenameRE.FindStringSubmatch(baseFilename)
 		if matches == nil {
 			logger.Debugf("ignoring filename that is not standard backup pattern: %s", filename)
 			ignored = append(ignored, filename)

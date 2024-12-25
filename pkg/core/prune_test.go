@@ -4,13 +4,18 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http/httptest"
 	"os"
+	"path"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
+
+	"github.com/johannesboyne/gofakes3"
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -77,7 +82,6 @@ func TestPrune(t *testing.T) {
 		err         error
 	}{
 		{"no targets", PruneOptions{Retention: "1h", Now: now}, nil, nil, fmt.Errorf("no targets")},
-		// 1 hour - file[1] is 1h+30m = 1.5h, so it should be pruned
 		{"invalid format", PruneOptions{Retention: "100x", Now: now}, filenames, filenames[0:1], fmt.Errorf("invalid retention string: 100x")},
 		// 1 hour - file[1] is 1h+30m = 1.5h, so it should be pruned
 		{"1 hour", PruneOptions{Retention: "1h", Now: now}, filenames, filenames[0:1], nil},
@@ -101,60 +105,106 @@ func TestPrune(t *testing.T) {
 		// 2 most recent files
 		{"2 most recent safe names", PruneOptions{Retention: "2c", Now: now}, safefilenames, safefilenames[0:2], nil},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-			// create a temporary directory
-			workDir := t.TempDir()
-			// create beforeFiles in the directory and create a target, but only if there are beforeFiles
-			// this lets us also test no targets, which should generate an error
-			if len(tt.beforeFiles) > 0 {
-				for _, filename := range tt.beforeFiles {
-					if err := os.WriteFile(fmt.Sprintf("%s/%s", workDir, filename), nil, 0644); err != nil {
-						t.Errorf("failed to create file %s: %v", filename, err)
+	for _, targetType := range []string{"file", "s3"} {
+		t.Run(targetType, func(t *testing.T) {
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					ctx := context.Background()
+					logger := log.New()
+					logger.Out = io.Discard
+					// create a temporary directory
+					// create beforeFiles in the directory and create a target, but only if there are beforeFiles
+					// this lets us also test no targets, which should generate an error
+					if len(tt.beforeFiles) > 0 {
+						var (
+							store storage.Storage
+							err   error
+						)
+						switch targetType {
+						case "file":
+							// add our tempdir as the target
+							workDir := t.TempDir()
+							store, err = storage.ParseURL(fmt.Sprintf("file://%s", workDir), credentials.Creds{})
+							if err != nil {
+								t.Errorf("failed to parse file url: %v", err)
+								return
+							}
+						case "s3":
+							bucketName := "mytestbucket"
+							s3backend := s3mem.New()
+							// create the bucket we will use for tests
+							if err := s3backend.CreateBucket(bucketName); err != nil {
+								t.Errorf("failed to create bucket: %v", err)
+								return
+							}
+							s3 := gofakes3.New(s3backend)
+							s3server := httptest.NewServer(s3.Server())
+							defer s3server.Close()
+							s3url := s3server.URL
+							store, err = storage.ParseURL(fmt.Sprintf("s3://%s/%s", bucketName, bucketName), credentials.Creds{AWS: credentials.AWSCreds{
+								Endpoint:        s3url,
+								AccessKeyID:     "abcdefg",
+								SecretAccessKey: "1234567",
+								Region:          "us-east-1",
+								PathStyle:       true,
+							}})
+							if err != nil {
+								t.Errorf("failed to parse s3 url: %v", err)
+								return
+							}
+						default:
+							t.Errorf("unknown target type: %s", targetType)
+							return
+						}
+
+						tt.opts.Targets = append(tt.opts.Targets, store)
+
+						for _, filename := range tt.beforeFiles {
+							// we need an empty file to push
+							srcDir := t.TempDir()
+							srcFile := fmt.Sprintf("%s/%s", srcDir, "src")
+							if err := os.WriteFile(srcFile, nil, 0644); err != nil {
+								t.Errorf("failed to create file %s: %v", srcFile, err)
+								return
+							}
+
+							// now push that same empty file each time; we do not care about contents, only that the target file exists
+							if _, err := store.Push(ctx, filename, srcFile, log.NewEntry(logger)); err != nil {
+								t.Errorf("failed to create file %s: %v", filename, err)
+								return
+							}
+						}
+					}
+
+					// run Prune
+					executor := Executor{
+						Logger: logger,
+					}
+					err := executor.Prune(ctx, tt.opts)
+					switch {
+					case (err == nil && tt.err != nil) || (err != nil && tt.err == nil):
+						t.Errorf("expected error %v, got %v", tt.err, err)
+					case err != nil && tt.err != nil && err.Error() != tt.err.Error():
+						t.Errorf("expected error %v, got %v", tt.err, err)
+					case err != nil:
 						return
 					}
-				}
-
-				// add our tempdir as the target
-				store, err := storage.ParseURL(fmt.Sprintf("file://%s", workDir), credentials.Creds{})
-				if err != nil {
-					t.Errorf("failed to parse url: %v", err)
-					return
-				}
-
-				tt.opts.Targets = append(tt.opts.Targets, store)
+					// check files match
+					files, err := tt.opts.Targets[0].ReadDir(ctx, "", log.NewEntry(logger))
+					if err != nil {
+						t.Errorf("failed to read directory: %v", err)
+						return
+					}
+					var afterFiles []string
+					for _, file := range files {
+						afterFiles = append(afterFiles, path.Base(file.Name()))
+					}
+					afterFilesSorted, ttAfterFilesSorted := slices.Clone(afterFiles), slices.Clone(tt.afterFiles)
+					slices.Sort(afterFilesSorted)
+					slices.Sort(ttAfterFilesSorted)
+					assert.ElementsMatch(t, ttAfterFilesSorted, afterFilesSorted)
+				})
 			}
-
-			// run Prune
-			logger := log.New()
-			logger.Out = io.Discard
-			executor := Executor{
-				Logger: logger,
-			}
-			err := executor.Prune(ctx, tt.opts)
-			switch {
-			case (err == nil && tt.err != nil) || (err != nil && tt.err == nil):
-				t.Errorf("expected error %v, got %v", tt.err, err)
-			case err != nil && tt.err != nil && err.Error() != tt.err.Error():
-				t.Errorf("expected error %v, got %v", tt.err, err)
-			case err != nil:
-				return
-			}
-			// check files match
-			files, err := os.ReadDir(workDir)
-			if err != nil {
-				t.Errorf("failed to read directory: %v", err)
-				return
-			}
-			var afterFiles []string
-			for _, file := range files {
-				afterFiles = append(afterFiles, file.Name())
-			}
-			afterFilesSorted, ttAfterFilesSorted := slices.Clone(afterFiles), slices.Clone(tt.afterFiles)
-			slices.Sort(afterFilesSorted)
-			slices.Sort(ttAfterFilesSorted)
-			assert.ElementsMatch(t, ttAfterFilesSorted, afterFilesSorted)
 		})
 	}
 }
