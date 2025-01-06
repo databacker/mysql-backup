@@ -80,7 +80,7 @@ The following are the environment variables, CLI flags and configuration file op
 | where to put the dump file; see [backup](./backup.md) | BP | `dump --target` | `DB_DUMP_TARGET` | `dump.targets` |  |
 | where the restore file exists; see [restore](./restore.md) | R | `restore --target` | `DB_RESTORE_TARGET` | `restore.target` |  |
 | replace any `:` in the dump filename with `-` | BP | `dump --safechars` | `DB_DUMP_SAFECHARS` | `database.safechars` | `false` |
-| AWS access key ID, used only if a target does not have one | BRP | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].accessKeyId` |  |
+| AWS access key ID, used only if a target does not have one | BRP | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].accessKeyID` |  |
 | AWS secret access key, used only if a target does not have one | BRP | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].secretAccessKey` |  |
 | AWS default region, used only if a target does not have one | BRP | `aws-region` | `AWS_REGION` | `dump.targets[s3-target].region` |  |
 | alternative endpoint URL for S3-interoperable systems, used only if a target does not have one | BR | `aws-endpoint-url` | `AWS_ENDPOINT_URL` | `dump.targets[s3-target].endpoint` |  |
@@ -161,7 +161,7 @@ for details of each.
       * `region`: the region
       * `endpoint`: the endpoint
       * `pathStyle` (boolean): use path-style bucket addressing instead of virtual-host style bucket addressing, see [AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
-      * `accessKeyId`: the access key ID
+      * `accessKeyID`: the access key ID
       * `secretAccessKey`: the secret access key
     * Type smb:
       * `domain`: the domain
