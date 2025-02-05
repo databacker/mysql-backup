@@ -9,6 +9,11 @@ import (
 	"regexp"
 )
 
+const (
+	// used to define default max buffer size Scanner, counter part of dump
+	defaultMaxAllowedPacket = 4194304
+)
+
 var (
 	useRegex    = regexp.MustCompile(`(?i)^(USE\s*` + "`" + `)([^\s]+)(` + "`" + `\s*;)$`)
 	createRegex = regexp.MustCompile(`(?i)^(CREATE\s+DATABASE\s*(\/\*.*\*\/\s*)?` + "`" + `)([^\s]+)(` + "`" + `\s*(\s*\/\*.*\*\/\s*)?\s*;$)`)
@@ -27,7 +32,10 @@ func Restore(ctx context.Context, dbconn Connection, databasesMap map[string]str
 		if err != nil {
 			return fmt.Errorf("failed to restore database: %w", err)
 		}
+		scanBuf := []byte{}
 		scanner := bufio.NewScanner(r)
+		// increase the buffer size
+		scanner.Buffer(scanBuf, defaultMaxAllowedPacket) //TODO should be a configurable option like with dump
 		var current string
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -57,6 +65,9 @@ func Restore(ctx context.Context, dbconn Connection, databasesMap map[string]str
 				return fmt.Errorf("failed to restore database: %w", err)
 			}
 			current = ""
+		}
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("failed to restore database: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("failed to restore database: %w", err)
