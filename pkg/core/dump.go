@@ -82,7 +82,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	dw := make([]database.DumpWriter, 0)
 
 	// do we back up all schemas, or just provided ones
-	span.SetAttributes(attribute.Bool("provided-schemas", len(dbnames) == 0))
+	span.SetAttributes(attribute.Bool("provided-schemas", len(dbnames) != 0))
 	if len(dbnames) == 0 {
 		if dbnames, err = database.GetSchemas(dbconn); err != nil {
 			return results, fmt.Errorf("failed to list database schemas: %v", err)
