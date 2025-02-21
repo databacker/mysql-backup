@@ -118,7 +118,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 				compressionAlgo string
 				compressor      compression.Compressor
 			)
-			if cmdConfig.configuration != nil && dumpConfig.Compression != nil {
+			if cmdConfig.configuration != nil && dumpConfig != nil && dumpConfig.Compression != nil {
 				compressionAlgo = *dumpConfig.Compression
 			}
 			compressionVar := v.GetString("compression")
@@ -134,7 +134,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 
 			// retention, if enabled
 			retention := v.GetString("retention")
-			if retention == "" && cmdConfig.configuration != nil && cmdConfig.configuration.Prune.Retention != nil {
+			if retention == "" && cmdConfig.configuration != nil && cmdConfig.configuration.Prune != nil && cmdConfig.configuration.Prune.Retention != nil {
 				retention = *cmdConfig.configuration.Prune.Retention
 			}
 			filenamePattern := v.GetString("filename-pattern")
