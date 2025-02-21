@@ -51,7 +51,7 @@ If using environment variables with any credentials in a container, you should c
 If using CLI flags with any credentials, you should consider using a config file instead of directly
 placing credentials in the flags, where they may be kept in shell history.
 
-There is **no** default configuration file. To use a configuration file, you **must** specify it with the `--config` flag.
+There is **no** default configuration file. To use a configuration file, you **must** specify it with the `--config-file` flag.
 
 ## Sample Configuration Files
 
@@ -63,7 +63,7 @@ The following are the environment variables, CLI flags and configuration file op
 
 | Purpose | Backup / Restore / Prune | CLI Flag | Env Var | Config Key | Default |
 | --- | --- | --- | --- | --- | --- |
-| config file path | BRP | `config` | `DB_DUMP_CONFIG` |  |  |
+| config file path | BRP | `--config-file` | `DB_CONFIG_FILE` |  |  |
 | hostname or unix domain socket path (starting with a slash) to connect to database. Required. | BR | `server` | `DB_SERVER` | `database.server` |  |
 | port to use to connect to database. Optional. | BR | `port` | `DB_PORT` | `database.port` | 3306 |
 | username for the database | BR | `user` | `DB_USER` | `database.credentials.username` |  |
@@ -190,6 +190,6 @@ and so on, ad infinitum. In practice, remote service will avoid this.
 
 As of version 1.0 of `mysql-backup`, there is support only for one config file. This means:
 
-* The `--config` flag can be used only once.
+* The `--config-file` flag can be used only once.
 * The config file does not support [multiple yaml documents in a single file](https://yaml.org/spec/1.2.2/). If you ask it to read a yaml file with multiple documents sepaarted by `---`, it will read only the first one.
 * You can have chaining, as described in the [remote configuration](#remote-configuration) section, where one file of kind `remote` references another, which itself is `remote`, etc. But only the final one will be used. It is not merging.
