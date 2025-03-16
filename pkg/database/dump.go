@@ -22,7 +22,7 @@ func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpW
 	// all at once
 	//    mysqldump -A $MYSQLDUMP_OPTS
 	// all at once limited to some databases
-	//    mysqldump --databases $DB_NAMES $MYSQLDUMP_OPTS
+	//    mysqldump --databases $DB_DUMP_INCLUDE $MYSQLDUMP_OPTS
 	for _, writer := range writers {
 		db, err := sql.Open("mysql", dbconn.MySQL())
 		if err != nil {

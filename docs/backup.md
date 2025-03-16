@@ -13,11 +13,11 @@ to a target. That target can be one of:
 
 By default, all databases in the database server are backed up, and the system databases
 named `information_schema`, `performance_schema`, `sys` and `mysql` are excluded.
-For example, if you set `DB_NAMES_EXCLUDE=database1 db2` then these two databases will not be dumped.
+For example, if you set `DB_DUMP_EXCLUDE=database1 db2` then these two databases will not be dumped.
 
 **Dumping just some databases**
 
-* Environment variable: `DB_NAMES=db1,db2,db3`
+* Environment variable: `DB_DUMP_INCLUDE=db1,db2,db3`
 * CLI flag: `--include=db1 --include=db2 --include=db3`
 * Config file:
 ```yaml
@@ -30,7 +30,7 @@ dump:
 
 **Dumping all databases**
 
-* Environment variable: `DB_NAMES=`
+* Environment variable: `DB_DUMP_INCLUDE=`
 * CLI flag: `--include=`
 * Config file:
 ```yaml
@@ -42,7 +42,7 @@ Note that you do not need to set those explicitly; these are the defaults for th
 
 **Dumping all databases except for one**
 
-* Environment variable: `DB_NAMES_EXCLUDE=notme,notyou`
+* Environment variable: `DB_DUMP_EXCLUDE=notme,notyou`
 * CLI flag: `--exclude=notme,notyou`
 * Config file:
 ```yaml

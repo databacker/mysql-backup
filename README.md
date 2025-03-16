@@ -94,8 +94,8 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PORT`: port to use to connect to database. Optional, defaults to `3306`
 * `DB_USER`: username for the database
 * `DB_PASS`: password for the database
-* `DB_NAMES`: names of databases to restore separated by spaces. Required if `SINGLE_DATABASE=true`.
-* `SINGLE_DATABASE`: If is set to `true`, `DB_NAMES` is required and must contain exactly one database name. Mysql command will then run with `--database=$DB_NAMES` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
+* `DB_DUMP_INCLUDE`: names of databases to restore separated by spaces. Required if `SINGLE_DATABASE=true`.
+* `SINGLE_DATABASE`: If is set to `true`, `DB_DUMP_INCLUDE` is required and must contain exactly one database name. Mysql command will then run with `--database=$DB_DUMP_INCLUDE` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
 * `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
 * `DB_DUMP_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
 * To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined.
@@ -110,17 +110,17 @@ Examples:
 ### Restore specific databases
 If you have multiple schemas in your database, you can choose to restore only some of them.
 
-To do this, you must restore using `DB_NAMES` to specify the schemas you want restored.
+To do this, you must restore using `DB_DUMP_INCLUDE` to specify the schemas you want restored.
 
 When doing this, schemas will be restored with their original name. To restore under other names, you must use `SINGLE_DATABASE=true` on both dump and restore, and you can only do it one schema at a time.
 
 #### Examples:
 1. Dump a multi-schemas database and restore only some of them:
    * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -v /local/path:/backup databack/mysql-backup dump `
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e DB_NAMES="database1 database3" -v /local/path:/backup databack/mysql-backup restore`
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e DB_DUMP_INCLUDE="database1 database3" -v /local/path:/backup databack/mysql-backup restore`
 2. Dump and restore a schema under a different name:
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e SINGLE_DATABASE=true -e DB_NAMES=database1 -v /local/path:/backup databack/mysql-backup dump`
-   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e SINGLE_DATABASE=true DB_NAMES=newdatabase1 -v /local/path:/backup databack/mysql-backup restore`
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e SINGLE_DATABASE=true -e DB_DUMP_INCLUDE=database1 -v /local/path:/backup databack/mysql-backup dump`
+   * `docker run -e DB_SERVER=gotodb.example.com -e DB_USER=user123 -e DB_PASS=pass123 -e DB_RESTORE_TARGET=/backup/db_backup_201509271627.gz -e SINGLE_DATABASE=true DB_DUMP_INCLUDE=newdatabase1 -v /local/path:/backup databack/mysql-backup restore`
 
 See [restore](./docs/restore.md) for a more detailed description of performing restores.
 
