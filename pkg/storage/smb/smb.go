@@ -131,7 +131,9 @@ func (s *SMB) Remove(ctx context.Context, target string, logger *log.Entry) erro
 
 func (s *SMB) exec(u url.URL, command func(fs *smb2.Share, sharepath string) error) error {
 	var (
-		username, password, domain string
+		username = s.username
+		password = s.password
+		domain   = s.domain
 	)
 
 	hostname, port, path := u.Hostname(), u.Port(), u.Path
@@ -144,9 +146,8 @@ func (s *SMB) exec(u url.URL, command func(fs *smb2.Share, sharepath string) err
 	if s.username == "" && u.User != nil {
 		username = u.User.Username()
 		password, _ = u.User.Password()
+		username, domain = parseSMBDomain(username)
 	}
-
-	username, domain = parseSMBDomain(username)
 
 	conn, err := net.Dial("tcp", host)
 	if err != nil {

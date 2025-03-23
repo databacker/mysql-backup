@@ -239,6 +239,17 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 	pflags.String("smb-pass", "", "SMB username")
 	pflags.String("smb-domain", "", "SMB domain")
 
+	// override the DB_ for these
+	if err := v.BindEnv("smb-user", "SMB_USER"); err != nil {
+		return nil, err
+	}
+	if err := v.BindEnv("smb-pass", "SMB_PASS"); err != nil {
+		return nil, err
+	}
+	if err := v.BindEnv("smb-domain", "SMB_DOMAIN"); err != nil {
+		return nil, err
+	}
+
 	for _, subCmd := range subCommands {
 		if sc, err := subCmd(execs, cmdConfig); err != nil {
 			return nil, err
