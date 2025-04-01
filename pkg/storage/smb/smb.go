@@ -82,6 +82,7 @@ func (s *SMB) Push(ctx context.Context, target, source string, logger *log.Entry
 	)
 	err = s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
 		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, target)
+		smbFilename = strings.TrimPrefix(smbFilename, fmt.Sprintf("%c", smb2.PathSeparator))
 		from, err := os.Open(source)
 		if err != nil {
 			return err
