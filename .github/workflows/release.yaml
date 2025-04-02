@@ -55,7 +55,7 @@ jobs:
           # for ones that are exactly X.Y.Z, also tag it as latest
           tags: |
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}.{{patch}},value=latest
+            type=semver,pattern=v{{major}}.{{minor}}.{{patch}},value=latest
       - name: Build and push semver tag
         id: docker_build_push_semver
         uses: docker/build-push-action@v6
