@@ -58,6 +58,7 @@ func (s *SMB) Pull(ctx context.Context, source, target string, logger *log.Entry
 	)
 	err = s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
 		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
+		smbFilename = strings.TrimPrefix(smbFilename, fmt.Sprintf("%c", smb2.PathSeparator))
 
 		to, err := os.Create(target)
 		if err != nil {
@@ -126,6 +127,7 @@ func (s *SMB) ReadDir(ctx context.Context, dirname string, logger *log.Entry) ([
 func (s *SMB) Remove(ctx context.Context, target string, logger *log.Entry) error {
 	return s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
 		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
+		smbFilename = strings.TrimPrefix(smbFilename, fmt.Sprintf("%c", smb2.PathSeparator))
 		return fs.Remove(smbFilename)
 	})
 }
