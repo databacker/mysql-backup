@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -150,7 +151,9 @@ func (s *S3) ReadDir(ctx context.Context, dirname string, logger *log.Entry) ([]
 	}
 
 	// Call ListObjectsV2 with your bucket and prefix
-	result, err := client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{Bucket: aws.String(s.url.Hostname()), Prefix: aws.String(dirname)})
+	// ensure that there is no leading /
+	p := strings.TrimPrefix(filepath.Join(s.url.Path, dirname), "/")
+	result, err := client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{Bucket: aws.String(s.url.Hostname()), Prefix: aws.String(filepath.Join(p, dirname))})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list objects, %v", err)
 	}
