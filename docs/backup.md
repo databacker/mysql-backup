@@ -355,12 +355,3 @@ fi
 
 **Important:** For post-processing, remember that at the end of the script, the dump file must be in
 the location specified by the `DUMPFILE` variable. If you move it, you **must** move it back.
-
-### Encrypting the Backup
-
-Post-processing gives you options to encrypt the backup using openssl or any other tools. You will need to have it
-available on your system. When running in the `mysql-backup` container, the openssl binary is available
-to the processing scripts.
-
-The sample [examples/encrypt.sh](./examples/encrypt.sh) provides a sample post-processing script that you can use
-to encrypt your backup with AES256.
