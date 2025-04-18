@@ -181,9 +181,9 @@ func decryptConfig(spec api.EncryptedSpec, credentials []string) (api.Config, er
 	hkdfReader := hkdf.New(sha256.New, sharedSecret[:], nil, []byte(api.SymmetricKey))
 	var symmetricKeySize int
 	switch *spec.Algorithm {
-	case api.AesGcm256:
+	case api.EncryptedSpecAlgorithmAes256Gcm:
 		symmetricKeySize = 32
-	case api.Chacha20Poly1305:
+	case api.EncryptedSpecAlgorithmChacha20Poly1305:
 		symmetricKeySize = 32
 	default:
 		return plainConfig, fmt.Errorf("unsupported algorithm: %s", *spec.Algorithm)
@@ -202,7 +202,7 @@ func decryptConfig(spec api.EncryptedSpec, credentials []string) (api.Config, er
 		return plainConfig, fmt.Errorf("failed to decode encrypted data: %w", err)
 	}
 	switch *spec.Algorithm {
-	case api.AesGcm256:
+	case api.EncryptedSpecAlgorithmAes256Gcm:
 		// Decrypt with AES-GCM
 		block, err := aes.NewCipher(symmetricKey)
 		if err != nil {
@@ -212,7 +212,7 @@ func decryptConfig(spec api.EncryptedSpec, credentials []string) (api.Config, er
 		if err != nil {
 			return plainConfig, fmt.Errorf("failed to initialize AES-GCM: %w", err)
 		}
-	case api.Chacha20Poly1305:
+	case api.EncryptedSpecAlgorithmChacha20Poly1305:
 		// Decrypt with ChaCha20Poly1305
 		aead, err = chacha20poly1305.New(symmetricKey)
 		if err != nil {
