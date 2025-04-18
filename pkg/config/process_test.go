@@ -169,7 +169,7 @@ func TestDecryptConfig(t *testing.T) {
 	// Embed the nonce in the ciphertext
 	fullCiphertext := append(nonce, ciphertext...)
 
-	algo := api.AesGcm256
+	algo := api.EncryptedSpecAlgorithmAes256Gcm
 	data := base64.StdEncoding.EncodeToString(fullCiphertext)
 
 	// this is a valid spec, we want to be able to change fields

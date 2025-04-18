@@ -34,6 +34,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	dbnames := opts.DBNames
 	dbconn := opts.DBConn
 	compressor := opts.Compressor
+	encryptor := opts.Encryptor
 	compact := opts.Compact
 	suppressUseDatabase := opts.SuppressUseDatabase
 	maxAllowedPacket := opts.MaxAllowedPacket
@@ -131,6 +132,14 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		tarSpan.SetStatus(codes.Error, err.Error())
 		tarSpan.End()
 		return results, fmt.Errorf("failed to create compressor: %v", err)
+	}
+	if encryptor != nil {
+		cw, err = encryptor.Encrypt(cw)
+		if err != nil {
+			tarSpan.SetStatus(codes.Error, err.Error())
+			tarSpan.End()
+			return results, fmt.Errorf("failed to create encryptor: %v", err)
+		}
 	}
 	if err := archive.Tar(workdir, cw); err != nil {
 		tarSpan.SetStatus(codes.Error, err.Error())

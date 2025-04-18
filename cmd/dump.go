@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -13,6 +15,7 @@ import (
 	"github.com/databacker/api/go/api"
 	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/core"
+	"github.com/databacker/mysql-backup/pkg/encrypt"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/util"
 )
@@ -132,6 +135,66 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 				}
 			}
 
+			// encryption algorithm: check config, then CLI/env var overrides
+			var (
+				encryptionAlgo string
+				encryptionKey  []byte
+				encryptor      encrypt.Encryptor
+			)
+			if cmdConfig.configuration != nil && dumpConfig != nil && dumpConfig.Encryption != nil {
+				if dumpConfig.Encryption.Algorithm == nil {
+					return fmt.Errorf("encryption algorithm must be set in config file")
+				}
+				encryptionAlgo = string(*dumpConfig.Encryption.Algorithm)
+				switch {
+				case dumpConfig.Encryption.Key != nil && *dumpConfig.Encryption.Key != "" && dumpConfig.Encryption.KeyPath != nil && *dumpConfig.Encryption.KeyPath != "":
+					return fmt.Errorf("encryption key and path cannot both be set in config file")
+				case dumpConfig.Encryption.Key != nil && *dumpConfig.Encryption.Key == "" && dumpConfig.Encryption.KeyPath != nil && *dumpConfig.Encryption.KeyPath == "":
+					return fmt.Errorf("must set at least one of encryption key or path in config file")
+				case dumpConfig.Encryption.Key != nil && *dumpConfig.Encryption.Key != "":
+					encryptionKey, err = base64.StdEncoding.DecodeString(*dumpConfig.Encryption.Key)
+					if err != nil {
+						return fmt.Errorf("error decoding encryption key from config file: %v", err)
+					}
+				case dumpConfig.Encryption.KeyPath != nil && *dumpConfig.Encryption.KeyPath != "":
+					key, err := os.ReadFile(*dumpConfig.Encryption.KeyPath)
+					if err != nil {
+						return fmt.Errorf("error reading encryption key from path: %v", err)
+					}
+					encryptionKey = key
+				}
+			}
+			encryptionVar := v.GetString("encryption")
+			if encryptionVar != "" {
+				encryptionAlgo = encryptionVar
+			}
+			if encryptionAlgo != "" {
+				keyContent := v.GetString("encryption-key")
+				keyPath := v.GetString("encryption-key-path")
+				switch {
+				case keyContent != "" && keyPath != "":
+					return fmt.Errorf("encryption key and path cannot both be set in CLI")
+				case keyContent == "" && keyPath == "":
+					return fmt.Errorf("must set at least one of encryption key or path in CLI")
+				case keyContent != "":
+					encryptionKey, err = base64.StdEncoding.DecodeString(keyContent)
+					if err != nil {
+						return fmt.Errorf("error decoding encryption key from CLI flag: %v", err)
+					}
+				case keyPath != "":
+					key, err := os.ReadFile(keyPath)
+					if err != nil {
+						return fmt.Errorf("error reading encryption key from path: %v", err)
+					}
+					encryptionKey = key
+				}
+
+				encryptor, err = encrypt.GetEncryptor(encryptionAlgo, encryptionKey)
+				if err != nil {
+					return fmt.Errorf("failure to get encryptor '%s': %v", encryptionAlgo, err)
+				}
+			}
+
 			// retention, if enabled
 			retention := v.GetString("retention")
 			if retention == "" && cmdConfig.configuration != nil && cmdConfig.configuration.Prune != nil && cmdConfig.configuration.Prune.Retention != nil {
@@ -173,6 +236,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					DBNames:             include,
 					DBConn:              cmdConfig.dbconn,
 					Compressor:          compressor,
+					Encryptor:           encryptor,
 					Exclude:             exclude,
 					PreBackupScripts:    preBackupScripts,
 					PostBackupScripts:   postBackupScripts,
@@ -262,6 +326,10 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	// retention
 	flags.String("retention", "", "Retention period for backups. Optional. If not specified, no pruning will be done. Can be number of backups or time-based. For time-based, the format is: 1d, 1w, 1m, 1y for days, weeks, months, years, respectively. For number-based, the format is: 1c, 2c, 3c, etc. for the count of backups to keep.")
 
+	// encryption options
+	flags.String("encryption", "", fmt.Sprintf("Encryption algorithm to use, none if blank. Supported are: %s. Format must match the specific algorithm.", strings.Join(encrypt.All, ", ")))
+	flags.String("encryption-key", "", "Encryption key to use, base64-encoded. Useful for debugging, not recommended for production. If encryption is enabled, and both are provided or neither is provided, returns an error.")
+	flags.String("encryption-key-path", "", "Path to encryption key file. If encryption is enabled, and both are provided or neither is provided, returns an error.")
 	return cmd, nil
 }
 
