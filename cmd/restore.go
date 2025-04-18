@@ -35,7 +35,7 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 			tracer := getTracer("restore")
 			defer func() {
 				tp := getTracerProvider()
-				tp.ForceFlush(ctx)
+				_ = tp.ForceFlush(ctx)
 				_ = tp.Shutdown(ctx)
 			}()
 			ctx = util.ContextWithTracer(ctx, tracer)

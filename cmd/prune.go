@@ -37,7 +37,7 @@ func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, e
 			// this is the tracer that we will use throughout the entire run
 			defer func() {
 				tp := getTracerProvider()
-				tp.ForceFlush(ctx)
+				_ = tp.ForceFlush(ctx)
 				_ = tp.Shutdown(ctx)
 			}()
 			tracer := getTracer("prune")

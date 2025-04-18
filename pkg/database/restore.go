@@ -24,7 +24,7 @@ func Restore(ctx context.Context, dbconn Connection, databasesMap map[string]str
 	if err != nil {
 		return fmt.Errorf("failed to open connection to database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// load data into database by reading from each reader
 	for _, r := range readers {

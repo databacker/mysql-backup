@@ -69,13 +69,13 @@ func copyFile(from, to string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to open source file %s: %w", from, err)
 	}
-	defer src.Close()
+	defer func() { _ = src.Close() }()
 
 	dst, err := os.Create(to)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create target file %s: %w", to, err)
 	}
-	defer dst.Close()
+	defer func() { _ = dst.Close() }()
 	n, err := io.Copy(dst, src)
 	return n, err
 }

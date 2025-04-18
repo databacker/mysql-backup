@@ -66,7 +66,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	if err != nil {
 		return results, fmt.Errorf("failed to make temporary working directory: %v", err)
 	}
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	// execute pre-backup scripts if any
 	if err := preBackup(ctx, timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PreBackupScripts, logger.Level == log.DebugLevel); err != nil {
 		return results, fmt.Errorf("error running pre-restore: %v", err)
@@ -77,7 +77,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	if err != nil {
 		return results, fmt.Errorf("failed to make temporary cache directory: %v", err)
 	}
-	defer os.RemoveAll(workdir)
+	defer func() { _ = os.RemoveAll(workdir) }()
 
 	dw := make([]database.DumpWriter, 0)
 
@@ -125,7 +125,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		tarSpan.End()
 		return results, fmt.Errorf("failed to open output file '%s': %v", outFile, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	cw, err := compressor.Compress(f)
 	if err != nil {
 		tarSpan.SetStatus(codes.Error, err.Error())
@@ -138,7 +138,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		return results, fmt.Errorf("error creating the compressed archive: %v", err)
 	}
 	// we need to close it explicitly before moving ahead
-	f.Close()
+	defer func() { _ = f.Close() }()
 	tarSpan.SetStatus(codes.Ok, "completed")
 	tarSpan.End()
 

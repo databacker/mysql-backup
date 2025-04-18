@@ -28,7 +28,7 @@ func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpW
 		if err != nil {
 			return fmt.Errorf("failed to open connection to database: %v", err)
 		}
-		defer db.Close()
+		defer func() { _ = db.Close() }()
 		for _, schema := range writer.Schemas {
 			dumper := &mysql.Data{
 				Out:                 writer.Writer,

@@ -50,7 +50,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			cmdConfig.logger.Debug("starting dump")
 			defer func() {
 				tp := getTracerProvider()
-				tp.ForceFlush(ctx)
+				_ = tp.ForceFlush(ctx)
 				_ = tp.Shutdown(ctx)
 			}()
 			// check targets

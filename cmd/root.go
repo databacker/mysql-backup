@@ -101,7 +101,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				if f, err = os.Open(configFilePath); err != nil {
 					return fmt.Errorf("fatal error config file: %w", err)
 				}
-				defer f.Close()
+				defer func() { _ = f.Close() }()
 				actualConfig, err = config.ProcessConfig(f)
 				if err != nil {
 					return fmt.Errorf("unable to read provided config: %w", err)
