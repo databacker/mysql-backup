@@ -64,12 +64,12 @@ func (s *SMB) Pull(ctx context.Context, source, target string, logger *log.Entry
 		if err != nil {
 			return err
 		}
-		defer to.Close()
+		defer func() { _ = to.Close() }()
 		from, err := fs.Open(smbFilename)
 		if err != nil {
 			return err
 		}
-		defer from.Close()
+		defer func() { _ = from.Close() }()
 		copied, err = io.Copy(to, from)
 		return err
 	})
@@ -88,12 +88,12 @@ func (s *SMB) Push(ctx context.Context, target, source string, logger *log.Entry
 		if err != nil {
 			return err
 		}
-		defer from.Close()
+		defer func() { _ = from.Close() }()
 		to, err := fs.Create(smbFilename)
 		if err != nil {
 			return err
 		}
-		defer to.Close()
+		defer func() { _ = to.Close() }()
 		copied, err = io.Copy(to, from)
 		return err
 	})
@@ -156,7 +156,7 @@ func (s *SMB) exec(u url.URL, command func(fs *smb2.Share, sharepath string) err
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	d := &smb2.Dialer{
 		Initiator: &smb2.NTLMInitiator{

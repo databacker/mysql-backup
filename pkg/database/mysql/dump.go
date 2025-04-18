@@ -270,7 +270,7 @@ func (data *Data) getTables() ([]Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var tableName, tableType sql.NullString
@@ -302,7 +302,7 @@ func (data *Data) getCharsetCollections() error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var charset, collation sql.NullString

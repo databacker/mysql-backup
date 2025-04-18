@@ -91,7 +91,7 @@ func (table *baseTable) initColumnData() error {
 	if err != nil {
 		return err
 	}
-	defer colInfo.Close()
+	defer func() { _ = colInfo.Close() }()
 
 	cols, err := colInfo.Columns()
 	if err != nil {
@@ -191,7 +191,7 @@ func (table *baseTable) Next() bool {
 			return false
 		}
 	} else {
-		table.rows.Close()
+		_ = table.rows.Close()
 		table.rows = nil
 		return false
 	}

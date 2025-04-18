@@ -60,13 +60,13 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 	if err != nil {
 		return fmt.Errorf("unable to create temporary working directory: %v", err)
 	}
-	defer os.RemoveAll(tmpdir)
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	f, err := os.Open(tmpRestoreFile)
 	if f == nil {
 		return fmt.Errorf("unable to read the temporary download file: %v", err)
 	}
-	defer f.Close()
-	defer os.Remove(tmpRestoreFile)
+	defer func() { _ = f.Close() }()
+	defer func() { _ = os.Remove(tmpRestoreFile) }()
 
 	// create my tar reader to put the files in the directory
 	_, tarSpan := tracer.Start(ctx, "input_tar")
@@ -105,7 +105,7 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 		if err != nil {
 			continue
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 		readers = append(readers, file)
 		fileNames = append(fileNames, f.Name())
 	}

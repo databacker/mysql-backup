@@ -19,8 +19,7 @@ func Tar(src string, writer io.WriteCloser) error {
 	tw := tar.NewWriter(writer)
 	// defers are executed via a stack, so LIFO
 	// important we close the tw before the underlying writer
-	defer writer.Close()
-	defer tw.Close()
+	defer func() { _ = tw.Close(); _ = writer.Close() }()
 
 	// walk path
 	return filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
@@ -42,7 +41,7 @@ func Tar(src string, writer io.WriteCloser) error {
 		}
 
 		// update the name to correctly reflect the desired destination when untaring
-		header.Name = strings.TrimPrefix(strings.Replace(file, src, "", -1), string(filepath.Separator))
+		header.Name = strings.TrimPrefix(strings.ReplaceAll(file, src, ""), string(filepath.Separator))
 
 		// write the header
 		if err := tw.WriteHeader(header); err != nil {
@@ -62,7 +61,7 @@ func Tar(src string, writer io.WriteCloser) error {
 
 		// manually close here after each file operation; defering would cause each file close
 		// to wait until all operations have completed.
-		f.Close()
+		_ = f.Close()
 
 		return nil
 	})
@@ -121,7 +120,7 @@ func Untar(r io.Reader, dst string) error {
 
 			// manually close here after each file operation; defering would cause each file close
 			// to wait until all operations have completed.
-			f.Close()
+			_ = f.Close()
 		}
 	}
 }

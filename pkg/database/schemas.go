@@ -21,7 +21,7 @@ func GetSchemas(dbconn Connection) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection to database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// TODO: get list of schemas
 	// mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases'
@@ -29,7 +29,7 @@ func GetSchemas(dbconn Connection) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get schemas: %v", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	names := []string{}
 	for rows.Next() {

@@ -83,7 +83,7 @@ func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create target restore file %q, %v", target, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Write the contents of S3 Object to the file
 	n, err := downloader.Download(context.TODO(), f, &s3.GetObjectInput{
@@ -112,7 +112,7 @@ func (s *S3) Push(ctx context.Context, target, source string, logger *log.Entry)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read input file %q, %v", source, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	countingReader := NewCountingReader(f)
 
 	// S3 always prepends a /, so if it already has one, it would become //

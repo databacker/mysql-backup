@@ -106,7 +106,7 @@ func getRemoteConfig(spec api.RemoteSpec) (conf api.Config, err error) {
 	if err != nil {
 		return conf, fmt.Errorf("error getting reader: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read the body of the response and convert to a config.Config struct
 	var baseConf api.Config
