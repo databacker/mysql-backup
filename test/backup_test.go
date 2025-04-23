@@ -59,6 +59,7 @@ var dumpFilterRegex = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)^\s*-- MySQL dump .*$`),
 	regexp.MustCompile(`(?i)^\s*-- Go SQL dump .*$`),
 	regexp.MustCompile(`(?i)^\s*-- Dump completed on .*`),
+	regexp.MustCompile(`(?i)^\s*$`),
 }
 
 type containerPort struct {
@@ -220,7 +221,7 @@ func (d *dockerContext) waitForDBConnectionAndGrantPrivileges(mysqlCID, dbuser, 
 	}
 
 	// Ensure the user has the right privileges
-	dbGrant := []string{"mysql", fmt.Sprintf("-u%s", dbpass), fmt.Sprintf("-p%s", dbpass), "--protocol=tcp", "-h127.0.0.1", "-e", "grant process on *.* to user;"}
+	dbGrant := []string{"mysql", fmt.Sprintf("-u%s", dbpass), fmt.Sprintf("-p%s", dbpass), "--protocol=tcp", "-h127.0.0.1", "-e", "grant process on *.* to user; GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'user'@'%'; SET GLOBAL log_bin_trust_function_creators = 1;"}
 	attachResp, exitCode, err := d.execInContainer(ctx, mysqlCID, dbGrant)
 	if err != nil {
 		return fmt.Errorf("failed to attach to exec: %w", err)
@@ -340,16 +341,75 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 
 	// Create and populate the table
 	mysqlCreateCmd := []string{"mysql", "-hlocalhost", "--protocol=tcp", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "-e", `
-	use tester;
-	create table t1
-	(id int, name varchar(20), j json, d date, t time, dt datetime, ts timestamp);
-	INSERT INTO t1 (id,name,j,d,t,dt,ts)
-	VALUES
-	(1, "John", '{"a":"b"}', "2012-11-01", "00:15:00", "2012-11-01 00:15:00", "2012-11-01 00:15:00"),
-	(2, "Jill", '{"c":true}', "2012-11-02", "00:16:00", "2012-11-02 00:16:00", "2012-11-02 00:16:00"),
-	(3, "Sam", '{"d":24}', "2012-11-03", "00:17:00", "2012-11-03 00:17:00", "2012-11-03 00:17:00"),
-	(4, "Sarah", '{"a":"b"}', "2012-11-04", "00:18:00", "2012-11-04 00:18:00", "2012-11-04 00:18:00");
-	create view view1 as select id, name from t1;
+USE tester;
+
+-- Table
+CREATE TABLE t1 (
+    id INT,
+    name VARCHAR(20),
+    j JSON,
+    d DATE,
+    t TIME,
+    dt DATETIME,
+    ts TIMESTAMP
+);
+
+-- Log table for trigger
+CREATE TABLE t1_log (
+    id INT,
+    name VARCHAR(20),
+    inserted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert data
+INSERT INTO t1 (id, name, j, d, t, dt, ts) VALUES
+(1, "John", '{"a":"b"}', "2012-11-01", "00:15:00", "2012-11-01 00:15:00", "2012-11-01 00:15:00"),
+(2, "Jill", '{"c":true}', "2012-11-02", "00:16:00", "2012-11-02 00:16:00", "2012-11-02 00:16:00"),
+(3, "Sam", '{"d":24}', "2012-11-03", "00:17:00", "2012-11-03 00:17:00", "2012-11-03 00:17:00"),
+(4, "Sarah", '{"a":"b"}', "2012-11-04", "00:18:00", "2012-11-04 00:18:00", "2012-11-04 00:18:00");
+
+-- View
+CREATE VIEW view1 AS
+SELECT id, name FROM t1;
+
+-- Trigger: log inserts into t1
+DELIMITER //
+CREATE TRIGGER trg_t1_insert
+AFTER INSERT ON t1
+FOR EACH ROW
+BEGIN
+    INSERT INTO t1_log (id, name) VALUES (NEW.id, NEW.name);
+END;
+//
+DELIMITER ;
+
+-- Stored Procedure: insert a new person
+DELIMITER //
+CREATE PROCEDURE add_person(
+    IN p_id INT,
+    IN p_name VARCHAR(20),
+    IN p_json JSON,
+    IN p_date DATE,
+    IN p_time TIME,
+    IN p_datetime DATETIME,
+    IN p_timestamp TIMESTAMP
+)
+BEGIN
+    INSERT INTO t1 (id, name, j, d, t, dt, ts)
+    VALUES (p_id, p_name, p_json, p_date, p_time, p_datetime, p_timestamp);
+END;
+//
+DELIMITER ;
+
+-- Function: return name length
+DELIMITER //
+CREATE FUNCTION name_length(p_name VARCHAR(255)) RETURNS INT
+DETERMINISTIC
+BEGIN
+    RETURN CHAR_LENGTH(p_name);
+END;
+//
+DELIMITER ;	
 	`}
 	attachResp, exitCode, err := d.execInContainer(ctx, mysqlCID, mysqlCreateCmd)
 	if err != nil {
@@ -363,7 +423,7 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 	}
 
 	// Dump the database - do both compact and non-compact
-	mysqlDumpCompactCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--compact", "--databases", "tester"}
+	mysqlDumpCompactCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--compact", "--databases", "--triggers", "--routines", "tester"}
 	attachResp, exitCode, err = d.execInContainer(ctx, mysqlCID, mysqlDumpCompactCmd)
 	if err != nil {
 		return fmt.Errorf("failed to attach to exec: %w", err)
@@ -384,7 +444,7 @@ func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile
 	bufo.Reset()
 	bufe.Reset()
 
-	mysqlDumpCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--databases", "tester"}
+	mysqlDumpCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--databases", "--triggers", "--routines", "tester"}
 	attachResp, exitCode, err = d.execInContainer(ctx, mysqlCID, mysqlDumpCmd)
 	if err != nil {
 		return fmt.Errorf("failed to attach to exec: %w", err)
@@ -872,6 +932,8 @@ func TestIntegration(t *testing.T) {
 			dumpOpts := core.DumpOptions{
 				Compressor: &compression.GzipCompressor{},
 				Compact:    false,
+				Triggers:   true,
+				Routines:   true,
 			}
 			runTest(t, testOptions{
 				targets:      []string{"/full-backups/"},
@@ -892,6 +954,8 @@ func TestIntegration(t *testing.T) {
 			dumpOpts := core.DumpOptions{
 				Compressor: &compression.GzipCompressor{},
 				Compact:    true,
+				Triggers:   true,
+				Routines:   true,
 			}
 			runTest(t, testOptions{
 				targets:      []string{"/compact-backups/"},
@@ -911,6 +975,8 @@ func TestIntegration(t *testing.T) {
 			dumpOpts := core.DumpOptions{
 				Compressor:      &compression.GzipCompressor{},
 				Compact:         false,
+				Triggers:        true,
+				Routines:        true,
 				FilenamePattern: "backup-{{ .Sequence }}-{{ .Subsequence }}.tgz",
 			}
 			runTest(t, testOptions{
@@ -942,6 +1008,8 @@ func TestIntegration(t *testing.T) {
 			dumpOpts := core.DumpOptions{
 				Compressor: &compression.GzipCompressor{},
 				Compact:    false,
+				Triggers:   true,
+				Routines:   true,
 			}
 			runTest(t, testOptions{
 				targets: []string{

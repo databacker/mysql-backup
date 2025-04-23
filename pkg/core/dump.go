@@ -36,6 +36,8 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	compressor := opts.Compressor
 	encryptor := opts.Encryptor
 	compact := opts.Compact
+	triggers := opts.Triggers
+	routines := opts.Routines
 	suppressUseDatabase := opts.SuppressUseDatabase
 	maxAllowedPacket := opts.MaxAllowedPacket
 	filenamePattern := opts.FilenamePattern
@@ -105,6 +107,8 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	dbDumpCtx, dbDumpSpan := tracer.Start(ctx, "database_dump")
 	if err := database.Dump(dbDumpCtx, dbconn, database.DumpOpts{
 		Compact:             compact,
+		Triggers:            triggers,
+		Routines:            routines,
 		SuppressUseDatabase: suppressUseDatabase,
 		MaxAllowedPacket:    maxAllowedPacket,
 	}, dw); err != nil {

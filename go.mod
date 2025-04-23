@@ -31,7 +31,7 @@ require (
 )
 
 require (
-	github.com/databacker/api/go/api v0.0.0-20250418100420-12e1adda1303
+	github.com/databacker/api/go/api v0.0.0-20250423183243-7775066c265e
 	github.com/google/go-cmp v0.6.0
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.19.0
