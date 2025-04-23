@@ -111,6 +111,15 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if !v.IsSet("compact") && dumpConfig != nil && dumpConfig.Compact != nil {
 				compact = *dumpConfig.Compact
 			}
+			// should we dump triggers and functions and procedures?
+			triggers := v.GetBool("triggers")
+			if !v.IsSet("triggers") && dumpConfig != nil && dumpConfig.Triggers != nil {
+				triggers = *dumpConfig.Triggers
+			}
+			routines := v.GetBool("routines")
+			if !v.IsSet("routines") && dumpConfig != nil && dumpConfig.Routines != nil {
+				routines = *dumpConfig.Routines
+			}
 			maxAllowedPacket := v.GetInt("max-allowed-packet")
 			if !v.IsSet("max-allowed-packet") && dumpConfig != nil && dumpConfig.MaxAllowedPacket != nil && *dumpConfig.MaxAllowedPacket != 0 {
 				maxAllowedPacket = *dumpConfig.MaxAllowedPacket
@@ -242,6 +251,8 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					PostBackupScripts:   postBackupScripts,
 					SuppressUseDatabase: noDatabaseName,
 					Compact:             compact,
+					Triggers:            triggers,
+					Routines:            routines,
 					MaxAllowedPacket:    maxAllowedPacket,
 					Run:                 uid,
 					FilenamePattern:     filenamePattern,
@@ -317,6 +328,9 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 
 	// max-allowed-packet size
 	flags.Int("max-allowed-packet", defaultMaxAllowedPacket, "Maximum size of the buffer for client/server communication, similar to mysqldump's max_allowed_packet. 0 means to use the default size.")
+
+	// whether to include triggers and functions
+	flags.Bool("triggers-and-functions", false, "Whether to include triggers and functions in the dump.")
 
 	cmd.MarkFlagsMutuallyExclusive("once", "cron")
 	cmd.MarkFlagsMutuallyExclusive("once", "begin")

@@ -9,32 +9,52 @@ import (
 	"text/template"
 )
 
+var _ Table = &view{}
+
 type view struct {
 	baseTable
 	charset   string
 	collation string
 }
 
-var viewFullTemplate, viewCompactTemplate *template.Template
+var viewFullTemplate0, viewCompactTemplate0, viewFullTemplate1, viewCompactTemplate1 *template.Template
 
 func init() {
 	tmpl, err := template.New("mysqldumpView").Funcs(template.FuncMap{
 		"sub": sub,
 		"esc": esc,
-	}).Parse(viewTmpl)
+	}).Parse(viewTmpl0)
 	if err != nil {
 		panic(fmt.Errorf("could not parse view template: %w", err))
 	}
-	viewFullTemplate = tmpl
+	viewFullTemplate0 = tmpl
+
+	tmpl, err = template.New("mysqldumpView").Funcs(template.FuncMap{
+		"sub": sub,
+		"esc": esc,
+	}).Parse(viewTmpl1)
+	if err != nil {
+		panic(fmt.Errorf("could not parse view template: %w", err))
+	}
+	viewFullTemplate1 = tmpl
 
 	tmpl, err = template.New("mysqldumpViewCompact").Funcs(template.FuncMap{
 		"sub": sub,
 		"esc": esc,
-	}).Parse(viewTmplCompact)
+	}).Parse(viewTmplCompact0)
 	if err != nil {
 		panic(fmt.Errorf("could not parse view compact template: %w", err))
 	}
-	viewCompactTemplate = tmpl
+	viewCompactTemplate0 = tmpl
+
+	tmpl, err = template.New("mysqldumpViewCompact").Funcs(template.FuncMap{
+		"sub": sub,
+		"esc": esc,
+	}).Parse(viewTmplCompact1)
+	if err != nil {
+		panic(fmt.Errorf("could not parse view compact template: %w", err))
+	}
+	viewCompactTemplate1 = tmpl
 }
 
 func (v *view) CreateSQL() ([]string, error) {
@@ -92,10 +112,21 @@ func (v *view) Init() error {
 	return nil
 }
 
-func (v *view) Execute(out io.Writer, compact bool) error {
-	tmpl := viewFullTemplate
-	if compact {
-		tmpl = viewCompactTemplate
+func (v *view) Execute(out io.Writer, compact bool, part int) error {
+	var tmpl *template.Template
+	switch part {
+	case 0:
+		tmpl = viewFullTemplate0
+		if compact {
+			tmpl = viewCompactTemplate0
+		}
+	case 1:
+		tmpl = viewFullTemplate1
+		if compact {
+			tmpl = viewCompactTemplate1
+		}
+	default:
+		return fmt.Errorf("invalid part %d for view %s", part, v.name)
 	}
 	return tmpl.Execute(out, v)
 }
@@ -109,7 +140,7 @@ func (v *view) Collation() string {
 }
 
 // takes a Table, but is a view
-const viewTmpl = `
+const viewTmpl0 = `
 --
 -- Temporary view structure for view {{ esc .Name }}
 --
@@ -121,7 +152,9 @@ SET @saved_cs_client     = @@character_set_client;
 /*!50001 CREATE VIEW {{ esc .Name }} AS SELECT 
 {{ $columns := .Columns }}{{ range $index, $column := .Columns }} 1 AS {{ esc $column }}{{ if ne $index (sub (len $columns) 1) }},{{ printf "%c" 10 }}{{ else }}*/;{{ end }}{{ end }}
 SET character_set_client = @saved_cs_client;
+`
 
+const viewTmpl1 = `
 --
 -- Current Database: {{ esc .Database }}
 --
@@ -146,13 +179,16 @@ USE {{ esc .Database }};
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
 `
-const viewTmplCompact = `
+
+const viewTmplCompact0 = `
 SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
 /*!50001 CREATE VIEW {{ esc .Name }} AS SELECT 
 {{ $columns := .Columns }}{{ range $index, $column := .Columns }} 1 AS {{ esc $column }}{{ if ne $index (sub (len $columns) 1) }},{{ printf "%c" 10 }}{{ else }}*/;{{ end }}{{ end }}
 SET character_set_client = @saved_cs_client;
+`
 
+const viewTmplCompact1 = `
 USE {{ esc .Database }};
 /*!50001 DROP VIEW IF EXISTS {{ esc .Name }}*/;
 /*!50001 SET @saved_cs_client          = @@character_set_client */;

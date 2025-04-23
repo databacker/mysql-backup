@@ -19,6 +19,8 @@ type DumpOptions struct {
 	PreBackupScripts    string
 	PostBackupScripts   string
 	Compact             bool
+	Triggers            bool
+	Routines            bool
 	SuppressUseDatabase bool
 	MaxAllowedPacket    int
 	Run                 uuid.UUID

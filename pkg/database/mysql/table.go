@@ -43,9 +43,11 @@ type Table interface {
 	Next() bool
 	RowValues() string
 	RowBuffer() *bytes.Buffer
-	Execute(io.Writer, bool) error
+	Execute(io.Writer, bool, int) error
 	Stream() <-chan string
 }
+
+var _ Table = &baseTable{}
 
 type baseTable struct {
 	name string
@@ -335,7 +337,10 @@ func (table *baseTable) Stream() <-chan string {
 	return valueOut
 }
 
-func (table *baseTable) Execute(out io.Writer, compact bool) error {
+func (table *baseTable) Execute(out io.Writer, compact bool, part int) error {
+	if part > 0 {
+		return fmt.Errorf("part %d is not supported for tables", part)
+	}
 	tmpl := tableFullTemplate
 	if compact {
 		tmpl = tableCompactTemplate

@@ -10,6 +10,8 @@ import (
 
 type DumpOpts struct {
 	Compact             bool
+	Triggers            bool
+	Routines            bool
 	SuppressUseDatabase bool
 	MaxAllowedPacket    int
 }
@@ -36,6 +38,8 @@ func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpW
 				Schema:              schema,
 				Host:                dbconn.Host,
 				Compact:             opts.Compact,
+				Triggers:            opts.Triggers,
+				Routines:            opts.Routines,
 				SuppressUseDatabase: opts.SuppressUseDatabase,
 				MaxAllowedPacket:    opts.MaxAllowedPacket,
 			}

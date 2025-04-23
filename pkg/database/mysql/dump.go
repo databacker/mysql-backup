@@ -19,7 +19,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
+	"slices"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -41,15 +44,18 @@ type Data struct {
 	LockTables          bool
 	Schema              string
 	Compact             bool
+	Triggers            bool
+	Routines            bool
 	Host                string
 	SuppressUseDatabase bool
 	Charset             string
 	Collation           string
 
-	tx         *sql.Tx
-	headerTmpl *template.Template
-	footerTmpl *template.Template
-	err        error
+	tx                 *sql.Tx
+	headerTmpl         *template.Template
+	footerTmpl         *template.Template
+	routinesHeaderTmpl *template.Template
+	err                error
 }
 
 type metaData struct {
@@ -112,6 +118,14 @@ const footerTmpl = `/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 const footerTmplCompact = ``
 
+const routinesHeader = `
+--
+-- Dumping routines for database '{{ .Database }}'
+--
+`
+
+const routinesHeaderCompact = ``
+
 const nullType = "NULL"
 
 // Dump data using struct
@@ -156,16 +170,16 @@ func (data *Data) Dump() error {
 		return err
 	}
 
-	tables, err := data.getTables()
+	tables, views, err := data.getTables()
 	if err != nil {
 		return err
 	}
 
 	// Lock all tables before dumping if present
-	if data.LockTables && len(tables) > 0 {
+	if data.LockTables && (len(tables) > 0 || len(views) > 0) {
 		var b bytes.Buffer
 		b.WriteString("LOCK TABLES ")
-		for index, table := range tables {
+		for index, table := range append(tables, views...) {
 			if index != 0 {
 				b.WriteString(",")
 			}
@@ -181,11 +195,64 @@ func (data *Data) Dump() error {
 		}()
 	}
 
-	for _, name := range tables {
-		if err := data.dumpTable(name); err != nil {
+	// get the triggers for the current schema, structured by table
+	var triggers map[string][]string
+	if data.Triggers {
+		triggers, err = data.dumpTriggers()
+		if err != nil {
 			return err
 		}
 	}
+
+	slices.SortFunc(tables, func(a, b Table) int {
+		return strings.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
+	})
+	slices.SortFunc(views, func(a, b Table) int {
+		return strings.Compare(strings.ToLower(a.Name()), strings.ToLower(b.Name()))
+	})
+	for _, name := range tables {
+		if err := data.dumpTable(name, 0); err != nil {
+			return err
+		}
+		// dump triggers for the current table
+		if len(triggers) > 0 {
+			if trigger, ok := triggers[name.Name()]; ok {
+				for _, t := range trigger {
+					if _, err := data.Out.Write([]byte(t)); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// Dump the dummy views, if any
+	for _, name := range views {
+		if err := data.dumpTable(name, 0); err != nil {
+			return err
+		}
+	}
+
+	// Dump routines (functions and procedures)
+	if data.Routines {
+		if err := data.routinesHeaderTmpl.Execute(data.Out, meta); err != nil {
+			return err
+		}
+		if err := data.dumpFunctions(); err != nil {
+			return err
+		}
+		if err := data.dumpProcedures(); err != nil {
+			return err
+		}
+	}
+
+	// Dump the actual views
+	for _, name := range views {
+		if err := data.dumpTable(name, 1); err != nil {
+			return err
+		}
+	}
+
 	if data.err != nil {
 		return data.err
 	}
@@ -222,14 +289,14 @@ func (data *Data) rollback() error {
 
 // MARK: writter methods
 
-func (data *Data) dumpTable(table Table) error {
+func (data *Data) dumpTable(table Table, part int) error {
 	if data.err != nil {
 		return data.err
 	}
 	if err := table.Init(); err != nil {
 		return err
 	}
-	return table.Execute(data.Out, data.Compact)
+	return table.Execute(data.Out, data.Compact, part)
 }
 
 // MARK: get methods
@@ -251,6 +318,13 @@ func (data *Data) getTemplates() (err error) {
 			hTmpl += "\n"
 		}
 	}
+
+	// routines header
+	var routinesHeaderTmpl = routinesHeader
+	if data.Compact {
+		routinesHeaderTmpl = routinesHeaderCompact
+	}
+
 	data.headerTmpl, err = template.New("mysqldumpHeader").Parse(hTmpl)
 	if err != nil {
 		return
@@ -260,22 +334,25 @@ func (data *Data) getTemplates() (err error) {
 	if err != nil {
 		return
 	}
+
+	data.routinesHeaderTmpl, err = template.New("mysqldumpRoutinesHeader").Parse(routinesHeaderTmpl)
 	return
 }
 
-func (data *Data) getTables() ([]Table, error) {
-	tables := make([]Table, 0)
+func (data *Data) getTables() (tables []Table, views []Table, err error) {
+	tables = make([]Table, 0)
+	views = make([]Table, 0)
 
 	rows, err := data.tx.Query("SHOW FULL TABLES")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var tableName, tableType sql.NullString
 		if err := rows.Scan(&tableName, &tableType); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if !tableName.Valid || data.isIgnoredTable(tableName.String) {
 			continue
@@ -287,14 +364,14 @@ func (data *Data) getTables() ([]Table, error) {
 		}
 		switch tableType.String {
 		case "VIEW":
-			tables = append(tables, &view{baseTable: table})
+			views = append(views, &view{baseTable: table})
 		case "BASE TABLE":
 			tables = append(tables, &table)
 		default:
-			return nil, errors.New("unknown table type: " + tableType.String)
+			return nil, nil, errors.New("unknown table type: " + tableType.String)
 		}
 	}
-	return tables, rows.Err()
+	return tables, views, rows.Err()
 }
 
 func (data *Data) getCharsetCollections() error {
@@ -326,6 +403,138 @@ func (data *Data) isIgnoredTable(name string) bool {
 		}
 	}
 	return false
+}
+
+// dumpTriggers dump the triggers for the current schema into a list by table
+func (data *Data) dumpTriggers() (map[string][]string, error) {
+	var triggers = make(map[string][]string)
+	rows, err := data.tx.Query("SHOW TRIGGERS FROM `" + data.Schema + "`")
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var triggerName, event, table, statement, timing, sqlMode, definer, charset, collationConnection, databaseCollection sql.NullString
+		var created sql.NullTime
+		if err := rows.Scan(&triggerName, &event, &table, &statement, &timing, &created, &sqlMode, &definer, &charset, &collationConnection, &databaseCollection); err != nil {
+			return nil, err
+		}
+		if !triggerName.Valid || !statement.Valid {
+			continue
+		}
+		var definerUser, definerHost string
+		if definer.Valid {
+			// definer is in the format `user`@`host`
+			// split it into user and host
+			parts := bytes.Split([]byte(definer.String), []byte{'@'})
+			if len(parts) == 2 {
+				definerUser = string(parts[0])
+				definerHost = string(parts[1])
+			} else {
+				definerUser = definer.String
+				definerHost = "%"
+			}
+		}
+		triggers[table.String] = append(triggers[table.String], `
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = latin1 */ ;
+/*!50003 SET character_set_results = latin1 */ ;
+/*!50003 SET collation_connection  = latin1_swedish_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+`+fmt.Sprintf("/*!50003 CREATE*/ /*!50017 DEFINER=`%s`@`%s`*/ /*!50003 TRIGGER `%s` AFTER %s ON `%s` FOR EACH ROW %s */;;", definerUser, definerHost, triggerName.String, event.String, table.String, statement.String)+`
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+`)
+	}
+	return triggers, nil
+}
+
+// dumpFunctions dump the functions for the current schema
+func (data *Data) dumpFunctions() error {
+	return data.dumpProceduresOrFunctions("FUNCTION")
+}
+
+// dumpProcedures dump the procedures for the current schema
+func (data *Data) dumpProcedures() error {
+	return data.dumpProceduresOrFunctions("PROCEDURE")
+}
+
+// dumpProceduresOrFunctions dump the procedures or functions for the current schema
+func (data *Data) dumpProceduresOrFunctions(t string) error {
+	createQueries, err := data.getProceduresOrFunctionsCreateQueries(t)
+	if err != nil {
+		return err
+	}
+	for _, createQuery := range createQueries {
+		var name, sqlMode, createStmt, charset, collationConnection, databaseCollation sql.NullString
+		if err := data.tx.QueryRow(createQuery).Scan(&name, &sqlMode, &createStmt, &charset, &collationConnection, &databaseCollation); err != nil {
+			return err
+		}
+		if createStmt.Valid {
+			// TODO: the first line should only be there if it is full, not compact
+			var sql string
+			if !data.Compact {
+				sql = fmt.Sprintf(`
+/*!50003 DROP %s IF EXISTS `+"`%s`"+` */;
+`, t, name.String)
+			}
+			sql += fmt.Sprintf(`
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = latin1 */ ;
+/*!50003 SET character_set_results = latin1 */ ;
+/*!50003 SET collation_connection  = latin1_swedish_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+%s ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+`, createStmt.String)
+			if _, err := data.Out.Write([]byte(sql)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (data *Data) getProceduresOrFunctionsCreateQueries(t string) ([]string, error) {
+	query := fmt.Sprintf("SHOW %s STATUS WHERE Db = '%s'", t, data.Schema)
+	var toGet []string
+	rows, err := data.tx.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	//  | Db     | Name       | Type      | Language | Definer | Modified            | Created             | Security_type | Comment | character_set_client | collation_connection | Database Collation |
+	for rows.Next() {
+		var (
+			db, name, typeDef, language, definer, securityType, comment, charset, collationConnection, databaseCollation sql.NullString
+			created, modified                                                                                            sql.NullTime
+		)
+		if err := rows.Scan(&db, &name, &typeDef, &language, &definer, &modified, &created, &securityType, &comment, &charset, &collationConnection, &databaseCollation); err != nil {
+			return nil, err
+		}
+		if name.Valid && typeDef.Valid {
+			createQuery := fmt.Sprintf("SHOW CREATE %s `%s`", typeDef.String, name.String)
+			toGet = append(toGet, createQuery)
+		}
+	}
+	return toGet, nil
 }
 
 func (meta *metaData) updateMetadata(data *Data) (err error) {
