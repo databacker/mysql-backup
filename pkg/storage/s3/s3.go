@@ -75,6 +75,8 @@ func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry)
 
 	bucket, path := s.url.Hostname(), path.Join(s.url.Path, source)
 
+	path = strings.TrimPrefix(path, "/")
+	
 	// Create a downloader with the session and default options
 	downloader := manager.NewDownloader(client)
 
@@ -86,7 +88,7 @@ func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry)
 	defer func() { _ = f.Close() }()
 
 	// Write the contents of S3 Object to the file
-	n, err := downloader.Download(context.TODO(), f, &s3.GetObjectInput{
+		n, err := downloader.Download(context.TODO(), f, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(path),
 	})
@@ -194,7 +196,7 @@ func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 	// Get the AWS config
 	var configOpts []func(*config.LoadOptions) error // global client options
 	if logger.Level == log.TraceLevel {
-		configOpts = append(configOpts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
+	configOpts = append(configOpts, config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponse))
 	}
 	if s.region != "" {
 		configOpts = append(configOpts, config.WithRegion(s.region))
@@ -206,7 +208,7 @@ func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 			"",
 		)))
 	}
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		cfg, err := config.LoadDefaultConfig(context.TODO(),
 		configOpts...,
 	)
 	if err != nil {
@@ -215,7 +217,7 @@ func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 
 	// Get the S3 client
 	var s3opts []func(*s3.Options) // s3 client options
-	if s.endpoint != "" {
+		if s.endpoint != "" {
 		cleanEndpoint := getEndpoint(s.endpoint)
 		s3opts = append(s3opts,
 			func(o *s3.Options) {
@@ -231,7 +233,7 @@ func (s *S3) getClient(logger *log.Entry) (*s3.Client, error) {
 		)
 	}
 
-	// Create a new S3 service client
+// Create a new S3 service client
 	return s3.NewFromConfig(cfg, s3opts...), nil
 }
 
