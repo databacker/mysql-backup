@@ -87,7 +87,7 @@ The following are the environment variables, CLI flags and configuration file op
 | path-style addressing for S3 bucket instead of default virtual-host-style addressing | BR | `aws-path-style` | `AWS_PATH_STYLE` | `dump.targets[s3-target].pathStyle` |  |
 | SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].username` |  |
 | SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].password` |  |
-| compression to use, one of: `bzip2`, `gzip` | BP | `compression` | `DB_DUMP_COMPRESSION` | `dump.compression` | `gzip` |
+| compression to use, one of: `bzip2`, `gzip`, `none` | BP | `compression` | `DB_DUMP_COMPRESSION` | `dump.compression` | `gzip` |
 | whether to include triggers, procedures and functions | B | `triggers-and-functions` | `DB_DUMP_TRIGGERS_AND_FUNCTIONS` | `dump.triggersAndFunctions` | `false` |
 | when in container, run the dump or restore with `nice`/`ionice` | BR | `` | `NICE` | `` | `false` |
 | filename to save the target backup file | B | `dump --filename-pattern` | `DB_DUMP_FILENAME_PATTERN` | `dump.filenamePattern` |  |
