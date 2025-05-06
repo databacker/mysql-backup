@@ -149,7 +149,7 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 	}
 
 	// compression
-	flags.String("compression", defaultCompression, "Compression to use. Supported are: `gzip`, `bzip2`")
+	flags.String("compression", defaultCompression, "Compression to use. Supported are: `gzip`, `bzip2`, `none`")
 
 	// specific database to which to restore
 	flags.String("database", "", "Mapping of from:to database names to which to restore, comma-separated, e.g. foo:bar,buz:qux. Replaces the `USE <database>` clauses in a backup file. If blank, uses the file as is.")

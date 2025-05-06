@@ -5,6 +5,8 @@ import (
 	"io"
 )
 
+var _ Compressor = &GzipCompressor{}
+
 type GzipCompressor struct {
 }
 

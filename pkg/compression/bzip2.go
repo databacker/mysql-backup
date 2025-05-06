@@ -6,6 +6,8 @@ import (
 	"github.com/dsnet/compress/bzip2"
 )
 
+var _ Compressor = &Bzip2Compressor{}
+
 type Bzip2Compressor struct {
 }
 

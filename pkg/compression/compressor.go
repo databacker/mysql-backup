@@ -17,6 +17,8 @@ func GetCompressor(name string) (Compressor, error) {
 		return &GzipCompressor{}, nil
 	case "bzip2":
 		return &Bzip2Compressor{}, nil
+	case "none":
+		return &NoCompressor{}, nil
 	default:
 		return nil, fmt.Errorf("unknown compression format: %s", name)
 	}

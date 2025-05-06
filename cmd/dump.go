@@ -315,7 +315,7 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	flags.Bool("safechars", false, "The dump filename usually includes the character `:` in the date, to comply with RFC3339. Some systems and shells don't like that character. If true, will replace all `:` with `-`.")
 
 	// compression
-	flags.String("compression", defaultCompression, "Compression to use. Supported are: `gzip`, `bzip2`")
+	flags.String("compression", defaultCompression, "Compression to use. Supported are: `gzip`, `bzip2`, `none`")
 
 	// source filename pattern
 	flags.String("filename-pattern", defaultFilenamePattern, "Pattern to use for filename in target. See documentation.")
