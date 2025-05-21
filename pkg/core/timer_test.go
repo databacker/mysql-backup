@@ -20,6 +20,7 @@ func TestWaitForCron(t *testing.T) {
 		{"current minute but seconds in", "1 * * * *", "2018-10-10T10:01:10Z", 59*time.Minute + 50*time.Second, nil}, // this line tests that we use the current minute, and not wait for "-10"
 		{"midnight next day", "0 0 * * *", "2021-11-30T10:00:00Z", 14 * time.Hour, nil},
 		{"first day next month in next year", "0 0 1 * *", "2020-12-30T10:00:00Z", 14*time.Hour + 24*time.Hour, nil}, // this line tests that we can handle rolling month correctly
+		{"at 02:20 on sunday", "20 2 * * 0", "2025-05-21T10:00:00Z", 16*time.Hour + 20*time.Minute + 3*24*time.Hour, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
