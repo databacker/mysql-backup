@@ -187,10 +187,10 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 func preBackup(ctx context.Context, timestamp, dumpfile, dumpdir, preBackupDir string, debug bool) error {
 	// construct any additional environment
 	env := map[string]string{
-		"NOW":           timestamp,
-		"DUMPFILE":      dumpfile,
-		"DUMPDIR":       dumpdir,
-		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
+		"NOW":      timestamp,
+		"DUMPFILE": dumpfile,
+		"DUMPDIR":  dumpdir,
+		"DB_DEBUG": fmt.Sprintf("%v", debug),
 	}
 	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "pre-backup")
 	defer span.End()
@@ -200,10 +200,10 @@ func preBackup(ctx context.Context, timestamp, dumpfile, dumpdir, preBackupDir s
 func postBackup(ctx context.Context, timestamp, dumpfile, dumpdir, postBackupDir string, debug bool) error {
 	// construct any additional environment
 	env := map[string]string{
-		"NOW":           timestamp,
-		"DUMPFILE":      dumpfile,
-		"DUMPDIR":       dumpdir,
-		"DB_DUMP_DEBUG": fmt.Sprintf("%v", debug),
+		"NOW":      timestamp,
+		"DUMPFILE": dumpfile,
+		"DUMPDIR":  dumpdir,
+		"DB_DEBUG": fmt.Sprintf("%v", debug),
 	}
 	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "post-backup")
 	defer span.End()
