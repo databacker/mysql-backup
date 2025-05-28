@@ -1,6 +1,6 @@
 #!/bin/bash
 # Rename backup file.
-if [[ -n "$DB_DUMP_DEBUG" ]]; then
+if [[ -n "$DB_DEBUG" ]]; then
   set -x
 fi
 
