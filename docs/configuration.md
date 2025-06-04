@@ -125,55 +125,55 @@ For local configuration, the `spec` is composed of the following. See the [Confi
 for details of each.
 
 * `dump`: the dump configuration
-  * `include`: list of tables to include
-  * `exclude`: list of tables to exclude
-  * `safechars`: safe characters in filename
-  * `noDatabaseName`: remove `USE <database>` from dumpfile
+  * `exclude`: strings, list of tables to exclude
+  * `include`: strings, list of tables to include
+  * `safechars`: boolean, enable safe characters in filename
+  * `noDatabaseName`: boolean, remove `USE <database>` from dumpfile
   * `schedule`: the schedule configuration
-    * `frequency`: the frequency of the schedule
-    * `begin`: the time to begin the schedule
-    * `cron`: the cron schedule
-    * `once`: run once and exit
-  * `compression`: the compression to use
-  * `compact`: compact the dump
-  * `triggersAndFunctions`: include triggers and functions and procedures in the dump
-  * `maxAllowedPacket`: max packet size
-  * `filenamePattern`: the filename pattern
+    * `frequency`: int, the frequency of the schedule in minutes
+    * `begin`: int, the time to begin the schedule in minutes from start of process
+    * `cron`: string, the cron schedule
+    * `once`: boolean, run once and exit
+  * `compression`: string, the compression to use
+  * `compact`: boolean, compact the dump
+  * `triggersAndFunctions`: boolean, include triggers and functions and procedures in the dump
+  * `maxAllowedPacket`: int, max packet size
+  * `filenamePattern`: string, the filename pattern
   * `scripts`:
-    * `preBackup`: path to directory with pre-backup scripts
-    * `postBackup`: path to directory with post-backup scripts
-  * `targets`: list of names of known targets, defined in the `targets` section, where to save the backup
+    * `preBackup`: string, path to directory with pre-backup scripts
+    * `postBackup`: string, path to directory with post-backup scripts
+  * `targets`: strings, list of names of known targets, defined in the `targets` section, where to save the backup
 * `restore`: the restore configuration
   * `scripts`:
-    * `preRestore`: path to directory with pre-restore scripts
-    * `postRestore`: path to directory with post-restore scripts
+    * `preRestore`: string, path to directory with pre-restore scripts
+    * `postRestore`: string, path to directory with post-restore scripts
 * `database`: the database configuration
-  * `server`: host:port
+  * `server`: string, host:port
   * `port`: port (deprecated)
   * `credentials`: access credentials for the database
-    * `username`: user
-    * `password`: password
+    * `username`: string, user
+    * `password`: string, password
 * `prune`: the prune configuration
-  * `retention`: retention policy
+  * `retention`: string, retention policy
 * `targets`: target configurations, each of which can be reference by other sections. Key is the name of the target that is referenced elsewhere. Each one has the following structure:
-  * `type`: the type of target, one of: file, s3, smb
-  * `url`: the URL of the target
+  * `type`: string, the type of target, one of: file, s3, smb
+  * `url`: string, the URL of the target
   * `spec`: access details for the target, depends on target type:
     * Type s3:
-      * `region`: the region
-      * `endpoint`: the endpoint
-      * `pathStyle` (boolean): use path-style bucket addressing instead of virtual-host style bucket addressing, see [AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
-      * `accessKeyID`: the access key ID
-      * `secretAccessKey`: the secret access key
+      * `region`: string, the region
+      * `endpoint`: string, the endpoint
+      * `pathStyle` boolean, use path-style bucket addressing instead of virtual-host style bucket addressing, see [AWS docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+      * `accessKeyID`: string, the access key ID
+      * `secretAccessKey`: string, the secret access key
     * Type smb:
-      * `domain`: the domain
-      * `username`: the username
-      * `password`: the password
-* `logging`: the log level, one of: error,warning,info,debug,trace; default is info
+      * `domain`: string, the domain
+      * `username`: string, the username
+      * `password`: string, the password
+* `logging`: string, the log level, one of: error,warning,info,debug,trace; default is info
 * `telemetry`: configuration for sending telemetry data (optional)
-  * `url`: URL to telemetry service
-  * `certificate`: the certificate for the telemetry server or a CA that signed the server's TLS certificate. Not required if telemetry server does not use TLS, or if the system's certificate store already contains the server's cert or CA.
-  * `credentials`: unique token provided by the remote service as credentials, base64-encoded
+  * `url`: string, URL to telemetry service
+  * `certificate`: string, the certificate for the telemetry server or a CA that signed the server's TLS certificate. Not required if telemetry server does not use TLS, or if the system's certificate store already contains the server's cert or CA.
+  * `credentials`: string, unique token provided by the remote service as credentials, base64-encoded
 
 #### Remote Configuration
 

@@ -72,9 +72,9 @@ spec:
     s3:
       type: s3
       url: s3://bucket.us-west.amazonaws.com/databackup
-      region: us-west-1
-      endpoint: https://s3.us-west-1.amazonaws.com
-      credentials:
+      spec:
+        region: us-west-1
+        endpoint: https://s3.us-west-1.amazonaws.com
         accessKeyId: access_key_id
         secretAccessKey: secret_access_key
     file:
@@ -86,7 +86,7 @@ spec:
     smbshare:
       type: smb
       url: smb://cifshost:2125/databackup
-      credentials:
+      spec:
         domain: mydomain
         username: user
         password: password
