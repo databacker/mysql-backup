@@ -29,7 +29,8 @@ You can set it to run just once via:
 * Config file:
 ```yaml
 dump:
-    run-once: true
+    schedule:
+        once: true
 ```
 
 If you set it to run just once, the backup will run once and then exit.
@@ -49,7 +50,8 @@ You can set a cron schedule via:
 * Config file:
 ```yaml
 dump:
-    cron: 0 * * * *
+    schedule:
+        cron: 0 * * * *
 ```
 
 The cron dump schedule option uses standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a
@@ -71,7 +73,8 @@ You can set the frequency start via:
 * Config file:
 ```yaml
 dump:
-    frequency: 60
+    schedule:
+        frequency: 60
 ```
 
 You can set the delayed start via:
@@ -81,5 +84,6 @@ You can set the delayed start via:
 * Config file:
 ```yaml
 dump:
-    delay: 120
+    schedule:
+        delay: 120
 ```
