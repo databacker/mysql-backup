@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 
 	log "github.com/sirupsen/logrus"
@@ -23,11 +22,58 @@ func New(u url.URL) *File {
 }
 
 func (f *File) Pull(ctx context.Context, source, target string, logger *log.Entry) (int64, error) {
-	return copyFile(path.Join(f.path, source), target)
+	// see if the target has `?latest` set, if so, we need to find the latest file
+	sourceFile := filepath.Join(f.path, source)
+	u, err := url.Parse(sourceFile)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse target URL %s: %v", source, err)
+	}
+	q := u.Query()
+	if q.Has("latest") {
+		latestFilename, err := f.Latest(ctx, u.Path, logger)
+		if err != nil {
+			return 0, fmt.Errorf("failed to find latest file for source %s: %v", u.Path, err)
+		}
+		logger.Debugf("latest file for target %s is %s", u.Path, latestFilename)
+		sourceFile = filepath.Join(u.Path, latestFilename)
+	}
+
+	return copyFile(sourceFile, target)
 }
 
 func (f *File) Push(ctx context.Context, target, source string, logger *log.Entry) (int64, error) {
 	return copyFile(source, filepath.Join(f.path, target))
+}
+
+func (f *File) Latest(ctx context.Context, target string, logger *log.Entry) (string, error) {
+	fullTarget := filepath.Join(f.path, target)
+	entries, err := os.ReadDir(fullTarget)
+	if err != nil {
+		return "", fmt.Errorf("failed to read directory %s: %w", f.path, err)
+	}
+
+	var latest string
+	var latestModTime int64
+
+	for _, entry := range entries {
+		if entry.IsDir() || !entry.Type().IsRegular() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return "", fmt.Errorf("failed to get info for file %s: %w", entry.Name(), err)
+		}
+		if info.ModTime().Unix() > latestModTime {
+			latest = entry.Name()
+			latestModTime = info.ModTime().Unix()
+		}
+	}
+
+	if latest == "" {
+		return "", fmt.Errorf("no files found for target %s", target)
+	}
+
+	return latest, nil
 }
 
 func (f *File) Clean(filename string) string {

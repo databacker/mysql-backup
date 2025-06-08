@@ -60,12 +60,27 @@ func (s *SMB) Pull(ctx context.Context, source, target string, logger *log.Entry
 		smbFilename := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, filepath.Base(strings.ReplaceAll(target, ":", "-")))
 		smbFilename = strings.TrimPrefix(smbFilename, fmt.Sprintf("%c", smb2.PathSeparator))
 
+		sourceFile := smbFilename
+		u, err := url.Parse(smbFilename)
+		if err != nil {
+			return fmt.Errorf("failed to parse target URL %s: %v", source, err)
+		}
+		q := u.Query()
+		if q.Has("latest") {
+			latestFilename, err := s.Latest(ctx, u.Path, logger)
+			if err != nil {
+				return fmt.Errorf("failed to find latest file for target %s: %v", u.Path, err)
+			}
+			logger.Debugf("latest file for target %s is %s", u.Path, latestFilename)
+			sourceFile = filepath.Join(u.Path, latestFilename)
+		}
+
 		to, err := os.Create(target)
 		if err != nil {
 			return err
 		}
 		defer func() { _ = to.Close() }()
-		from, err := fs.Open(smbFilename)
+		from, err := fs.Open(sourceFile)
 		if err != nil {
 			return err
 		}
@@ -74,6 +89,43 @@ func (s *SMB) Pull(ctx context.Context, source, target string, logger *log.Entry
 		return err
 	})
 	return copied, err
+}
+
+func (s *SMB) Latest(ctx context.Context, target string, logger *log.Entry) (string, error) {
+	var (
+		latest string
+		err    error
+	)
+	err = s.exec(s.url, func(fs *smb2.Share, sharepath string) error {
+		smbDirname := fmt.Sprintf("%s%c%s", sharepath, smb2.PathSeparator, target)
+		smbDirname = strings.TrimPrefix(smbDirname, fmt.Sprintf("%c", smb2.PathSeparator))
+		entries, err := fs.ReadDir(smbDirname)
+		if err != nil {
+			return fmt.Errorf("failed to read directory %s: %w", smbDirname, err)
+		}
+
+		var latestModTime int64
+
+		for _, entry := range entries {
+			if entry.IsDir() || !entry.Mode().IsRegular() {
+				continue
+			}
+
+			if entry.ModTime().Unix() > latestModTime {
+				latest = entry.Name()
+				latestModTime = entry.ModTime().Unix()
+			}
+		}
+
+		if latest == "" {
+			return fmt.Errorf("no files found for target %s", target)
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return latest, nil
 }
 
 func (s *SMB) Push(ctx context.Context, target, source string, logger *log.Entry) (int64, error) {

@@ -66,6 +66,37 @@ func New(u url.URL, opts ...Option) *S3 {
 	return s
 }
 
+func (s *S3) Latest(ctx context.Context, target string, logger *log.Entry) (string, error) {
+	// get the s3 client
+	client, err := s.getClient(logger)
+	if err != nil {
+		return "", fmt.Errorf("failed to get AWS client: %v", err)
+	}
+
+	// ensure that there is no leading /
+	p := strings.TrimPrefix(filepath.Join(s.url.Path, target), "/")
+	result, err := client.ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{Bucket: aws.String(s.url.Hostname()), Prefix: aws.String(p)})
+	if err != nil {
+		return "", fmt.Errorf("failed to list objects, %v", err)
+	}
+
+	var latest string
+	var latestModTime time.Time
+
+	for _, item := range result.Contents {
+		if item.LastModified.After(latestModTime) {
+			latest = *item.Key
+			latestModTime = *item.LastModified
+		}
+	}
+
+	if latest == "" {
+		return "", fmt.Errorf("no files found for target %s", target)
+	}
+
+	return latest, nil
+}
+
 func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry) (int64, error) {
 	// get the s3 client
 	client, err := s.getClient(logger)
@@ -73,7 +104,22 @@ func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry)
 		return 0, fmt.Errorf("failed to get AWS client: %v", err)
 	}
 
-	bucket, path := s.url.Hostname(), path.Join(s.url.Path, source)
+	sourceFile := filepath.Join(s.url.Path, source)
+	u, err := url.Parse(sourceFile)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse target URL %s: %v", source, err)
+	}
+	q := u.Query()
+	if q.Has("latest") {
+		latestFilename, err := s.Latest(ctx, u.Path, logger)
+		if err != nil {
+			return 0, fmt.Errorf("failed to find latest file for source %s: %v", u.Path, err)
+		}
+		logger.Debugf("latest file for target %s is %s", u.Path, latestFilename)
+		sourceFile = filepath.Join(u.Path, latestFilename)
+	}
+
+	bucket, path := s.url.Hostname(), sourceFile
 
 	// Create a downloader with the session and default options
 	downloader := manager.NewDownloader(client)
