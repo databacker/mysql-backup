@@ -31,6 +31,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
@@ -82,11 +83,11 @@ type backupTarget struct {
 }
 
 type testOptions struct {
-	compact      bool
+	compact      bool //nolint:unused // used in the future
 	targets      []string
 	dc           *dockerContext
 	base         string
-	prePost      bool
+	prePost      bool //nolint:unused // used in the future
 	backupData   []byte
 	mysql        containerPort
 	smb          containerPort
@@ -333,8 +334,8 @@ func (d *dockerContext) makeSMB(smbImage string) error {
 	if err != nil {
 		return fmt.Errorf("failed to build smb image: %w", err)
 	}
-	io.Copy(os.Stdout, resp.Body)
-	resp.Body.Close()
+	_, _ = io.Copy(os.Stdout, resp.Body)
+	_ = resp.Body.Close()
 
 	return nil
 }
@@ -440,7 +441,9 @@ DELIMITER ;
 	if err != nil {
 		return err
 	}
-	defer fCompact.Close()
+	defer func() {
+		_ = fCompact.Close()
+	}()
 
 	_, _ = stdcopy.StdCopy(fCompact, &bufe, attachResp.Reader)
 
@@ -461,12 +464,15 @@ DELIMITER ;
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	_, _ = stdcopy.StdCopy(f, &bufe, attachResp.Reader)
 	return err
 }
 
+//nolint:unused // useful in the future
 func (d *dockerContext) logContainers(cids ...string) error {
 	ctx := context.Background()
 	for _, cid := range cids {
@@ -478,7 +484,9 @@ func (d *dockerContext) logContainers(cids ...string) error {
 		if err != nil {
 			return fmt.Errorf("failed to get logs for container %s: %w", cid, err)
 		}
-		defer logs.Close()
+		defer func() {
+			_ = logs.Close()
+		}()
 
 		if _, err := io.Copy(os.Stdout, logs); err != nil {
 			return fmt.Errorf("failed to stream logs for container %s: %w", cid, err)
@@ -558,12 +566,12 @@ log_queries_not_using_indexes = 1
 		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to create mysql log directory: %v", err)
 	}
 	// ensure we have mysql image
-	resp, err := dc.cli.ImagePull(context.Background(), mysqlImage, types.ImagePullOptions{})
+	resp, err := dc.cli.ImagePull(context.Background(), mysqlImage, imagetypes.PullOptions{})
 	if err != nil {
 		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to pull mysql image: %v", err)
 	}
-	io.Copy(os.Stdout, resp)
-	resp.Close()
+	_, _ = io.Copy(os.Stdout, resp)
+	_ = resp.Close()
 	mysqlCID, mysqlPort, err := dc.startContainer(mysqlImage, "mysql", "3306/tcp", []string{fmt.Sprintf("%s:/etc/mysql/conf.d/log.conf:ro", confFile), fmt.Sprintf("%s:/var/log/mysql", logDir)}, nil, []string{
 		fmt.Sprintf("MYSQL_ROOT_PASSWORD=%s", mysqlRootPass),
 		"MYSQL_DATABASE=tester",
@@ -592,8 +600,7 @@ func backupTargetsToStorage(targets []backupTarget, base, s3 string) ([]storage.
 	var targetVals []storage.Storage
 	// all targets should have the same sequence, with varying subsequence, so take any one
 	for _, tgt := range targets {
-		tg := tgt.String()
-		tg = tgt.WithPrefix(base)
+		tg := tgt.WithPrefix(base)
 		localPath := tgt.LocalPath()
 		if err := os.MkdirAll(localPath, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create local path %s: %v", localPath, err)
@@ -751,13 +758,13 @@ func checkDumpTest(t *testing.T, base string, expected []byte, s3backend gofakes
 			if _, err := os.Stat(postBackupOutFile); err != nil {
 				t.Errorf("%s script didn't run, output file doesn't exist", msg)
 			}
-			os.RemoveAll(postBackupOutFile)
+			_ = os.RemoveAll(postBackupOutFile)
 
 			msg = fmt.Sprintf("%s %s pre-backup", id, target.String())
 			if _, err := os.Stat(preBackupOutFile); err != nil {
 				t.Errorf("%s script didn't run, output file doesn't exist", msg)
 			}
-			os.RemoveAll(preBackupOutFile)
+			_ = os.RemoveAll(preBackupOutFile)
 		}
 		p := target.Path()
 		if p == "" {
@@ -803,8 +810,6 @@ func checkDumpTest(t *testing.T, base string, expected []byte, s3backend gofakes
 		// to each format
 		assert.Equal(t, expectedFiltered, string(b), "%s tar contents do not match actual dump", id)
 	}
-
-	return
 }
 
 // gunzipUntarScanFilter is a helper function to extract the actual data from a backup
@@ -815,7 +820,9 @@ func gunzipUntarScanFilter(r io.Reader) (b []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer gr.Close()
+	defer func() {
+		_ = gr.Close()
+	}()
 	tr := tar.NewReader(gr)
 	if _, err := tr.Next(); err != nil {
 		return nil, err
@@ -884,12 +891,12 @@ func populatePrePost(base string, targets []backupTarget) (err error) {
 }
 
 func startDatabase(dc *dockerContext, baseDir, image, name string) (containerPort, error) {
-	resp, err := dc.cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	resp, err := dc.cli.ImagePull(context.Background(), image, imagetypes.PullOptions{})
 	if err != nil {
 		return containerPort{}, fmt.Errorf("failed to pull mysql image: %v", err)
 	}
-	io.Copy(os.Stdout, resp)
-	resp.Close()
+	_, _ = io.Copy(os.Stdout, resp)
+	_ = resp.Close()
 
 	// start the mysql container; configure it for lots of debug logging, in case we need it
 	mysqlConf := `
