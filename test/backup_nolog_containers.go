@@ -1,4 +1,4 @@
-//go:build integration && logs
+//go:build logs
 
 package test
 

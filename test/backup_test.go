@@ -1,5 +1,3 @@
-//go:build integration
-
 package test
 
 import (
@@ -931,6 +929,7 @@ log_queries_not_using_indexes = 1
 }
 
 func TestIntegration(t *testing.T) {
+	CheckSkipIntegration(t, "integration")
 	syscall.Umask(0)
 	dc, err := getDockerContext()
 	if err != nil {

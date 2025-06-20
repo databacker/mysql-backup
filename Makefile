@@ -35,10 +35,10 @@ push: build
 	docker push $(TARGET)
 
 integration_test:
-	go test -v ./test --tags=integration
+	TEST_INTEGRATION=true go test -v ./test
 
 integration_test_debug:
-	dlv --wd=./test test ./test --build-flags="-tags=integration"
+	TEST_INTEGRATION=true dlv --wd=./test test ./test
 
 vet:
 	go vet --tags=integration ./...
