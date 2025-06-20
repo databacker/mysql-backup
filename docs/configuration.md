@@ -157,7 +157,7 @@ for details of each.
   * `retention`: string, retention policy
 * `targets`: target configurations, each of which can be reference by other sections. Key is the name of the target that is referenced elsewhere. Each one has the following structure:
   * `type`: string, the type of target, one of: file, s3, smb
-  * `url`: string, the URL of the target
+  * `url`: string, the URL of the target; include `?latest` if the URL is a directory and you want to use the latest file in that directory. If the URL is a file, it should not include `?latest`.
   * `spec`: access details for the target, depends on target type:
     * Type s3:
       * `region`: string, the region
