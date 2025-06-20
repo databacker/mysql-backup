@@ -1,8 +1,6 @@
-//go:build integration && keepcontainers
+//go:build keepcontainers
 
 package test
-
-import "fmt"
 
 func teardown(dc *dockerContext, cids ...string) error {
 	return nil
