@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -28,6 +29,8 @@ import (
 	"github.com/databacker/mysql-backup/pkg/database"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
+	dbutil "github.com/databacker/mysql-backup/pkg/util/database"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -47,6 +50,8 @@ const (
 	mysqlRootPass = "root"
 	smbImage      = "mysqlbackup_smb_test:latest"
 	mysqlImage    = "mysql:8.2.0"
+	mariaImage    = "mariadb:11.8.2-noble"
+	perconaImage  = "percona:8.0.42-33"
 	bucketName    = "mybucket"
 )
 
@@ -880,8 +885,57 @@ func populatePrePost(base string, targets []backupTarget) (err error) {
 	return nil
 }
 
+func startDatabase(dc *dockerContext, baseDir, image, name string) (containerPort, error) {
+	resp, err := dc.cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	if err != nil {
+		return containerPort{}, fmt.Errorf("failed to pull mysql image: %v", err)
+	}
+	io.Copy(os.Stdout, resp)
+	resp.Close()
+
+	// start the mysql container; configure it for lots of debug logging, in case we need it
+	mysqlConf := `
+[mysqld]
+log_error       =/var/log/mysql/mysql_error.log
+general_log_file=/var/log/mysql/mysql.log
+general_log     =1
+slow_query_log  =1
+slow_query_log_file=/var/log/mysql/mysql_slow.log
+long_query_time =2
+log_queries_not_using_indexes = 1
+`
+	if err := os.Mkdir(baseDir, 0o755); err != nil {
+		return containerPort{}, fmt.Errorf("failed to create mysql base directory: %v", err)
+	}
+	confFile := filepath.Join(baseDir, "log.cnf")
+	if err := os.WriteFile(confFile, []byte(mysqlConf), 0644); err != nil {
+		return containerPort{}, fmt.Errorf("failed to write mysql config file: %v", err)
+	}
+	logDir := filepath.Join(baseDir, "mysql_logs")
+	if err := os.Mkdir(logDir, 0755); err != nil {
+		return containerPort{}, fmt.Errorf("failed to create mysql log directory: %v", err)
+	}
+
+	// start mysql
+	cid, port, err := dc.startContainer(
+		image, name, "3306/tcp", []string{fmt.Sprintf("%s:/etc/mysql/conf.d/log.conf:ro", confFile), fmt.Sprintf("%s:/var/log/mysql", logDir)}, nil, []string{
+			fmt.Sprintf("MYSQL_ROOT_PASSWORD=%s", mysqlRootPass),
+			"MYSQL_DATABASE=tester",
+			fmt.Sprintf("MYSQL_USER=%s", mysqlUser),
+			fmt.Sprintf("MYSQL_PASSWORD=%s", mysqlPass),
+		})
+	if err != nil {
+		return containerPort{}, fmt.Errorf("failed to start mysql container: %v", err)
+	}
+	return containerPort{name: name, id: cid, port: port}, nil
+}
+
 func TestIntegration(t *testing.T) {
 	syscall.Umask(0)
+	dc, err := getDockerContext()
+	if err != nil {
+		t.Fatalf("failed to get docker client: %v", err)
+	}
 	t.Run("dump", func(t *testing.T) {
 		var (
 			err        error
@@ -897,10 +951,6 @@ func TestIntegration(t *testing.T) {
 		// ensure that the container has full access to it
 		if err := os.Chmod(base, 0o777); err != nil {
 			t.Fatalf("failed to chmod temp dir: %v", err)
-		}
-		dc, err := getDockerContext()
-		if err != nil {
-			t.Fatalf("failed to get docker client: %v", err)
 		}
 		backupFile := filepath.Join(base, "backup.sql")
 		compactBackupFile := filepath.Join(base, "backup-compact.sql")
@@ -1031,6 +1081,66 @@ func TestIntegration(t *testing.T) {
 				dumpOptions:  dumpOpts,
 				checkCommand: checkDumpTest,
 			})
+		})
+	})
+	t.Run("dbutil", func(t *testing.T) {
+		t.Run("detect", func(t *testing.T) {
+			// start all database variants
+			// wait for them to be ready
+			// then run the detect command on each of them
+			// then tear them down
+
+			// set up dirs
+
+			base := t.TempDir()
+			tests := []struct {
+				name          string
+				image         string
+				containerName string
+				variant       dbutil.Variant
+			}{
+				{"mysql", mysqlImage, "mysql-detect", dbutil.VariantMySQL},
+				{"maria", mariaImage, "maria-detect", dbutil.VariantMariaDB},
+				{"percona", perconaImage, "percona-detect", dbutil.VariantPercona},
+			}
+			// tear down at the end
+			var cids []string
+			defer func() {
+				if err := teardown(dc, cids...); err != nil {
+					log.Errorf("failed to teardown test: %v", err)
+				}
+			}()
+
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					container, err := startDatabase(dc, filepath.Join(base, tt.name), tt.image, tt.containerName)
+					if err != nil {
+						t.Fatalf("failed to start mysql container: %v", err)
+					}
+					cids = append(cids, container.id)
+					if err = dc.waitForDBConnectionAndGrantPrivileges(container.id, mysqlRootUser, mysqlRootPass); err != nil {
+						return
+					}
+					dbconn := database.Connection{
+						User: mysqlRootUser,
+						Pass: mysqlRootPass,
+						Host: "localhost",
+						Port: container.port,
+					}
+
+					db, err := sql.Open("mysql", dbconn.MySQL())
+					if err != nil {
+						t.Fatalf("failed to open connection to database: %v", err)
+					}
+					v, err := dbutil.DetectVariant(db)
+					if err != nil {
+						t.Errorf("error detecting database variant: %v", err)
+					}
+					if v != tt.variant {
+						t.Errorf("expected database variant to be %s, got %s", tt.variant, v)
+					}
+				})
+			}
 		})
 	})
 }

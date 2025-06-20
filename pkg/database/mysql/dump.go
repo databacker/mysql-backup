@@ -25,6 +25,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	dbutil "github.com/databacker/mysql-backup/pkg/util/database"
 )
 
 /*
@@ -177,16 +179,11 @@ func (data *Data) Dump() error {
 
 	// Lock all tables before dumping if present
 	if data.LockTables && (len(tables) > 0 || len(views) > 0) {
-		var b bytes.Buffer
-		b.WriteString("LOCK TABLES ")
-		for index, table := range append(tables, views...) {
-			if index != 0 {
-				b.WriteString(",")
-			}
-			b.WriteString("`" + table.Name() + "` READ /*!32311 LOCAL */")
+		lockCommand, err := data.getBackupLockCommand(tables, views)
+		if err != nil {
+			return fmt.Errorf("failed to get lock command: %w", err)
 		}
-
-		if _, err := data.Connection.Exec(b.String()); err != nil {
+		if _, err := data.Connection.Exec(lockCommand); err != nil {
 			return err
 		}
 
@@ -535,6 +532,36 @@ func (data *Data) getProceduresOrFunctionsCreateQueries(t string) ([]string, err
 		}
 	}
 	return toGet, nil
+}
+
+// getBackupLockCommand returns the SQL command to lock the tables for backup
+// It may vary depending on the database variant or version, so it is generated dynamically
+func (data *Data) getBackupLockCommand(tables, views []Table) (string, error) {
+	dbVar, err := dbutil.DetectVariant(data.Connection)
+	if err != nil {
+		return "", fmt.Errorf("failed to determine database variant: %w", err)
+	}
+	var lockString string
+	switch dbVar {
+	case dbutil.VariantMariaDB:
+		lockString = "LOCK TABLES"
+	case dbutil.VariantMySQL:
+		lockString = "LOCK TABLES"
+	case dbutil.VariantPercona:
+		// Percona just use the simple LOCK TABLES FOR BACKUP command
+		return "LOCK TABLES FOR BACKUP", nil
+	default:
+		lockString = "LOCK TABLES"
+	}
+	var b bytes.Buffer
+	b.WriteString(lockString + " ")
+	for index, table := range append(tables, views...) {
+		if index != 0 {
+			b.WriteString(",")
+		}
+		b.WriteString("`" + table.Name() + "` READ /*!32311 LOCAL */")
+	}
+	return b.String(), nil
 }
 
 func (meta *metaData) updateMetadata(data *Data) (err error) {
