@@ -40,6 +40,20 @@ func TestDumpCmd(t *testing.T) {
 			DBConn:           database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+		{"file URL with pass-file", []string{"--server", "abc", "--target", "file:///foo/bar", "--pass-file", "testdata/password.txt"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort, Pass: "testpassword"},
+			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+		{"file URL with pass and pass-file (pass takes precedence)", []string{"--server", "abc", "--target", "file:///foo/bar", "--pass", "explicitpass", "--pass-file", "testdata/password.txt"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           database.Connection{Host: "abc", Port: defaultPort, Pass: "explicitpass"},
+			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"file URL with prune", []string{"--server", "abc", "--target", "file:///foo/bar", "--retention", "1h"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
 			MaxAllowedPacket: defaultMaxAllowedPacket,

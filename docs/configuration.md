@@ -68,6 +68,7 @@ The following are the environment variables, CLI flags and configuration file op
 | port to use to connect to database. Optional. | BR | `port` | `DB_PORT` | `database.port` | 3306 |
 | username for the database | BR | `user` | `DB_USER` | `database.credentials.username` |  |
 | password for the database | BR | `pass` | `DB_PASS` | `database.credentials.password` |  |
+| path to file containing password for the database. `pass` takes precedence if both are set. | BR | `pass-file` | `DB_PASS_FILE` |  |  |
 | names of databases to dump, comma-separated | B | `include` | `DB_DUMP_INCLUDE` | `dump.include` | all databases in the server |
 | names of databases to exclude from the dump | B | `exclude` | `DB_DUMP_EXCLUDE` | `dump.exclude` |  |
 | do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |

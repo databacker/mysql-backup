@@ -167,6 +167,18 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				cmdConfig.dbconn.Pass = dbPass
 			}
 
+			// read password from file if pass is not set and pass-file is set
+			if cmdConfig.dbconn.Pass == "" {
+				dbPassFile := v.GetString("pass-file")
+				if dbPassFile != "" {
+					passBytes, err := os.ReadFile(dbPassFile)
+					if err != nil {
+						return fmt.Errorf("failed to read password from file %s: %w", dbPassFile, err)
+					}
+					cmdConfig.dbconn.Pass = strings.TrimSpace(string(passBytes))
+				}
+			}
+
 			// these are not from the config file, as they are generic credentials, used across all targets.
 			// the config file uses specific ones per target
 			cmdConfig.creds = credentials.Creds{
@@ -221,6 +233,9 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 
 	// pass via CLI or env var
 	pflags.String("pass", "", "password for database server")
+
+	// pass-file via CLI or env var
+	pflags.String("pass-file", "", "path to file containing password for database server")
 
 	// debug via CLI or env var or default
 	pflags.IntP("verbose", "v", 0, "set log level, 1 is debug, 2 is trace")
