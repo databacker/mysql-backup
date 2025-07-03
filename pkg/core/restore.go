@@ -42,7 +42,7 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 		attribute.String("targetfile", opts.TargetFile),
 		attribute.String("tmpfile", tmpRestoreFile),
 	)
-	copied, err := opts.Target.Pull(ctx, opts.TargetFile, tmpRestoreFile, logger)
+	copied, err := opts.Target.Pull(ctx, opts.Target.URL(), tmpRestoreFile, logger)
 	if err != nil {
 		pullSpan.RecordError(err)
 		pullSpan.End()
