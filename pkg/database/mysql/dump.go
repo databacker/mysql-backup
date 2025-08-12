@@ -52,6 +52,7 @@ type Data struct {
 	SuppressUseDatabase bool
 	Charset             string
 	Collation           string
+	PostDumpDelay       time.Duration
 
 	tx                 *sql.Tx
 	headerTmpl         *template.Template
@@ -254,6 +255,9 @@ func (data *Data) Dump() error {
 		return data.err
 	}
 
+	if data.PostDumpDelay > 0 {
+		time.Sleep(data.PostDumpDelay)
+	}
 	meta.CompleteTime = time.Now().UTC().Format("2006-01-02 15:04:05")
 	return data.footerTmpl.Execute(data.Out, meta)
 }

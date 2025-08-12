@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/databacker/mysql-backup/pkg/database/mysql"
 )
@@ -14,6 +15,8 @@ type DumpOpts struct {
 	Routines            bool
 	SuppressUseDatabase bool
 	MaxAllowedPacket    int
+	// PostDumpDelay after each dump is complete, while holding connection open. Do not use outside of tests.
+	PostDumpDelay time.Duration
 }
 
 func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpWriter) error {
@@ -42,6 +45,7 @@ func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpW
 				Routines:            opts.Routines,
 				SuppressUseDatabase: opts.SuppressUseDatabase,
 				MaxAllowedPacket:    opts.MaxAllowedPacket,
+				PostDumpDelay:       opts.PostDumpDelay,
 			}
 			if err := dumper.Dump(); err != nil {
 				return fmt.Errorf("failed to dump database %s: %v", schema, err)

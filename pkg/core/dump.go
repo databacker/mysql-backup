@@ -111,6 +111,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		Routines:            routines,
 		SuppressUseDatabase: suppressUseDatabase,
 		MaxAllowedPacket:    maxAllowedPacket,
+		PostDumpDelay:       opts.PostDumpDelay,
 	}, dw); err != nil {
 		dbDumpSpan.SetStatus(codes.Error, err.Error())
 		dbDumpSpan.End()

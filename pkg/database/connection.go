@@ -8,10 +8,11 @@ import (
 )
 
 type Connection struct {
-	User string
-	Pass string
-	Host string
-	Port int
+	User            string
+	Pass            string
+	Host            string
+	Port            int
+	MultiStatements bool
 }
 
 func (c Connection) MySQL() string {
@@ -27,5 +28,6 @@ func (c Connection) MySQL() string {
 	}
 	config.ParseTime = true
 	config.TLSConfig = "preferred"
+	config.MultiStatements = c.MultiStatements
 	return config.FormatDSN()
 }

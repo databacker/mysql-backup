@@ -1,6 +1,8 @@
 package core
 
 import (
+	"time"
+
 	"github.com/databacker/mysql-backup/pkg/compression"
 	"github.com/databacker/mysql-backup/pkg/database"
 	"github.com/databacker/mysql-backup/pkg/encrypt"
@@ -25,4 +27,6 @@ type DumpOptions struct {
 	MaxAllowedPacket    int
 	Run                 uuid.UUID
 	FilenamePattern     string
+	// PostDumpDelay inafter each dump is complete, while holding connection open. Do not use outside of tests.
+	PostDumpDelay time.Duration
 }

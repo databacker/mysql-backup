@@ -31,7 +31,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
@@ -546,44 +545,12 @@ func setup(dc *dockerContext, base, backupFile, compactBackupFile string) (mysql
 	s3server := httptest.NewServer(s3.Server())
 	s3url = s3server.URL
 
-	// start the mysql container; configure it for lots of debug logging, in case we need it
-	mysqlConf := `
-[mysqld]
-log_error       =/var/log/mysql/mysql_error.log
-general_log_file=/var/log/mysql/mysql.log
-general_log     =1
-slow_query_log  =1
-slow_query_log_file=/var/log/mysql/mysql_slow.log
-long_query_time =2
-log_queries_not_using_indexes = 1
-`
-	confFile := filepath.Join(base, "log.cnf")
-	if err := os.WriteFile(confFile, []byte(mysqlConf), 0644); err != nil {
-		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to write mysql config file: %v", err)
-	}
-	logDir := filepath.Join(base, "mysql_logs")
-	if err := os.Mkdir(logDir, 0755); err != nil {
-		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to create mysql log directory: %v", err)
-	}
-	// ensure we have mysql image
-	resp, err := dc.cli.ImagePull(context.Background(), mysqlImage, imagetypes.PullOptions{})
+	mysql, err = startDatabase(dc, base, mysqlImage, "mysql")
 	if err != nil {
-		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to pull mysql image: %v", err)
+		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to start mysql container: %v", err)
 	}
-	_, _ = io.Copy(os.Stdout, resp)
-	_ = resp.Close()
-	mysqlCID, mysqlPort, err := dc.startContainer(mysqlImage, "mysql", "3306/tcp", []string{fmt.Sprintf("%s:/etc/mysql/conf.d/log.conf:ro", confFile), fmt.Sprintf("%s:/var/log/mysql", logDir)}, nil, []string{
-		fmt.Sprintf("MYSQL_ROOT_PASSWORD=%s", mysqlRootPass),
-		"MYSQL_DATABASE=tester",
-		fmt.Sprintf("MYSQL_USER=%s", mysqlUser),
-		fmt.Sprintf("MYSQL_PASSWORD=%s", mysqlPass),
-	})
-	if err != nil {
-		return
-	}
-	mysql = containerPort{name: "mysql", id: mysqlCID, port: mysqlPort}
 
-	if err = dc.waitForDBConnectionAndGrantPrivileges(mysqlCID, mysqlRootUser, mysqlRootPass); err != nil {
+	if err = dc.waitForDBConnectionAndGrantPrivileges(mysql.id, mysqlRootUser, mysqlRootPass); err != nil {
 		return
 	}
 
@@ -890,51 +857,6 @@ func populatePrePost(base string, targets []backupTarget) (err error) {
 	return nil
 }
 
-func startDatabase(dc *dockerContext, baseDir, image, name string) (containerPort, error) {
-	resp, err := dc.cli.ImagePull(context.Background(), image, imagetypes.PullOptions{})
-	if err != nil {
-		return containerPort{}, fmt.Errorf("failed to pull mysql image: %v", err)
-	}
-	_, _ = io.Copy(os.Stdout, resp)
-	_ = resp.Close()
-
-	// start the mysql container; configure it for lots of debug logging, in case we need it
-	mysqlConf := `
-[mysqld]
-log_error       =/var/log/mysql/mysql_error.log
-general_log_file=/var/log/mysql/mysql.log
-general_log     =1
-slow_query_log  =1
-slow_query_log_file=/var/log/mysql/mysql_slow.log
-long_query_time =2
-log_queries_not_using_indexes = 1
-`
-	if err := os.Mkdir(baseDir, 0o755); err != nil {
-		return containerPort{}, fmt.Errorf("failed to create mysql base directory: %v", err)
-	}
-	confFile := filepath.Join(baseDir, "log.cnf")
-	if err := os.WriteFile(confFile, []byte(mysqlConf), 0644); err != nil {
-		return containerPort{}, fmt.Errorf("failed to write mysql config file: %v", err)
-	}
-	logDir := filepath.Join(baseDir, "mysql_logs")
-	if err := os.Mkdir(logDir, 0755); err != nil {
-		return containerPort{}, fmt.Errorf("failed to create mysql log directory: %v", err)
-	}
-
-	// start mysql
-	cid, port, err := dc.startContainer(
-		image, name, "3306/tcp", []string{fmt.Sprintf("%s:/etc/mysql/conf.d/log.conf:ro", confFile), fmt.Sprintf("%s:/var/log/mysql", logDir)}, nil, []string{
-			fmt.Sprintf("MYSQL_ROOT_PASSWORD=%s", mysqlRootPass),
-			"MYSQL_DATABASE=tester",
-			fmt.Sprintf("MYSQL_USER=%s", mysqlUser),
-			fmt.Sprintf("MYSQL_PASSWORD=%s", mysqlPass),
-		})
-	if err != nil {
-		return containerPort{}, fmt.Errorf("failed to start mysql container: %v", err)
-	}
-	return containerPort{name: name, id: cid, port: port}, nil
-}
-
 func TestIntegration(t *testing.T) {
 	CheckSkipIntegration(t, "integration")
 	syscall.Umask(0)
@@ -942,6 +864,112 @@ func TestIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get docker client: %v", err)
 	}
+	t.Run("parallel databases", func(t *testing.T) {
+		base := t.TempDir()
+		mysql, err := startDatabase(dc, base, mysqlImage, "mysql-parallel")
+		defer func() {
+			// log the results before tearing down, if requested
+			if err := logContainers(dc, mysql.id); err != nil {
+				log.Errorf("failed to get logs from service containers: %v", err)
+			}
+
+			// tear everything down
+			if err := teardown(dc, mysql.id); err != nil {
+				log.Errorf("failed to teardown test: %v", err)
+			}
+		}()
+
+		if err != nil {
+			t.Fatalf("failed to start large mysql database: %v", err)
+		}
+		if err = dc.waitForDBConnectionAndGrantPrivileges(mysql.id, mysqlRootUser, mysqlRootPass); err != nil {
+			t.Fatalf("failed to wait for DB connection: %v", err)
+		}
+		dbconn := database.Connection{
+			User:            mysqlRootUser,
+			Pass:            mysqlRootPass,
+			Host:            "localhost",
+			Port:            mysql.port,
+			MultiStatements: true,
+		}
+
+		db, err := sql.Open("mysql", dbconn.MySQL())
+		if err != nil {
+			t.Fatalf("failed to open connection to database: %v", err)
+		}
+
+		var dbCount uint = 10
+		var tableSize uint64 = 1
+		t.Logf("Setting up database server with %d databases, with one table of %d MB each", dbCount, tableSize)
+		if err := setupLargeDatabase(db, dbCount, tableSize*1024*1024); err != nil {
+			t.Fatalf("failed to setup large database: %v", err)
+		}
+		// now just run a backup to a temporary directory
+		t.Logf("Running backup for large database")
+		backupDir := t.TempDir()
+		executor := &core.Executor{}
+		executor.SetLogger(log.New())
+
+		store, err := storage.ParseURL(backupDir, credentials.Creds{})
+		if err != nil {
+			t.Fatalf("invalid target url: %v", err)
+		}
+
+		dumpOptions := core.DumpOptions{
+			Compressor: &compression.GzipCompressor{},
+			DBConn: database.Connection{
+				User: mysqlRootUser,
+				Pass: mysqlRootPass,
+				Host: "localhost",
+				Port: mysql.port,
+			},
+			Targets:       []storage.Storage{store},
+			PostDumpDelay: 5 * time.Second, // for testing only, make them delay 10 seconds
+		}
+		ctx := context.Background()
+		start := time.Now()
+		errChan := make(chan error, 1)
+		t.Logf("Starting dump test for large database at %s", start)
+		go func() {
+			_, err := executor.Dump(ctx, dumpOptions)
+			errChan <- err
+		}()
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+	loop:
+		for {
+			select {
+			case err := <-errChan:
+				if err != nil {
+					t.Fatalf("failed to run dump test: %v", err)
+				}
+				ticker.Stop()
+				break loop
+			case <-ticker.C:
+				// every interval, report how many connections are running to the database
+				tr, err := getStatus(db, "Threads_running")
+				if err != nil {
+					t.Fatalf("failed to get Threads_running status: %v", err)
+				}
+
+				tc, err := getStatus(db, "Threads_connected")
+				if err != nil {
+					t.Fatalf("failed to get Threads_connected status: %v", err)
+				}
+				uTotal, uActive, err := getProcesslistCounts(db)
+				if err != nil {
+					t.Fatalf("failed to get processlist counts: %v", err)
+				}
+
+				t.Logf("[%s]\tthreads_running=%d\tthreads_connected=%d\topen_user=%d\tactive_user=%d\n",
+					time.Now().Format("15:04:05"),
+					tr, tc, uTotal, uActive)
+
+			}
+		}
+		t.Logf("Dump completed at %s in %s", time.Now(), time.Since(start))
+	})
 	t.Run("dump", func(t *testing.T) {
 		var (
 			err        error
