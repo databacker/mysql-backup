@@ -10,7 +10,7 @@ import (
 type RestoreOptions struct {
 	Target       storage.Storage
 	TargetFile   string
-	DBConn       database.Connection
+	DBConn       *database.Connection
 	DatabasesMap map[string]string
 	Compressor   compression.Compressor
 	Run          uuid.UUID

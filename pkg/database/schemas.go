@@ -1,7 +1,6 @@
 package database
 
 import (
-	"database/sql"
 	"fmt"
 )
 
@@ -16,12 +15,11 @@ func init() {
 	}
 }
 
-func GetSchemas(dbconn Connection) ([]string, error) {
-	db, err := sql.Open("mysql", dbconn.MySQL())
+func GetSchemas(dbconn *Connection) ([]string, error) {
+	db, err := dbconn.MySQL()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection to database: %v", err)
 	}
-	defer func() { _ = db.Close() }()
 
 	// TODO: get list of schemas
 	// mysql -h $DB_SERVER -P $DB_PORT $DBUSER $DBPASS -N -e 'show databases'

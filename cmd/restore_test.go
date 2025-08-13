@@ -33,7 +33,7 @@ func TestRestoreCmd(t *testing.T) {
 		{"missing server and target options", []string{""}, "", true, core.RestoreOptions{}},
 		{"invalid target URL", []string{"--server", "abc", "--target", "def"}, "", true, core.RestoreOptions{}},
 		{"valid URL missing dump filename", []string{"--server", "abc", "--target", "file:///foo/bar"}, "", true, core.RestoreOptions{}},
-		{"valid file URL", []string{"--server", "abc", "--target", fileTarget, "filename.tgz", "--verbose", "2"}, "", false, core.RestoreOptions{Target: file.New(*fileTargetURL), TargetFile: "filename.tgz", DBConn: database.Connection{Host: "abc", Port: defaultPort}, DatabasesMap: map[string]string{}, Compressor: &compression.GzipCompressor{}}},
+		{"valid file URL", []string{"--server", "abc", "--target", fileTarget, "filename.tgz", "--verbose", "2"}, "", false, core.RestoreOptions{Target: file.New(*fileTargetURL), TargetFile: "filename.tgz", DBConn: &database.Connection{Host: "abc", Port: defaultPort}, DatabasesMap: map[string]string{}, Compressor: &compression.GzipCompressor{}}},
 	}
 
 	for _, tt := range tests {

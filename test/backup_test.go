@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -651,7 +650,7 @@ func runTest(t *testing.T, opts testOptions) {
 				t.Fatalf("failed to populate pre-post for target %s: %v", target, err)
 			}
 			log.Debugf("Running backup for target %s", target)
-			opts.dumpOptions.DBConn = database.Connection{
+			opts.dumpOptions.DBConn = &database.Connection{
 				User: mysqlUser,
 				Pass: mysqlPass,
 				Host: "localhost",
@@ -885,7 +884,7 @@ func TestIntegration(t *testing.T) {
 		if err = dc.waitForDBConnectionAndGrantPrivileges(mysql.id, mysqlRootUser, mysqlRootPass); err != nil {
 			t.Fatalf("failed to wait for DB connection: %v", err)
 		}
-		dbconn := database.Connection{
+		dbconn := &database.Connection{
 			User:            mysqlRootUser,
 			Pass:            mysqlRootPass,
 			Host:            "localhost",
@@ -893,7 +892,7 @@ func TestIntegration(t *testing.T) {
 			MultiStatements: true,
 		}
 
-		db, err := sql.Open("mysql", dbconn.MySQL())
+		db, err := dbconn.MySQL()
 		if err != nil {
 			t.Fatalf("failed to open connection to database: %v", err)
 		}
@@ -917,7 +916,7 @@ func TestIntegration(t *testing.T) {
 
 		dumpOptions := core.DumpOptions{
 			Compressor: &compression.GzipCompressor{},
-			DBConn: database.Connection{
+			DBConn: &database.Connection{
 				User: mysqlRootUser,
 				Pass: mysqlRootPass,
 				Host: "localhost",
@@ -1155,14 +1154,14 @@ func TestIntegration(t *testing.T) {
 					if err = dc.waitForDBConnectionAndGrantPrivileges(container.id, mysqlRootUser, mysqlRootPass); err != nil {
 						return
 					}
-					dbconn := database.Connection{
+					dbconn := &database.Connection{
 						User: mysqlRootUser,
 						Pass: mysqlRootPass,
 						Host: "localhost",
 						Port: container.port,
 					}
 
-					db, err := sql.Open("mysql", dbconn.MySQL())
+					db, err := dbconn.MySQL()
 					if err != nil {
 						t.Fatalf("failed to open connection to database: %v", err)
 					}

@@ -14,7 +14,7 @@ type DumpOptions struct {
 	Targets             []storage.Storage
 	Safechars           bool
 	DBNames             []string
-	DBConn              database.Connection
+	DBConn              *database.Connection
 	Compressor          compression.Compressor
 	Encryptor           encrypt.Encryptor
 	Exclude             []string

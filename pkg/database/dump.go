@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -19,7 +18,7 @@ type DumpOpts struct {
 	PostDumpDelay time.Duration
 }
 
-func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpWriter) error {
+func Dump(ctx context.Context, dbconn *Connection, opts DumpOpts, writers []DumpWriter) error {
 
 	// TODO: dump data for each writer:
 	// per schema
@@ -28,12 +27,11 @@ func Dump(ctx context.Context, dbconn Connection, opts DumpOpts, writers []DumpW
 	//    mysqldump -A $MYSQLDUMP_OPTS
 	// all at once limited to some databases
 	//    mysqldump --databases $DB_DUMP_INCLUDE $MYSQLDUMP_OPTS
+	db, err := dbconn.MySQL()
+	if err != nil {
+		return fmt.Errorf("failed to open connection to database: %v", err)
+	}
 	for _, writer := range writers {
-		db, err := sql.Open("mysql", dbconn.MySQL())
-		if err != nil {
-			return fmt.Errorf("failed to open connection to database: %v", err)
-		}
-		defer func() { _ = db.Close() }()
 		for _, schema := range writer.Schemas {
 			dumper := &mysql.Data{
 				Out:                 writer.Writer,

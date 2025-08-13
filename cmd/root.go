@@ -38,7 +38,7 @@ type subCommand func(execs, *cmdConfiguration) (*cobra.Command, error)
 var subCommands = []subCommand{dumpCmd, restoreCmd, pruneCmd}
 
 type cmdConfiguration struct {
-	dbconn        database.Connection
+	dbconn        *database.Connection
 	creds         credentials.Creds
 	configuration *api.ConfigSpec
 	logger        *log.Logger
@@ -110,6 +110,11 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 
 			// the structure of our config file is more complex and with relationships than our config/env var
 			// so we cannot use a single viper structure, as described above.
+
+			// avoid nil pointer dereference
+			if cmdConfig.dbconn == nil {
+				cmdConfig.dbconn = &database.Connection{}
+			}
 
 			// set up database connection
 			if actualConfig != nil {
