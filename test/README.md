@@ -71,3 +71,11 @@ base/ - base of the backup area
 	backups/ - the directory where backups are stored
 		15674832/ - one target's backup
 		88725436/ - another target's backup
+
+## Databases in Parallel
+
+The behaviour of backing up multiple databases in parallel can have an impact on connections.
+
+To test management, there is a database test `TestIntegration/parallel_databases`. It sets up a database server
+with multiples databases, each with a table of a MB or a few. It then injects a delay on each backup of 10
+seconds, and then exits. Every second during the backup, it reports the number of connections.
