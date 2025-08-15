@@ -29,13 +29,6 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 	logger.Level = e.Logger.Level
 
 	logger.Info("beginning restore")
-	// execute pre-restore scripts if any
-	if err := preRestore(ctx, opts.Target.URL()); err != nil {
-		return fmt.Errorf("error running pre-restore: %v", err)
-	}
-
-	logger.Debugf("restoring via %s protocol, temporary file location %s", opts.Target.Protocol(), tmpRestoreFile)
-
 	_, pullSpan := tracer.Start(ctx, "pull file")
 	pullSpan.SetAttributes(
 		attribute.String("target", opts.Target.URL()),
@@ -54,6 +47,13 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 	pullSpan.SetStatus(codes.Ok, "completed")
 	pullSpan.End()
 	logger.Debugf("completed copying %d bytes", copied)
+
+	// execute pre-restore scripts if any
+	if err := preRestore(ctx, opts.Target.URL()); err != nil {
+		return fmt.Errorf("error running pre-restore: %v", err)
+	}
+
+	logger.Debugf("restoring via %s protocol, temporary file location %s", opts.Target.Protocol(), tmpRestoreFile)
 
 	// successfully download file, now restore it
 	tmpdir, err := os.MkdirTemp("", "restore")
