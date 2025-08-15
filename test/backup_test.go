@@ -29,13 +29,14 @@ import (
 	dbutil "github.com/databacker/mysql-backup/pkg/util/database"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/build"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
-	"github.com/moby/moby/pkg/archive"
+	mobyarchive "github.com/moby/go-archive"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -158,17 +159,16 @@ func getDockerContext() (*dockerContext, error) {
 }
 
 func (d *dockerContext) execInContainer(ctx context.Context, cid string, cmd []string) (types.HijackedResponse, int, error) {
-	execConfig := types.ExecConfig{
+	execOptions := container.ExecOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          cmd,
 	}
-	execResp, err := d.cli.ContainerExecCreate(ctx, cid, execConfig)
+	execResp, err := d.cli.ContainerExecCreate(ctx, cid, execOptions)
 	if err != nil {
 		return types.HijackedResponse{}, 0, fmt.Errorf("failed to create exec: %w", err)
 	}
-	var execStartCheck types.ExecStartCheck
-	attachResp, err := d.cli.ContainerExecAttach(ctx, execResp.ID, execStartCheck)
+	attachResp, err := d.cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
 	if err != nil {
 		return attachResp, 0, fmt.Errorf("failed to attach to exec: %w", err)
 	}
@@ -176,7 +176,7 @@ func (d *dockerContext) execInContainer(ctx context.Context, cid string, cmd []s
 		retryMax   = 20
 		retrySleep = 1
 		success    bool
-		inspect    types.ContainerExecInspect
+		inspect    container.ExecInspect
 	)
 	for i := 0; i < retryMax; i++ {
 		inspect, err = d.cli.ContainerExecInspect(ctx, execResp.ID)
@@ -284,7 +284,7 @@ func (d *dockerContext) startContainer(image, name, portMap string, binds []stri
 	var (
 		maxRetries = 3
 		delay      = 500 * time.Millisecond
-		inspect    types.ContainerJSON
+		inspect    container.InspectResponse
 	)
 	for i := 0; i < maxRetries; i++ {
 		// Inspect the container
@@ -316,13 +316,13 @@ func (d *dockerContext) makeSMB(smbImage string) error {
 	ctx := context.Background()
 
 	// Build the smbImage
-	buildSMBImageOpts := types.ImageBuildOptions{
+	buildSMBImageOpts := build.ImageBuildOptions{
 		Context: nil,
 		Tags:    []string{smbImage},
 		Remove:  true,
 	}
 
-	tar, err := archive.TarWithOptions("ctr/", &archive.TarOptions{})
+	tar, err := mobyarchive.TarWithOptions("ctr/", &mobyarchive.TarOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to create tar archive: %w", err)
 	}
