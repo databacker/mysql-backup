@@ -81,6 +81,7 @@ The following are the environment variables, CLI flags and configuration file op
 | where to put the dump file; see [backup](./backup.md) | BP | `dump --target` | `DB_DUMP_TARGET` | `dump.targets` |  |
 | where the restore file exists; see [restore](./restore.md) | R | `restore --target` | `DB_RESTORE_TARGET` | `restore.target` |  |
 | replace any `:` in the dump filename with `-` | BP | `dump --safechars` | `DB_DUMP_SAFECHARS` | `database.safechars` | `false` |
+| How many databases to back up in parallel, uses that number of threads and connections | B | `dump --parallelism` | `DB_DUMP_PARALLELISM` | `dump.parallelism` | `1` |
 | AWS access key ID, used only if a target does not have one | BRP | `aws-access-key-id` | `AWS_ACCESS_KEY_ID` | `dump.targets[s3-target].accessKeyID` |  |
 | AWS secret access key, used only if a target does not have one | BRP | `aws-secret-access-key` | `AWS_SECRET_ACCESS_KEY` | `dump.targets[s3-target].secretAccessKey` |  |
 | AWS default region, used only if a target does not have one | BRP | `aws-region` | `AWS_REGION` | `dump.targets[s3-target].region` |  |
@@ -144,6 +145,7 @@ for details of each.
     * `preBackup`: string, path to directory with pre-backup scripts
     * `postBackup`: string, path to directory with post-backup scripts
   * `targets`: strings, list of names of known targets, defined in the `targets` section, where to save the backup
+  * `parallelism`: int, how many databases to back up in parallel
 * `restore`: the restore configuration
   * `scripts`:
     * `preRestore`: string, path to directory with pre-restore scripts

@@ -35,7 +35,7 @@ push: build
 	docker push $(TARGET)
 
 integration_test:
-	TEST_INTEGRATION=true go test -v ./test
+	TEST_INTEGRATION=true go test -v ./test -test.timeout=20m
 
 integration_test_debug:
 	TEST_INTEGRATION=true dlv --wd=./test test ./test

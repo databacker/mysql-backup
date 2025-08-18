@@ -41,6 +41,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	suppressUseDatabase := opts.SuppressUseDatabase
 	maxAllowedPacket := opts.MaxAllowedPacket
 	filenamePattern := opts.FilenamePattern
+	parallelism := opts.Parallelism
 	logger := e.Logger.WithField("run", opts.Run.String())
 	logger.Level = e.Logger.Level
 
@@ -112,6 +113,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		SuppressUseDatabase: suppressUseDatabase,
 		MaxAllowedPacket:    maxAllowedPacket,
 		PostDumpDelay:       opts.PostDumpDelay,
+		Parallelism:         parallelism,
 	}, dw); err != nil {
 		dbDumpSpan.SetStatus(codes.Error, err.Error())
 		dbDumpSpan.End()

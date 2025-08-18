@@ -78,6 +78,8 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfc
 github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/databacker/api/go/api v0.0.0-20250423183243-7775066c265e h1:5K7IbijS9p+dezx9m45CjFCR2Sf6BfT/tb540aEw66k=
 github.com/databacker/api/go/api v0.0.0-20250423183243-7775066c265e/go.mod h1:bQhbl71Lk1ATni0H+u249hjoQ8ShAdVNcNjnw6z+SbE=
+github.com/databacker/api/go/api v0.0.0-20250818102239-219c793f2151 h1:WuQNmzJiLSR0d2IpeifwK0E6eOLZQDxzbuHWIEN2/9U=
+github.com/databacker/api/go/api v0.0.0-20250818102239-219c793f2151/go.mod h1:bQhbl71Lk1ATni0H+u249hjoQ8ShAdVNcNjnw6z+SbE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

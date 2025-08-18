@@ -33,7 +33,7 @@ require (
 require (
 	filippo.io/age v1.2.1
 	github.com/InfiniteLoopSpace/go_S-MIME v0.0.0-20181221134359-3f58f9a4b2b6
-	github.com/databacker/api/go/api v0.0.0-20250423183243-7775066c265e
+	github.com/databacker/api/go/api v0.0.0-20250818102239-219c793f2151
 	github.com/google/go-cmp v0.7.0
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.19.0

@@ -864,6 +864,7 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("failed to get docker client: %v", err)
 	}
 	t.Run("parallel databases", func(t *testing.T) {
+		t.Parallel()
 		base := t.TempDir()
 		mysql, err := startDatabase(dc, base, mysqlImage, "mysql-parallel")
 		defer func() {
@@ -914,6 +915,7 @@ func TestIntegration(t *testing.T) {
 			t.Fatalf("invalid target url: %v", err)
 		}
 
+		parallelism := 4
 		dumpOptions := core.DumpOptions{
 			Compressor: &compression.GzipCompressor{},
 			DBConn: &database.Connection{
@@ -923,7 +925,8 @@ func TestIntegration(t *testing.T) {
 				Port: mysql.port,
 			},
 			Targets:       []storage.Storage{store},
-			PostDumpDelay: 5 * time.Second, // for testing only, make them delay 10 seconds
+			PostDumpDelay: 5 * time.Second, // for testing only, make them delay a few seconds
+			Parallelism:   parallelism,     // set
 		}
 		ctx := context.Background()
 		start := time.Now()
@@ -964,12 +967,20 @@ func TestIntegration(t *testing.T) {
 				t.Logf("[%s]\tthreads_running=%d\tthreads_connected=%d\topen_user=%d\tactive_user=%d\n",
 					time.Now().Format("15:04:05"),
 					tr, tc, uTotal, uActive)
+				// threads connected should not be more than our parallel+1
+				if tc > int64(parallelism)+1 {
+					t.Errorf("too many threads connected: %d (max %d)", tc, parallelism+1)
+				}
+				if tc < int64(parallelism) {
+					t.Errorf("too few threads connected: %d (min %d)", tc, parallelism)
+				}
 
 			}
 		}
 		t.Logf("Dump completed at %s in %s", time.Now(), time.Since(start))
 	})
 	t.Run("dump", func(t *testing.T) {
+		t.Parallel()
 		var (
 			err        error
 			smb, mysql containerPort
