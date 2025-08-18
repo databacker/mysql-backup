@@ -39,6 +39,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"file URL with pass-file", []string{"--server", "abc", "--target", "file:///foo/bar", "--pass-file", "testdata/password.txt"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -46,6 +47,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort, Pass: "testpassword"},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"file URL with pass and pass-file (pass takes precedence)", []string{"--server", "abc", "--target", "file:///foo/bar", "--pass", "explicitpass", "--pass-file", "testdata/password.txt"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -53,6 +55,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort, Pass: "explicitpass"},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"file URL with prune", []string{"--server", "abc", "--target", "file:///foo/bar", "--retention", "1h"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -60,6 +63,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
 
 		// database name and port
@@ -69,6 +73,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"database explicit name with explicit port", []string{"--server", "abc", "--port", "3307", "--target", "file:///foo/bar"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -76,6 +81,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: 3307},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 
 		// config file
@@ -85,6 +91,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abcd", Port: 3306, User: "user2", Pass: "xxxx2"},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
 		{"config file with port override", []string{"--config-file", "testdata/config.yml", "--port", "3307"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -92,6 +99,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abcd", Port: 3307, User: "user2", Pass: "xxxx2"},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
 		{"config file with filename pattern override", []string{"--config-file", "testdata/pattern.yml", "--port", "3307"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -99,6 +107,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abcd", Port: 3307, User: "user2", Pass: "xxxx2"},
 			FilenamePattern:  "foo_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, &core.PruneOptions{Targets: []storage.Storage{file.New(*fileTargetURL)}, Retention: "1h"}},
 
 		// timer options
@@ -108,6 +117,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Once: true, Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"cron flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--cron", "0 0 * * *"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -115,6 +125,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin, Cron: "0 0 * * *"}, nil},
 		{"begin flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--begin", "1234"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -122,6 +133,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: "1234"}, nil},
 		{"frequency flag", []string{"--server", "abc", "--target", "file:///foo/bar", "--frequency", "10"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
@@ -129,6 +141,7 @@ func TestDumpCmd(t *testing.T) {
 			Compressor:       &compression.GzipCompressor{},
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: 10, Begin: defaultBegin}, nil},
 		{"incompatible flags: once/cron", []string{"--server", "abc", "--target", "file:///foo/bar", "--once", "--cron", "0 0 * * *"}, "", true, core.DumpOptions{}, core.TimerOptions{}, nil},
 		{"incompatible flags: once/begin", []string{"--server", "abc", "--target", "file:///foo/bar", "--once", "--begin", "1234"}, "", true, core.DumpOptions{}, core.TimerOptions{}, nil},
@@ -146,6 +159,7 @@ func TestDumpCmd(t *testing.T) {
 			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
 			PreBackupScripts: "/prebackup",
 			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:      1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"postbackup scripts", []string{"--server", "abc", "--target", "file:///foo/bar", "--post-backup-scripts", "/postbackup"}, "", false, core.DumpOptions{
 			Targets:           []storage.Storage{file.New(*fileTargetURL)},
@@ -154,6 +168,7 @@ func TestDumpCmd(t *testing.T) {
 			DBConn:            &database.Connection{Host: "abc", Port: defaultPort},
 			PostBackupScripts: "/postbackup",
 			FilenamePattern:   "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:       1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 		{"prebackup and postbackup scripts", []string{"--server", "abc", "--target", "file:///foo/bar", "--post-backup-scripts", "/postbackup", "--pre-backup-scripts", "/prebackup"}, "", false, core.DumpOptions{
 			Targets:           []storage.Storage{file.New(*fileTargetURL)},
@@ -163,6 +178,7 @@ func TestDumpCmd(t *testing.T) {
 			PreBackupScripts:  "/prebackup",
 			PostBackupScripts: "/postbackup",
 			FilenamePattern:   "db_backup_{{ .now }}.{{ .compression }}",
+			Parallelism:       1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 	}
 

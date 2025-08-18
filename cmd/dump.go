@@ -95,6 +95,13 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if len(exclude) == 0 {
 				exclude = nil
 			}
+
+			// how many databases to back up in parallel
+			parallel := v.GetInt("parallelism")
+			if !v.IsSet("parallelism") && dumpConfig != nil && dumpConfig.Parallelism != nil {
+				parallel = *dumpConfig.Parallelism
+			}
+
 			preBackupScripts := v.GetString("pre-backup-scripts")
 			if preBackupScripts == "" && scriptsConfig != nil && scriptsConfig.PreBackup != nil {
 				preBackupScripts = *scriptsConfig.PreBackup
@@ -256,6 +263,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					MaxAllowedPacket:    maxAllowedPacket,
 					Run:                 uid,
 					FilenamePattern:     filenamePattern,
+					Parallelism:         parallel,
 				}
 				_, err := executor.Dump(tracerCtx, dumpOpts)
 				if err != nil {
@@ -310,6 +318,9 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 
 	// once
 	flags.Bool("once", false, "Override all other settings and run the dump once immediately and exit. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally.")
+
+	// parallelism - how many databases (and therefore connections) to back up at once
+	flags.Int("parallelism", 1, "How many databases to back up in parallel.")
 
 	// safechars
 	flags.Bool("safechars", false, "The dump filename usually includes the character `:` in the date, to comply with RFC3339. Some systems and shells don't like that character. If true, will replace all `:` with `-`.")
