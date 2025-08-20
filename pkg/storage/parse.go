@@ -7,6 +7,7 @@ import (
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
 	"github.com/databacker/mysql-backup/pkg/storage/file"
 	"github.com/databacker/mysql-backup/pkg/storage/s3"
+	"github.com/databacker/mysql-backup/pkg/storage/scp"
 	"github.com/databacker/mysql-backup/pkg/storage/smb"
 	"github.com/databacker/mysql-backup/pkg/util"
 	"gopkg.in/yaml.v3"
@@ -54,6 +55,8 @@ func ParseURL(url string, creds credentials.Creds) (Storage, error) {
 			opts = append(opts, s3.WithPathStyle())
 		}
 		store = s3.New(*u, opts...)
+	case "scp":
+		store = scp.New(*u)
 	default:
 		return nil, fmt.Errorf("unknown url protocol: %s", u.Scheme)
 	}

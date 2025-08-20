@@ -6,6 +6,7 @@ to a target. That target can be one of:
 * local file
 * SMB remote file
 * S3 bucket
+* SCP target
 
 ## Instructions and Examples for Backup Configuration Options
 
@@ -124,6 +125,7 @@ The value of the environment variable or CLI target can be one of three formats,
 * Local: If it starts with a `/` character or `file:///` url, it will dump to a local path. If in a container, you should have it volume-mounted.
 * SMB: If it is a URL of the format `smb://hostname/share/path/` then it will connect via SMB.
 * S3: If it is a URL of the format `s3://bucketname.fqdn.com/path` then it will connect via using the S3 protocol.
+* SCP: If it is a URL of the format `scp://user@hostname:/path` then it will connect via SCP.
 
 In addition, you can send to multiple targets by separating them with a whitespace for the environment variable,
 or native multiple options for other configuration options. For example, to send to a local directory and an SMB share:
@@ -190,7 +192,21 @@ Note that if you have multiple S3-compatible backup targets, each with its own s
 or endpoint, then you _must_ use the config file. There is no way to distinguish between multiple sets of
 credentials via the environment variables or CLI flags, while the config file provides credentials for each
 target.
- 
+
+##### SCP
+
+If it is a URL of the format `scp://user@hostname/path` then it will connect via SCP. If you leave off the `user`
+i.e. `scp://hostname/path`, it will use the default ssh protocol for determining the user.
+The default port is `22`; you can override it with `scp://hostname:port/path`.
+
+The `scp` implementation respects the following configuration:
+
+* user's ssh config file, by default `$HOME/.ssh/config`
+* user's identity keys, by default `$HOME/.ssh/id_rsa`, `$HOME/.ssh/id_dsa`, etc.
+* override the directory for finding `config` and identity key files via `SSH_HOME`
+
+As of this writing, the SCP implementation is basic and may not support all features of the SCP protocol.
+
 #### Configuration File
 
 The configuration file is the most flexible way to configure the dump target. It allows you to specify
