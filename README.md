@@ -9,7 +9,7 @@ mysql-backup is a simple way to do MySQL database backups and restores, as well 
 It has the following features:
 
 * dump and restore
-* dump to local filesystem or to SMB server
+* dump to supported targets
 * select database user and password
 * connect to any container running on the same system
 * select how often to run a dump
@@ -96,7 +96,7 @@ __You should consider the [use of `--env-file=`](https://docs.docker.com/engine/
 * `DB_PASS`: password for the database
 * `DB_DUMP_INCLUDE`: names of databases to restore separated by spaces. Required if `SINGLE_DATABASE=true`.
 * `SINGLE_DATABASE`: If is set to `true`, `DB_DUMP_INCLUDE` is required and must contain exactly one database name. Mysql command will then run with `--database=$DB_DUMP_INCLUDE` flag. This avoids the need of `USE <database>;` statement, which is useful when restoring from a file saved with `SINGLE_DATABASE` set to `true`.
-* `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be an absolute path, which should be volume mounted, an smb or S3 URL, similar to the target.
+* `DB_RESTORE_TARGET`: path to the actual restore file, which should be a compressed dump file. The target can be any valid backup target.
 * `DB_DEBUG`: if `true`, dump copious outputs to the container logs while restoring.
 * To use the S3 driver `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `AWS_DEFAULT_REGION` will need to be defined.
 
