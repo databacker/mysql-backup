@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.66.2
 	github.com/docker/docker v28.3.3+incompatible
 	github.com/docker/go-connections v0.4.0
-	github.com/go-sql-driver/mysql v1.7.1
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/johannesboyne/gofakes3 v0.0.0-20230506070712-04da935ef877
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.9.3
@@ -34,6 +34,7 @@ require (
 	github.com/InfiniteLoopSpace/go_S-MIME v0.0.0-20181221134359-3f58f9a4b2b6
 	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/databacker/api/go/api v0.0.0-20250818102239-219c793f2151
+	github.com/gliderlabs/ssh v0.3.8
 	github.com/google/go-cmp v0.7.0
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/moby/go-archive v0.1.0
@@ -46,6 +47,7 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -53,7 +55,6 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
-	github.com/gliderlabs/ssh v0.3.8 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
