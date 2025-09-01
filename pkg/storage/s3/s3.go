@@ -73,7 +73,15 @@ func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry)
 		return 0, fmt.Errorf("failed to get AWS client: %v", err)
 	}
 
-	bucket, path := s.url.Hostname(), path.Join(s.url.Path, source)
+	bucket := s.url.Hostname()
+	// If source is empty, use the path from URL directly (for restore command)
+	// Otherwise, append source to the URL path (for dump command)
+	var objectPath string
+	if source == "" {
+		objectPath = strings.TrimPrefix(s.url.Path, "/")
+	} else {
+		objectPath = strings.TrimPrefix(path.Join(s.url.Path, source), "/")
+	}
 
 	// Create a downloader with the session and default options
 	downloader := manager.NewDownloader(client)
@@ -88,7 +96,7 @@ func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry)
 	// Write the contents of S3 Object to the file
 	n, err := downloader.Download(context.TODO(), f, &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String(path),
+		Key:    aws.String(objectPath),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to download file, %v", err)

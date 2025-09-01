@@ -28,7 +28,7 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			bindFlags(cmd, v)
 		},
-		Args: cobra.MinimumNArgs(1),
+		Args: cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmdConfig.logger.Debug("starting restore")
 			ctx := context.Background()
@@ -40,8 +40,20 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 			}()
 			ctx = util.ContextWithTracer(ctx, tracer)
 			_, startupSpan := tracer.Start(ctx, "startup")
-			targetFile := args[0]
-			target := v.GetString("target")
+
+			// Get target from args[0], --target flag, or DB_RESTORE_TARGET environment variable
+			var target string
+			if len(args) > 0 {
+				target = args[0]
+			} else {
+				target = v.GetString("target")
+			}
+			if target == "" {
+				return fmt.Errorf("target must be specified as argument, --target flag, or DB_RESTORE_TARGET environment variable")
+			}
+
+			// Always pass empty targetFile to use the full path from the URL
+			targetFile := ""
 			// get databases namesand mappings
 			databasesMap := make(map[string]string)
 			databases := strings.TrimSpace(v.GetString("database"))
@@ -144,9 +156,6 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 
 	flags := cmd.Flags()
 	flags.String("target", "", "full URL target to the backup that you wish to restore")
-	if err := cmd.MarkFlagRequired("target"); err != nil {
-		return nil, err
-	}
 
 	// compression
 	flags.String("compression", defaultCompression, "Compression to use. Supported are: `gzip`, `bzip2`, `none`")
