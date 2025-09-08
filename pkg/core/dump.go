@@ -39,6 +39,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	triggers := opts.Triggers
 	routines := opts.Routines
 	suppressUseDatabase := opts.SuppressUseDatabase
+	skipExtendedInsert := opts.SkipExtendedInsert
 	maxAllowedPacket := opts.MaxAllowedPacket
 	filenamePattern := opts.FilenamePattern
 	parallelism := opts.Parallelism
@@ -111,6 +112,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		Triggers:            triggers,
 		Routines:            routines,
 		SuppressUseDatabase: suppressUseDatabase,
+		SkipExtendedInsert:  skipExtendedInsert,
 		MaxAllowedPacket:    maxAllowedPacket,
 		PostDumpDelay:       opts.PostDumpDelay,
 		Parallelism:         parallelism,

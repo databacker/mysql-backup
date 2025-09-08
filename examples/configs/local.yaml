@@ -20,6 +20,7 @@ spec:
       - table4
     safechars: true # defaults to false
     noDatabaseName: false # remove the `USE <database>` statement from backup files, defaults to false
+    skipExtendedInsert: false # replace single long INSERT statement per table with one INSERT statement per line, defaults to false
     # schedule to dump, can use one of: cron, frequency, once. If frequency is set, begin will be checked
     schedule:
       once: true # run only once and exit; ignores all other scheduling. Defaults to false

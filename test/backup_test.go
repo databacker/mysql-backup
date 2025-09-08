@@ -338,7 +338,7 @@ func (d *dockerContext) makeSMB(smbImage string) error {
 	return nil
 }
 
-func (d *dockerContext) createBackupFile(mysqlCID, mysqlUser, mysqlPass, outfile, compactOutfile string) error {
+func (d *dockerContext) createBackupFiles(mysqlCID, mysqlUser, mysqlPass string, outfilesToCommands map[string][]string) error {
 	ctx := context.Background()
 
 	// Create and populate the table
@@ -424,49 +424,34 @@ DELIMITER ;
 		return fmt.Errorf("failed to create table: %s", bufe.String())
 	}
 
-	// Dump the database - do both compact and non-compact
-	mysqlDumpCompactCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--compact", "--databases", "--triggers", "--routines", "tester"}
-	attachResp, exitCode, err = d.execInContainer(ctx, mysqlCID, mysqlDumpCompactCmd)
-	if err != nil {
-		return fmt.Errorf("failed to attach to exec: %w", err)
-	}
-	defer attachResp.Close()
-	if exitCode != 0 {
-		return fmt.Errorf("failed to dump database: %w", err)
-	}
+	// Dump the database multiple times, each with different options
+	for outfile, cmdOpts := range outfilesToCommands {
+		mysqlDumpCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--databases", "--triggers", "--routines"}
+		mysqlDumpCmd = append(mysqlDumpCmd, cmdOpts...)
+		mysqlDumpCmd = append(mysqlDumpCmd, "tester")
+		attachResp, exitCode, err = d.execInContainer(ctx, mysqlCID, mysqlDumpCmd)
+		if err != nil {
+			return fmt.Errorf("failed to attach to exec: %w", err)
+		}
+		defer attachResp.Close()
+		if exitCode != 0 {
+			return fmt.Errorf("failed to dump database: %w", err)
+		}
 
-	fCompact, err := os.Create(compactOutfile)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = fCompact.Close()
-	}()
+		f, err := os.Create(outfile)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = f.Close()
+		}()
 
-	_, _ = stdcopy.StdCopy(fCompact, &bufe, attachResp.Reader)
+		_, _ = stdcopy.StdCopy(f, &bufe, attachResp.Reader)
 
-	bufo.Reset()
-	bufe.Reset()
-
-	mysqlDumpCmd := []string{"mysqldump", "-hlocalhost", "--protocol=tcp", "--complete-insert", fmt.Sprintf("-u%s", mysqlUser), fmt.Sprintf("-p%s", mysqlPass), "--databases", "--triggers", "--routines", "tester"}
-	attachResp, exitCode, err = d.execInContainer(ctx, mysqlCID, mysqlDumpCmd)
-	if err != nil {
-		return fmt.Errorf("failed to attach to exec: %w", err)
-	}
-	defer attachResp.Close()
-	if exitCode != 0 {
-		return fmt.Errorf("failed to dump database: %w", err)
+		bufo.Reset()
+		bufe.Reset()
 	}
 
-	f, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = f.Close()
-	}()
-
-	_, _ = stdcopy.StdCopy(f, &bufe, attachResp.Reader)
 	return err
 }
 
@@ -522,7 +507,7 @@ func (d *dockerContext) rmContainers(cids ...string) error {
 // - check that the backup now is there in the right format
 // - clear the target
 
-func setup(dc *dockerContext, base, backupFile, compactBackupFile string) (mysql, smb containerPort, s3url string, s3backend gofakes3.Backend, err error) {
+func setup(dc *dockerContext, base string, outfilesToCmdOpts map[string][]string) (mysql, smb containerPort, s3url string, s3backend gofakes3.Backend, err error) {
 	if err := dc.makeSMB(smbImage); err != nil {
 		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to build smb image: %v", err)
 	}
@@ -554,8 +539,8 @@ func setup(dc *dockerContext, base, backupFile, compactBackupFile string) (mysql
 	}
 
 	// create the backup file
-	log.Debugf("Creating backup file")
-	if err := dc.createBackupFile(mysql.id, mysqlUser, mysqlPass, backupFile, compactBackupFile); err != nil {
+	log.Debugf("Creating backup files")
+	if err := dc.createBackupFiles(mysql.id, mysqlUser, mysqlPass, outfilesToCmdOpts); err != nil {
 		return mysql, smb, s3url, s3backend, fmt.Errorf("failed to create backup file: %v", err)
 	}
 	return
@@ -998,7 +983,13 @@ func TestIntegration(t *testing.T) {
 		}
 		backupFile := filepath.Join(base, "backup.sql")
 		compactBackupFile := filepath.Join(base, "backup-compact.sql")
-		if mysql, smb, s3, s3backend, err = setup(dc, base, backupFile, compactBackupFile); err != nil {
+		skipExtendedInsertBackupFile := filepath.Join(base, "backup-skip-extended.sql")
+		outfilesToCmdOpts := map[string][]string{
+			backupFile:                   nil,
+			compactBackupFile:            {"--compact"},
+			skipExtendedInsertBackupFile: {"--skip-extended-insert"},
+		}
+		if mysql, smb, s3, s3backend, err = setup(dc, base, outfilesToCmdOpts); err != nil {
 			t.Fatalf("failed to setup test: %v", err)
 		}
 		backupData, err := os.ReadFile(backupFile)
@@ -1008,6 +999,10 @@ func TestIntegration(t *testing.T) {
 		compactBackupData, err := os.ReadFile(compactBackupFile)
 		if err != nil {
 			t.Fatalf("failed to read compact backup file %s: %v", compactBackupFile, err)
+		}
+		skipExtendedBackupData, err := os.ReadFile(skipExtendedInsertBackupFile)
+		if err != nil {
+			t.Fatalf("failed to read skip extended insert backup file %s: %v", skipExtendedInsertBackupFile, err)
 		}
 		defer func() {
 			// log the results before tearing down, if requested
@@ -1056,6 +1051,28 @@ func TestIntegration(t *testing.T) {
 				dc:           dc,
 				base:         base,
 				backupData:   compactBackupData,
+				mysql:        mysql,
+				smb:          smb,
+				s3:           s3,
+				s3backend:    s3backend,
+				dumpOptions:  dumpOpts,
+				checkCommand: checkDumpTest,
+			})
+		})
+
+		// check contents with skip-extended-insert enabled
+		t.Run("skip-extended-insert", func(t *testing.T) {
+			dumpOpts := core.DumpOptions{
+				Compressor:         &compression.GzipCompressor{},
+				SkipExtendedInsert: true,
+				Triggers:           true,
+				Routines:           true,
+			}
+			runTest(t, testOptions{
+				targets:      []string{"/compact-backups/"},
+				dc:           dc,
+				base:         base,
+				backupData:   skipExtendedBackupData,
 				mysql:        mysql,
 				smb:          smb,
 				s3:           s3,

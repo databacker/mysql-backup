@@ -24,6 +24,7 @@ type DumpOptions struct {
 	Triggers            bool
 	Routines            bool
 	SuppressUseDatabase bool
+	SkipExtendedInsert  bool
 	MaxAllowedPacket    int
 	Run                 uuid.UUID
 	FilenamePattern     string
