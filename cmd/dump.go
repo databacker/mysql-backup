@@ -114,6 +114,10 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if !v.IsSet("no-database-name") && dumpConfig != nil && dumpConfig.NoDatabaseName != nil {
 				noDatabaseName = *dumpConfig.NoDatabaseName
 			}
+			skipExtendedInsert := v.GetBool("skip-extended-insert")
+			if !v.IsSet("skip-extended-insert") && dumpConfig != nil && dumpConfig.SkipExtendedInsert != nil {
+				skipExtendedInsert = *dumpConfig.SkipExtendedInsert
+			}
 			compact := v.GetBool("compact")
 			if !v.IsSet("compact") && dumpConfig != nil && dumpConfig.Compact != nil {
 				compact = *dumpConfig.Compact
@@ -257,6 +261,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					PreBackupScripts:    preBackupScripts,
 					PostBackupScripts:   postBackupScripts,
 					SuppressUseDatabase: noDatabaseName,
+					SkipExtendedInsert:  skipExtendedInsert,
 					Compact:             compact,
 					Triggers:            triggers,
 					Routines:            routines,
@@ -306,6 +311,9 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 
 	// single database, do not include `USE database;` in dump
 	flags.Bool("no-database-name", false, "Omit `USE <database>;` in the dump, so it can be restored easily to a different database.")
+
+	// skip extended insert in dump; instead, one INSERT per record in each table
+	flags.Bool("skip-extended-insert", false, "Skip extended insert in dump; instead, one INSERT per record in each table.")
 
 	// frequency
 	flags.Int("frequency", defaultFrequency, "how often to run backups, in minutes")

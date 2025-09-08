@@ -50,6 +50,7 @@ type Data struct {
 	Routines            bool
 	Host                string
 	SuppressUseDatabase bool
+	SkipExtendedInsert  bool
 	Charset             string
 	Collation           string
 	PostDumpDelay       time.Duration

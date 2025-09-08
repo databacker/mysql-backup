@@ -312,11 +312,17 @@ func (table *baseTable) Stream() <-chan string {
 
 		for table.Next() {
 			b := table.RowBuffer()
-			// Truncate our insert if it won't fit
-			if insert.Len() != 0 && insert.Len()+b.Len() > table.data.MaxAllowedPacket-1 {
+			// If we're skipping extended inserts, we write each row individually
+			if table.data.SkipExtendedInsert {
+				_, _ = fmt.Fprint(&insert, strings.Join(
+					// extra "" at the end so we get an extra whitespace as needed
+					[]string{"INSERT", "INTO", esc(table.Name()), "(" + table.columnsList() + ")", "VALUES", ""},
+					" "))
+				_, _ = b.WriteTo(&insert)
 				_, _ = insert.WriteString(";")
 				valueOut <- insert.String()
 				insert.Reset()
+				continue
 			}
 
 			if insert.Len() == 0 {
@@ -327,6 +333,14 @@ func (table *baseTable) Stream() <-chan string {
 			} else {
 				_, _ = insert.WriteString(",")
 			}
+
+			// Truncate our insert if it won't fit
+			if insert.Len() != 0 && insert.Len()+b.Len() > table.data.MaxAllowedPacket-1 {
+				_, _ = insert.WriteString(";")
+				valueOut <- insert.String()
+				insert.Reset()
+			}
+
 			_, _ = b.WriteTo(&insert)
 		}
 		if insert.Len() != 0 {

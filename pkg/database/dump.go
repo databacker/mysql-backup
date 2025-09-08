@@ -14,6 +14,7 @@ type DumpOpts struct {
 	Triggers            bool
 	Routines            bool
 	SuppressUseDatabase bool
+	SkipExtendedInsert  bool
 	MaxAllowedPacket    int
 	// PostDumpDelay after each dump is complete, while holding connection open. Do not use outside of tests.
 	PostDumpDelay time.Duration
@@ -59,6 +60,7 @@ func Dump(ctx context.Context, dbconn *Connection, opts DumpOpts, writers []Dump
 					Triggers:            opts.Triggers,
 					Routines:            opts.Routines,
 					SuppressUseDatabase: opts.SuppressUseDatabase,
+					SkipExtendedInsert:  opts.SkipExtendedInsert,
 					MaxAllowedPacket:    opts.MaxAllowedPacket,
 					PostDumpDelay:       opts.PostDumpDelay,
 				}
