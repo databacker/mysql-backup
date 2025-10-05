@@ -21,12 +21,14 @@ type Update struct {
 	// Last whether or not this is the last update, and no more will be coming.
 	// If true, perform this action and then end.
 	Last bool
+	// Next time until the next update, if applicable.
+	Next time.Duration
 }
 
-func sendTimer(c chan Update, last bool) {
+func sendTimer(c chan Update, last bool, next time.Duration) {
 	// make the channel write non-blocking
 	select {
-	case c <- Update{Last: last}:
+	case c <- Update{Last: last, Next: next}:
 	default:
 	}
 }
@@ -66,16 +68,13 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 
 		// if once, ignore all delays and go
 		if opts.Once {
-			sendTimer(c, true)
+			sendTimer(c, true, 0)
 			return
 		}
 
 		// create our delay and timer loop and go
 		for {
 			lastRun := time.Now().UTC()
-
-			// not once - run the first backup
-			sendTimer(c, false)
 
 			if opts.Cron != "" {
 				now := time.Now().UTC()
@@ -94,6 +93,9 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 				passed := diff % opts.Frequency
 				delay = time.Duration(opts.Frequency-passed) * time.Minute
 			}
+
+			// not once - run the first backup
+			sendTimer(c, false, delay)
 
 			// if delayMins is 0, this will do nothing, so it does not hurt
 			time.Sleep(delay)
@@ -178,6 +180,7 @@ func (e *Executor) Timer(timerOpts TimerOptions, cmd func() error) error {
 		if update.Last {
 			break
 		}
+		e.Logger.Infof("next run in %s", update.Next.String())
 	}
 	return nil
 }
