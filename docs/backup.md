@@ -62,7 +62,7 @@ it will switch to the correct database when you restore the dump.
 If you do not want the `USE` statement in the backup file, for example if you might want to restore the dump to a different
 database, you need to remove the `USE <database>;` statement from the dump. `mysql-backup` does this for you when you set:
 
-* Environment variable: `NO_DATABASE_NAME=true`.
+* Environment variable: `DB_DUMP_NO_DATABASE_NAME=true`.
 * CLI flag: `--no-database-name=true`
 * Config file:
 ```yaml
