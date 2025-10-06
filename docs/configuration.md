@@ -71,7 +71,7 @@ The following are the environment variables, CLI flags and configuration file op
 | path to file containing password for the database. `pass` takes precedence if both are set. | BR | `pass-file` | `DB_PASS_FILE` |  |  |
 | names of databases to dump, comma-separated | B | `include` | `DB_DUMP_INCLUDE` | `dump.include` | all databases in the server |
 | names of databases to exclude from the dump | B | `exclude` | `DB_DUMP_EXCLUDE` | `dump.exclude` |  |
-| do not include `USE <database>;` statement in the dump | B | `no-database-name` | `NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |
+| do not include `USE <database>;` statement in the dump | B | `no-database-name` | `DB_DUMP_NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |
 | Replace single long INSERT statement per table with one INSERT statement per line | B | `skip-extended-insert` | `DB_DUMP_SKIP_EXTENDED_INSERT` | `dump.skipExtendedInsert` | `false` |
 | restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
 | how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQUENCY` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
