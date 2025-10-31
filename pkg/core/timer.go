@@ -44,14 +44,14 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 	// parse the options to determine our delays
 	if opts.Cron != "" {
 		// calculate delay until next cron moment as defined
-		now := time.Now().UTC()
+		now := time.Now()
 		delay, err = waitForCron(opts.Cron, now)
 		if err != nil {
 			return nil, fmt.Errorf("invalid cron format '%s': %v", opts.Cron, err)
 		}
 	} else if opts.Begin != "" {
 		// calculate delay based on begin time
-		now := time.Now().UTC()
+		now := time.Now()
 		delay, err = waitForBeginTime(opts.Begin, now)
 		if err != nil {
 			return nil, fmt.Errorf("invalid begin option '%s': %v", opts.Begin, err)
@@ -74,17 +74,17 @@ func Timer(opts TimerOptions) (<-chan Update, error) {
 
 		// create our delay and timer loop and go
 		for {
-			lastRun := time.Now().UTC()
+			lastRun := time.Now()
 
 			if opts.Cron != "" {
-				now := time.Now().UTC()
+				now := time.Now()
 				delay, _ = waitForCron(opts.Cron, now)
 			} else {
 				// calculate how long until the next run
 				// just take our last start time, and add the frequency until it is past our
 				// current time. We cannot just take the last time and add,
 				// because it might have been during a backup run
-				now := time.Now().UTC()
+				now := time.Now()
 				diff := int(now.Sub(lastRun).Minutes())
 				// make sure we at least wait one full frequency
 				if diff == 0 {
