@@ -325,6 +325,13 @@ func (table *baseTable) Stream() <-chan string {
 				continue
 			}
 
+			// Truncate our insert if it won't fit
+			if insert.Len() != 0 && insert.Len()+b.Len() > table.data.MaxAllowedPacket-1 {
+				_, _ = insert.WriteString(";")
+				valueOut <- insert.String()
+				insert.Reset()
+			}
+
 			if insert.Len() == 0 {
 				_, _ = fmt.Fprint(&insert, strings.Join(
 					// extra "" at the end so we get an extra whitespace as needed
@@ -332,13 +339,6 @@ func (table *baseTable) Stream() <-chan string {
 					" "))
 			} else {
 				_, _ = insert.WriteString(",")
-			}
-
-			// Truncate our insert if it won't fit
-			if insert.Len() != 0 && insert.Len()+b.Len() > table.data.MaxAllowedPacket-1 {
-				_, _ = insert.WriteString(";")
-				valueOut <- insert.String()
-				insert.Reset()
 			}
 
 			_, _ = b.WriteTo(&insert)
