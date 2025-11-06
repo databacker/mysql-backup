@@ -49,7 +49,7 @@ spec:
   # database configuration
   database:
     server: host
-    port: port
+    port: 654
     credentials:
       username: user
       password: password
@@ -62,7 +62,7 @@ spec:
       spec: 
         region: us-west-1
         endpoint: https://s3.us-west-1.amazonaws.com
-        accessKeyId: access_key_id
+        accessKeyID: access_key_id
         secretAccessKey: secret_access_key
     file:
       type: file
