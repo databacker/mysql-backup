@@ -127,11 +127,13 @@ The value of the environment variable or CLI target can be one of three formats,
 * S3: If it is a URL of the format `s3://bucketname.fqdn.com/path` then it will connect via using the S3 protocol.
 * SCP: If it is a URL of the format `scp://user@hostname:/path` then it will connect via SCP.
 
-In addition, you can send to multiple targets by separating them with a whitespace for the environment variable,
+In addition, you can send to multiple targets by separating them with a comma for the environment variable,
 or native multiple options for other configuration options. For example, to send to a local directory and an SMB share:
 
-* Environment variable: `DB_DUMP_TARGET="/db smb://hostname/share/path/"`
+* Environment variable: `DB_DUMP_TARGET="/db,smb://hostname/share/path/"`
 * CLI flag: `dump --target=/db --target=smb://hostname/share/path/"`
+
+For more complex options, and in general, we recommend using a config file.
 
 ##### Local File
 
