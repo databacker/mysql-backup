@@ -25,6 +25,7 @@ type DumpOptions struct {
 	Routines            bool
 	SuppressUseDatabase bool
 	SkipExtendedInsert  bool
+	IncludeGeneratedColumns bool
 	MaxAllowedPacket    int
 	Run                 uuid.UUID
 	FilenamePattern     string

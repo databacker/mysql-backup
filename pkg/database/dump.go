@@ -10,12 +10,13 @@ import (
 )
 
 type DumpOpts struct {
-	Compact             bool
-	Triggers            bool
-	Routines            bool
-	SuppressUseDatabase bool
-	SkipExtendedInsert  bool
-	MaxAllowedPacket    int
+	Compact                 bool
+	Triggers                bool
+	Routines                bool
+	SuppressUseDatabase     bool
+	SkipExtendedInsert      bool
+	MaxAllowedPacket        int
+	IncludeGeneratedColumns bool
 	// PostDumpDelay after each dump is complete, while holding connection open. Do not use outside of tests.
 	PostDumpDelay time.Duration
 	Parallelism   int
@@ -52,17 +53,18 @@ func Dump(ctx context.Context, dbconn *Connection, opts DumpOpts, writers []Dump
 			defer func() { <-sem }()
 			for _, schema := range writer.Schemas {
 				dumper := &mysql.Data{
-					Out:                 writer.Writer,
-					Connection:          db,
-					Schema:              schema,
-					Host:                dbconn.Host,
-					Compact:             opts.Compact,
-					Triggers:            opts.Triggers,
-					Routines:            opts.Routines,
-					SuppressUseDatabase: opts.SuppressUseDatabase,
-					SkipExtendedInsert:  opts.SkipExtendedInsert,
-					MaxAllowedPacket:    opts.MaxAllowedPacket,
-					PostDumpDelay:       opts.PostDumpDelay,
+					Out:                     writer.Writer,
+					Connection:              db,
+					Schema:                  schema,
+					Host:                    dbconn.Host,
+					Compact:                 opts.Compact,
+					Triggers:                opts.Triggers,
+					Routines:                opts.Routines,
+					SuppressUseDatabase:     opts.SuppressUseDatabase,
+					SkipExtendedInsert:      opts.SkipExtendedInsert,
+					MaxAllowedPacket:        opts.MaxAllowedPacket,
+					PostDumpDelay:           opts.PostDumpDelay,
+					IncludeGeneratedColumns: opts.IncludeGeneratedColumns,
 				}
 				// return on any error
 				if err := dumper.Dump(); err != nil {
