@@ -39,21 +39,21 @@ Data struct to configure dump behavior
 	LockTables:       Lock all tables for the duration of the dump
 */
 type Data struct {
-	Out                    io.Writer
-	Connection             *sql.DB
-	IgnoreTables           []string
-	MaxAllowedPacket       int
-	LockTables             bool
-	Schema                 string
-	Compact                bool
-	Triggers               bool
-	Routines               bool
-	Host                   string
-	SuppressUseDatabase    bool
-	SkipExtendedInsert     bool
-	Charset                string
-	Collation              string
-	PostDumpDelay          time.Duration
+	Out                     io.Writer
+	Connection              *sql.DB
+	IgnoreTables            []string
+	MaxAllowedPacket        int
+	LockTables              bool
+	Schema                  string
+	Compact                 bool
+	Triggers                bool
+	Routines                bool
+	Host                    string
+	SuppressUseDatabase     bool
+	SkipExtendedInsert      bool
+	Charset                 string
+	Collation               string
+	PostDumpDelay           time.Duration
 	IncludeGeneratedColumns bool
 
 	tx                 *sql.Tx

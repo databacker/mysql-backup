@@ -11,24 +11,24 @@ import (
 )
 
 type DumpOptions struct {
-	Targets             []storage.Storage
-	Safechars           bool
-	DBNames             []string
-	DBConn              *database.Connection
-	Compressor          compression.Compressor
-	Encryptor           encrypt.Encryptor
-	Exclude             []string
-	PreBackupScripts    string
-	PostBackupScripts   string
-	Compact             bool
-	Triggers            bool
-	Routines            bool
-	SuppressUseDatabase bool
-	SkipExtendedInsert  bool
+	Targets                 []storage.Storage
+	Safechars               bool
+	DBNames                 []string
+	DBConn                  *database.Connection
+	Compressor              compression.Compressor
+	Encryptor               encrypt.Encryptor
+	Exclude                 []string
+	PreBackupScripts        string
+	PostBackupScripts       string
+	Compact                 bool
+	Triggers                bool
+	Routines                bool
+	SuppressUseDatabase     bool
+	SkipExtendedInsert      bool
 	IncludeGeneratedColumns bool
-	MaxAllowedPacket    int
-	Run                 uuid.UUID
-	FilenamePattern     string
+	MaxAllowedPacket        int
+	Run                     uuid.UUID
+	FilenamePattern         string
 	// PostDumpDelay inafter each dump is complete, while holding connection open. Do not use outside of tests.
 	PostDumpDelay time.Duration
 	// Parallelism how many databases to back up at once, consuming that number of threads
