@@ -140,29 +140,9 @@ for details of each.
     * `once`: boolean, run once and exit
   * `compression`: string, the compression to use
   * `compact`: boolean, compact the dump
-  * `includeGeneratedColumns`: boolean, include columns marked as `GENERATED` in the dump (does not include `VIRTUAL` columns)
+  * `includeGeneratedColumns`: boolean, include columns marked as `GENERATED` in the dump (does not include `VIRTUAL` columns), when set true, it makes the dump include the generated/default timestamp values instead of relying on the default expressions when restoring.
   * `triggersAndFunctions`: boolean, include triggers and functions and procedures in the dump
   * `maxAllowedPacket`: int, max packet size
-
-When `includeGeneratedColumns` is enabled, columns that are defined with a `GENERATED` attribute or have a default expression
-will be included in the row data that is emitted as `INSERT` statements in the dump. Note that `VIRTUAL` columns remain excluded
-because they are computed and cannot be restored from dumped values.
-
-Usage example:
-
-Suppose a table has a column defined as:
-
-```sql
-`create_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-```
-
-When `includeGeneratedColumns` is turned on, rows for this table will contain the `create_time` value in the `INSERT` statements, e.g.:
-
-```sql
-INSERT INTO `mytable` (`id`, `name`, `create_time`) VALUES (1, 'alice', '2025-11-14 09:30:00');
-```
-
-This makes the dump include the generated/default timestamp values instead of relying on the default expressions when restoring.
   * `filenamePattern`: string, the filename pattern
   * `scripts`:
     * `preBackup`: string, path to directory with pre-backup scripts
