@@ -140,7 +140,7 @@ for details of each.
     * `once`: boolean, run once and exit
   * `compression`: string, the compression to use
   * `compact`: boolean, compact the dump
-  * `includeGeneratedColumns`: boolean, include columns marked as `GENERATED` in the dump (does not include `VIRTUAL` columns), when set true, it makes the dump include the generated/default timestamp values instead of relying on the default expressions when restoring.
+  * `includeGeneratedColumns`: boolean, include columns marked as `GENERATED` in the dump (does not include `VIRTUAL` columns), when set true, it makes the dump include the generated/default values instead of relying on the default expressions when restoring.
   * `triggersAndFunctions`: boolean, include triggers and functions and procedures in the dump
   * `maxAllowedPacket`: int, max packet size
   * `filenamePattern`: string, the filename pattern
