@@ -11,7 +11,7 @@ FROM alpine:3.20 AS runtime
 LABEL org.opencontainers.image.authors="https://github.com/databacker"
 
 # set us up to run as non-root user
-RUN apk add --no-cache bash && \
+RUN apk add --no-cache bash tzdata && \
     addgroup -g 1005 appuser && \
     adduser -u 1005 -G appuser -D appuser
 
