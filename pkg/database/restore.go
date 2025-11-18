@@ -10,11 +10,6 @@ import (
 	"strings"
 )
 
-const (
-	// used to define default max buffer size Scanner, counter part of dump
-	defaultMaxAllowedPacket = 4194304
-)
-
 var (
 	useRegex    = regexp.MustCompile(`(?i)^(USE\s*` + "`" + `)([^\s]+)(` + "`" + `\s*;)$`)
 	createRegex = regexp.MustCompile(`(?i)^(CREATE\s+DATABASE\s*(\/\*.*\*\/\s*)?` + "`" + `)([^\s]+)(` + "`" + `\s*(\s*\/\*.*\*\/\s*)?\s*;$)`)
