@@ -1,5 +1,5 @@
 # mysql backup image
-FROM golang:go1.24.2-alpine3.21 AS build
+FROM golang:1.24.2-alpine3.21 AS build
 
 COPY . /src/mysql-backup
 WORKDIR /src/mysql-backup

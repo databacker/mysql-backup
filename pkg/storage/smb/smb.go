@@ -144,7 +144,7 @@ func (s *SMB) exec(u url.URL, command func(fs *smb2.Share, sharepath string) err
 	if port == "" {
 		port = defaultSMBPort
 	}
-	host := fmt.Sprintf("%s:%s", hostname, port)
+	host := net.JoinHostPort(hostname, port)
 	share, sharepath := parseSMBPath(path)
 	if s.username == "" && u.User != nil {
 		username = u.User.Username()
