@@ -108,14 +108,15 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	results.DumpStart = time.Now()
 	dbDumpCtx, dbDumpSpan := tracer.Start(ctx, "database_dump")
 	if err := database.Dump(dbDumpCtx, dbconn, database.DumpOpts{
-		Compact:             compact,
-		Triggers:            triggers,
-		Routines:            routines,
-		SuppressUseDatabase: suppressUseDatabase,
-		SkipExtendedInsert:  skipExtendedInsert,
-		MaxAllowedPacket:    maxAllowedPacket,
-		PostDumpDelay:       opts.PostDumpDelay,
-		Parallelism:         parallelism,
+		Compact:                 compact,
+		Triggers:                triggers,
+		Routines:                routines,
+		SuppressUseDatabase:     suppressUseDatabase,
+		SkipExtendedInsert:      skipExtendedInsert,
+		MaxAllowedPacket:        maxAllowedPacket,
+		IncludeGeneratedColumns: opts.IncludeGeneratedColumns,
+		PostDumpDelay:           opts.PostDumpDelay,
+		Parallelism:             parallelism,
 	}, dw); err != nil {
 		dbDumpSpan.SetStatus(codes.Error, err.Error())
 		dbDumpSpan.End()
