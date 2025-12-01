@@ -118,6 +118,8 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if !v.IsSet("skip-extended-insert") && dumpConfig != nil && dumpConfig.SkipExtendedInsert != nil {
 				skipExtendedInsert = *dumpConfig.SkipExtendedInsert
 			}
+			includeGeneratedColumns := v.GetBool("include-generated-columns")
+			// Note: config file support for include-generated-columns would require updates to api.Dump
 			compact := v.GetBool("compact")
 			if !v.IsSet("compact") && dumpConfig != nil && dumpConfig.Compact != nil {
 				compact = *dumpConfig.Compact
@@ -251,24 +253,25 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 				defer dumpSpan.End()
 				uid := uuid.New()
 				dumpOpts := core.DumpOptions{
-					Targets:             targets,
-					Safechars:           safechars,
-					DBNames:             include,
-					DBConn:              cmdConfig.dbconn,
-					Compressor:          compressor,
-					Encryptor:           encryptor,
-					Exclude:             exclude,
-					PreBackupScripts:    preBackupScripts,
-					PostBackupScripts:   postBackupScripts,
-					SuppressUseDatabase: noDatabaseName,
-					SkipExtendedInsert:  skipExtendedInsert,
-					Compact:             compact,
-					Triggers:            triggers,
-					Routines:            routines,
-					MaxAllowedPacket:    maxAllowedPacket,
-					Run:                 uid,
-					FilenamePattern:     filenamePattern,
-					Parallelism:         parallel,
+					Targets:                 targets,
+					Safechars:               safechars,
+					DBNames:                 include,
+					DBConn:                  cmdConfig.dbconn,
+					Compressor:              compressor,
+					Encryptor:               encryptor,
+					Exclude:                 exclude,
+					PreBackupScripts:        preBackupScripts,
+					PostBackupScripts:       postBackupScripts,
+					SuppressUseDatabase:     noDatabaseName,
+					SkipExtendedInsert:      skipExtendedInsert,
+					Compact:                 compact,
+					Triggers:                triggers,
+					Routines:                routines,
+					IncludeGeneratedColumns: includeGeneratedColumns,
+					MaxAllowedPacket:        maxAllowedPacket,
+					Run:                     uid,
+					FilenamePattern:         filenamePattern,
+					Parallelism:             parallel,
 				}
 				_, err := executor.Dump(tracerCtx, dumpOpts)
 				if err != nil {
@@ -314,6 +317,9 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 
 	// skip extended insert in dump; instead, one INSERT per record in each table
 	flags.Bool("skip-extended-insert", false, "Skip extended insert in dump; instead, one INSERT per record in each table.")
+
+	// include generated columns in dump
+	flags.Bool("include-generated-columns", false, "Include generated columns in the dump. By default, generated and virtual columns are excluded.")
 
 	// frequency
 	flags.Int("frequency", defaultFrequency, "how often to run backups, in minutes")
