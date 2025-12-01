@@ -31,7 +31,16 @@ If you are interested in commercial support, please contact us via Slack above.
 
 ## Running `mysql-backup`
 
+### Installation
+
 `mysql-backup` is available both as a single standalone binary, and as a container image.
+
+To install it you can:
+
+* Download the latest binary from the [releases page](https://github.com/databacker/mysql-backup/releases)
+* Pull the latest container image from Docker Hub: `docker pull databack/mysql-backup`
+* Install it on Linux or macOS via Homebrew: `brew install databacker/tap/mysql-backup`
+* Build the binary or container image from source. See [BUILD.md](./docs/BUILD.md) for instructions.
 
 ## Backup
 
