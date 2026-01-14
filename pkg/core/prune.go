@@ -18,7 +18,7 @@ import (
 )
 
 // filenameRE is a regular expression to match a backup filename
-var filenameRE = regexp.MustCompile(`^db_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2})[:-](\d{2})[:-](\d{2})(Z|\-\d{2}:\d{2})\.\w+$`)
+var filenameRE = regexp.MustCompile(`^db_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2})[:-](\d{2})[:-](\d{2})(Z|[\-\+]\d{2}:\d{2})\.\w+$`)
 
 // Prune prune older backups
 func (e *Executor) Prune(ctx context.Context, opts PruneOptions) error {
