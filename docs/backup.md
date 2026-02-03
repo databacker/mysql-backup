@@ -90,7 +90,17 @@ Where the date is RFC3339 date format, excluding the milliseconds portion.
 * Z = literal character `Z`, indicating that the time provided is UTC, or "Zulu"
 * compression = appropriate file ending for selected compression, one of: `gz` (gzip, default); `bz2` (bzip2)
 
-The time used is UTC time at the moment the dump begins.
+The time used is the system time at the start of the dump, or UTC by default if you use docker.
+
+If you deploy mysql-backup using docker and you want to use the host time zone, you can configure it as follows:
+
+```
+docker run \
+  -v /etc/localtime:/etc/localtime:ro \
+  -v /etc/timezone:/etc/timezone:ro \
+  -v /usr/share/zoneinfo:/usr/share/zoneinfo:ro \
+  ...
+```
 
 Notes on format:
 

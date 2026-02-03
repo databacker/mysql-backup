@@ -59,6 +59,18 @@ single line.
 
 If a cron-scheduled backup takes longer than the beginning of the next backup window, it will be skipped. For example, if your cron line is scheduled to backup every hour, and the backup that runs at 13:00 finishes at 14:05, the next backup will not be immediate, but rather at 15:00.
 
+Note: cron will be evaluated in UTC zero time zone by default.
+
+If you want to evaluate in a specific time zone, provide it as part of the cron terminology in the configuration as CRON_TZ=<location> <cron>, for example, to set it to America/Anchorage:
+
+```
+dump:
+    schedule:
+        cron: CRON_TZ=America/Anchorage 0 * * * *
+```
+
+You can obtain your local timezone via `cat /etc/timezone`.
+
 ### Frequency and Delayed Start
 
 If neither run once nor cron is set, then `mysql-backup` will use the frequency and optional delayed start options.
