@@ -145,8 +145,19 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 					if err != nil {
 						return fmt.Errorf("unable to set up telemetry: %w", err)
 					}
+					opts := []otlptracehttp.Option{
+						// WithEndpoint expects ONLY the host (e.g., "otelep.foo.com" or "localhost:4318")
+						otlptracehttp.WithEndpoint(u.Host),
+						otlptracehttp.WithTLSClientConfig(tlsConfig),
+					}
+					if u.Path != "" {
+						opts = append(opts, otlptracehttp.WithURLPath(u.Path))
+					}
 
-					tracerExporter, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpoint(*actualConfig.Telemetry.URL), otlptracehttp.WithTLSClientConfig(tlsConfig))
+					if u.Scheme == "http" {
+						opts = append(opts, otlptracehttp.WithInsecure())
+					}
+					tracerExporter, err := otlptracehttp.New(ctx, opts...)
 					if err != nil {
 						return fmt.Errorf("unable to set up telemetry: %w", err)
 					}
