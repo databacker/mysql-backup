@@ -33,7 +33,7 @@ require (
 	filippo.io/age v1.2.1
 	github.com/InfiniteLoopSpace/go_S-MIME v0.0.0-20181221134359-3f58f9a4b2b6
 	github.com/bramvdbogaerde/go-scp v1.5.0
-	github.com/databacker/api/go/api v0.0.0-20250908082438-7e7e048af692
+	github.com/databacker/api/go/api v0.0.0-20260203120843-ea139d59c2ed
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/google/go-cmp v0.7.0
 	github.com/kevinburke/ssh_config v1.2.0
@@ -56,7 +56,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
-	github.com/go-chi/chi/v5 v5.2.3 // indirect
+	github.com/go-chi/chi/v5 v5.2.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
