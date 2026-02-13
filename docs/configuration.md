@@ -91,7 +91,8 @@ The following are the environment variables, CLI flags and configuration file op
 | SMB username, used only if a target does not have one | BRP | `smb-user` | `SMB_USER` | `dump.targets[smb-target].username` |  |
 | SMB password, used only if a target does not have one | BRP | `smb-pass` | `SMB_PASS` | `dump.targets[smb-target].password` |  |
 | compression to use, one of: `bzip2`, `gzip`, `none` | BP | `compression` | `DB_DUMP_COMPRESSION` | `dump.compression` | `gzip` |
-| whether to include triggers, procedures and functions | B | `triggers-and-functions` | `DB_DUMP_TRIGGERS_AND_FUNCTIONS` | `dump.triggersAndFunctions` | `false` |
+| whether to include triggers | B | `triggers` | `DB_DUMP_TRIGGERS` | `dump.triggers` | `false` |
+| whether to include stored procedures and routines | B | `routines` | `DB_DUMP_ROUTINES` | `dump.routines` | `true` |
 | when in container, run the dump or restore with `nice`/`ionice` | BR | `` | `NICE` | `` | `false` |
 | filename to save the target backup file | B | `dump --filename-pattern` | `DB_DUMP_FILENAME_PATTERN` | `dump.filenamePattern` |  |
 | directory with scripts to execute before backup | B | `dump --pre-backup-scripts` | `DB_DUMP_PRE_BACKUP_SCRIPTS` | `dump.scripts.preBackup` | in container, `/scripts.d/pre-backup/` |
