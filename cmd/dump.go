@@ -122,11 +122,12 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if !v.IsSet("compact") && dumpConfig != nil && dumpConfig.Compact != nil {
 				compact = *dumpConfig.Compact
 			}
-			// should we dump triggers and functions and procedures?
+			// should we dump triggers?
 			triggers := v.GetBool("triggers")
 			if !v.IsSet("triggers") && dumpConfig != nil && dumpConfig.Triggers != nil {
 				triggers = *dumpConfig.Triggers
 			}
+			// should we dump stored procedures and routines?
 			routines := v.GetBool("routines")
 			if !v.IsSet("routines") && dumpConfig != nil && dumpConfig.Routines != nil {
 				routines = *dumpConfig.Routines
@@ -348,8 +349,11 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	// max-allowed-packet size
 	flags.Int("max-allowed-packet", defaultMaxAllowedPacket, "Maximum size of the buffer for client/server communication, similar to mysqldump's max_allowed_packet. 0 means to use the default size.")
 
-	// whether to include triggers and functions
-	flags.Bool("triggers-and-functions", false, "Whether to include triggers and functions in the dump.")
+	// whether to include triggers
+	flags.Bool("triggers", false, "Whether to include triggers in the dump.")
+
+	// stored procedures and routines
+	flags.Bool("routines", true, "Whether to include stored procedures and routines in the dump.")
 
 	cmd.MarkFlagsMutuallyExclusive("once", "cron")
 	cmd.MarkFlagsMutuallyExclusive("once", "begin")
