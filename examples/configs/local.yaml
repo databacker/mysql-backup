@@ -21,6 +21,11 @@ spec:
     safechars: true # defaults to false
     noDatabaseName: false # remove the `USE <database>` statement from backup files, defaults to false
     skipExtendedInsert: false # replace single long INSERT statement per table with one INSERT statement per line, defaults to false
+    includeGeneratedColumns: false # include columns marked as GENERATED; VIRTUAL columns remain excluded. Defaults to false
+    # When enabled, columns with defaults or generated values (for example
+    # `create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP`) will be
+    # dumped as part of the INSERT rows. Example:
+    # INSERT INTO `mytable` (`id`, `name`, `create_time`) VALUES (1, 'alice', '2025-11-14 09:30:00');
     # schedule to dump, can use one of: cron, frequency, once. If frequency is set, begin will be checked
     schedule:
       once: true # run only once and exit; ignores all other scheduling. Defaults to false
