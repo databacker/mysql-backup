@@ -523,16 +523,47 @@ func (data *Data) getProceduresOrFunctionsCreateQueries(t string) ([]string, err
 	defer func() { _ = rows.Close() }()
 
 	//  | Db     | Name       | Type      | Language | Definer | Modified            | Created             | Security_type | Comment | character_set_client | collation_connection | Database Collation |
+	// mysql 8:  | Db | Name | Type | Definer | Modified | Created | Security_type | Comment | character_set_client | collation_connection | Database Collation |
 	for rows.Next() {
-		var (
-			db, name, typeDef, language, definer, securityType, comment, charset, collationConnection, databaseCollation sql.NullString
-			created, modified                                                                                            sql.NullTime
-		)
-		if err := rows.Scan(&db, &name, &typeDef, &language, &definer, &modified, &created, &securityType, &comment, &charset, &collationConnection, &databaseCollation); err != nil {
+		cols, err := rows.Columns()
+		if err != nil {
 			return nil, err
 		}
-		if name.Valid && typeDef.Valid {
-			createQuery := fmt.Sprintf("SHOW CREATE %s `%s`", typeDef.String, name.String)
+		values := make([]any, len(cols))
+		valuePtrs := make([]any, len(cols))
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+		err = rows.Scan(valuePtrs...)
+		if err != nil {
+			return nil, err
+		}
+		var typeDef, name string
+		typeDefIndex := -1
+		nameIndex := -1
+		for index, col := range cols {
+			if strings.ToLower(col) == "type" {
+				typeDefIndex = index
+			} else if strings.ToLower(col) == "name" {
+				nameIndex = index
+			} else if typeDefIndex != -1 && nameIndex != -1 {
+				switch values[typeDefIndex].(type) {
+				case string:
+					typeDef = values[typeDefIndex].(string)
+				case []byte:
+					typeDef = string(values[typeDefIndex].([]byte))
+				}
+				switch values[nameIndex].(type) {
+				case string:
+					name = values[nameIndex].(string)
+				case []byte:
+					name = string(values[nameIndex].([]byte))
+				}
+				break
+			}
+		}
+		if typeDef != "" && name != "" {
+			createQuery := fmt.Sprintf("SHOW CREATE %s `%s`", typeDef, name)
 			toGet = append(toGet, createQuery)
 		}
 	}
