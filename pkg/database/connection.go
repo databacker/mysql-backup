@@ -9,11 +9,12 @@ import (
 )
 
 type Connection struct {
-	User            string
-	Pass            string
-	Host            string
-	Port            int
-	MultiStatements bool
+	User             string
+	Pass             string
+	Host             string
+	Port             int
+	MultiStatements  bool
+	MaxAllowedPacket int
 
 	// holds a connection to the database
 	sql *sql.DB
@@ -36,6 +37,9 @@ func (c *Connection) MySQL() (*sql.DB, error) {
 		config.ParseTime = true
 		config.TLSConfig = "preferred"
 		config.MultiStatements = c.MultiStatements
+		if c.MaxAllowedPacket != 0 {
+			config.MaxAllowedPacket = c.MaxAllowedPacket
+		}
 		dsn := config.FormatDSN()
 		handle, err := sql.Open("mysql", dsn)
 		if err != nil {
