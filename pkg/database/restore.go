@@ -28,6 +28,8 @@ func Restore(ctx context.Context, dbconn *Connection, databasesMap map[string]st
 			return fmt.Errorf("failed to restore database: %w", err)
 		}
 		reader := bufio.NewReader(r)
+		defaultDelimiter := ";" // default delimiter
+		delimiter := defaultDelimiter
 		var current string
 		for {
 			line, err := reader.ReadString('\n')
@@ -43,14 +45,38 @@ func Restore(ctx context.Context, dbconn *Connection, databasesMap map[string]st
 				}
 				continue
 			}
-			current += line + "\n"
-
-			// if the line does not end with a semicolon, keep accumulating
-			if line[len(line)-1] != ';' {
-				if err == io.EOF {
-					// EOF reached but statement not terminated; we'll try to execute below
-					break
+			if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(line)), "DELIMITER") {
+				// enter scope of delimiter
+				// or
+				// exit scope of delimiter
+				parts := strings.Fields(line)
+				if len(parts) >= 2 {
+					newDelimiter := strings.TrimSpace(parts[1])
+					if newDelimiter == defaultDelimiter && delimiter != defaultDelimiter {
+						// exit scope of delimiter
+						// remove specific delimiter from current statement
+						current = strings.TrimSuffix(strings.TrimSpace(current), delimiter) + "\n"
+					}
+					delimiter = newDelimiter
 				}
+			} else {
+				current += line + "\n"
+				if delimiter != defaultDelimiter {
+					// in scope of delimiter, continue accumulating
+					continue
+				}
+				// if the line does not end with a semicolon, keep accumulating
+				if !strings.HasSuffix(line, delimiter) {
+					if err == io.EOF {
+						// EOF reached but statement not terminated; we'll try to execute below
+						break
+					}
+					continue
+				}
+			}
+
+			current = strings.TrimSpace(current)
+			if current == "" {
 				continue
 			}
 
