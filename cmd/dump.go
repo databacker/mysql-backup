@@ -24,7 +24,7 @@ const (
 	defaultCompression      = "gzip"
 	defaultBegin            = "+0"
 	defaultFrequency        = 1440
-	defaultMaxAllowedPacket = 4194304
+	defaultMaxAllowedPacket = 4 << 20 // 4 MiB (4194304)
 	defaultFilenamePattern  = core.DefaultFilenamePattern
 )
 
@@ -135,6 +135,9 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			maxAllowedPacket := v.GetInt("max-allowed-packet")
 			if !v.IsSet("max-allowed-packet") && dumpConfig != nil && dumpConfig.MaxAllowedPacket != nil && *dumpConfig.MaxAllowedPacket != 0 {
 				maxAllowedPacket = *dumpConfig.MaxAllowedPacket
+			}
+			if maxAllowedPacket != 0 && maxAllowedPacket != defaultMaxAllowedPacket {
+				cmdConfig.dbconn.MaxAllowedPacket = maxAllowedPacket
 			}
 
 			// compression algorithm: check config, then CLI/env var overrides
