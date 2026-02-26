@@ -185,7 +185,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	uploadSpan.SetStatus(codes.Ok, "completed")
 	uploadSpan.End()
 
-	logger.Infof("finished dump %s", now.Format(time.RFC3339))
+	logger.Infof("finished dump %s", time.Now().Format(time.RFC3339))
 
 	return results, nil
 }
