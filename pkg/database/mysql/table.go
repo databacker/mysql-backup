@@ -132,7 +132,17 @@ func (table *baseTable) initColumnData() error {
 		// Ignore the virtual columns and generated columns
 		// if there is an Extra column and it is a valid string, then only include this column if
 		// the column is not marked as VIRTUAL or GENERATED
-		if !info[extraIndex].Valid || (!strings.Contains(info[extraIndex].String, "VIRTUAL") && !strings.Contains(info[extraIndex].String, "GENERATED")) {
+		// Unless IncludeGeneratedColumns is true, in which case include them
+		shouldInclude := true
+		if info[extraIndex].Valid {
+			extra := info[extraIndex].String
+			if strings.Contains(extra, "VIRTUAL") {
+				shouldInclude = false
+			} else if strings.Contains(extra, "GENERATED") && !table.data.IncludeGeneratedColumns {
+				shouldInclude = false
+			}
+		}
+		if shouldInclude {
 			result = append(result, info[fieldIndex].String)
 		}
 	}

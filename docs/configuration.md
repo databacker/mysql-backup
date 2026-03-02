@@ -73,6 +73,7 @@ The following are the environment variables, CLI flags and configuration file op
 | names of databases to exclude from the dump | B | `exclude` | `DB_DUMP_EXCLUDE` | `dump.exclude` |  |
 | do not include `USE <database>;` statement in the dump | B | `no-database-name` | `DB_DUMP_NO_DATABASE_NAME` | `dump.noDatabaseName` | `false` |
 | Replace single long INSERT statement per table with one INSERT statement per line | B | `skip-extended-insert` | `DB_DUMP_SKIP_EXTENDED_INSERT` | `dump.skipExtendedInsert` | `false` |
+| Include generated columns in dump (not virtual columns) | B | `include-generated-columns` | `DB_DUMP_INCLUDE_GENERATED_COLUMNS` | `dump.includeGeneratedColumns` | `false` |
 | restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
 | how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQUENCY` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
 | what time to do the first dump or prune | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
@@ -140,6 +141,7 @@ for details of each.
     * `once`: boolean, run once and exit
   * `compression`: string, the compression to use
   * `compact`: boolean, compact the dump
+  * `includeGeneratedColumns`: boolean, include columns marked as `GENERATED` in the dump (does not include `VIRTUAL` columns), when set true, it makes the dump include the generated/default values instead of relying on the default expressions when restoring.
   * `triggersAndFunctions`: boolean, include triggers and functions and procedures in the dump
   * `maxAllowedPacket`: int, max packet size
   * `filenamePattern`: string, the filename pattern
