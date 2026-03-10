@@ -75,6 +75,12 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 				}
 			}
 
+			// max-allowed-packet size
+			maxAllowedPacket := v.GetInt("max-allowed-packet")
+			if maxAllowedPacket != 0 && maxAllowedPacket != defaultMaxAllowedPacket {
+				cmdConfig.dbconn.MaxAllowedPacket = maxAllowedPacket
+			}
+
 			// target URL can reference one from the config file, or an absolute one
 			// if it's not in the config file, it's an absolute one
 			// if it is in the config file, it's a reference to one of the targets in the config file
@@ -159,6 +165,9 @@ func restoreCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command,
 
 	// post-restore scripts
 	flags.String("post-restore-scripts", "", "Directory wherein any file ending in `.sh` will be run post-restore.")
+
+	// max-allowed-packet size
+	flags.Int("max-allowed-packet", 0, "Maximum size of the buffer for client/server communication, similar to mysql's max_allowed_packet. 0 means to use the default size.")
 
 	return cmd, nil
 }
