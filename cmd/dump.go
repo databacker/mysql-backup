@@ -409,8 +409,8 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	// retention
 	flags.String("retention", "", "Retention period for backups. Optional. If not specified, no pruning will be done. Can be number of backups or time-based. For time-based, the format is: 1d, 1w, 1m, 1y for days, weeks, months, years, respectively. For number-based, the format is: 1c, 2c, 3c, etc. for the count of backups to keep.")
 
-	// ignore-tables: tables to exclude from the dump (format: database.table)
-	flags.StringSlice("ignore-tables", []string{}, "Tables to exclude from the dump. Format: database.table (e.g. mydb.mytable). Can be specified multiple times or as a comma-separated list.")
+	// ignore-tables: tables to exclude from the dump (formats: database.table or table)
+	flags.StringSlice("ignore-tables", []string{}, "Tables to exclude from the dump. Formats: database.table (e.g. mydb.mytable) or table (applies to all databases/schemas). Can be specified multiple times or as a comma-separated list.")
 
 	// encryption options
 	flags.String("encryption", "", fmt.Sprintf("Encryption algorithm to use, none if blank. Supported are: %s. Format must match the specific algorithm.", strings.Join(encrypt.All, ", ")))
