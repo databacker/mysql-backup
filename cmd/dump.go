@@ -133,6 +133,11 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if !v.IsSet("routines") && dumpConfig != nil && dumpConfig.Routines != nil {
 				routines = *dumpConfig.Routines
 			}
+			ignoreTables := v.GetStringSlice("ignore-tables")
+			if len(ignoreTables) == 0 {
+				ignoreTables = nil
+			}
+
 			maxAllowedPacket := v.GetInt("max-allowed-packet")
 			if !v.IsSet("max-allowed-packet") && dumpConfig != nil && dumpConfig.MaxAllowedPacket != nil && *dumpConfig.MaxAllowedPacket != 0 {
 				maxAllowedPacket = *dumpConfig.MaxAllowedPacket
@@ -305,6 +310,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					Run:                 uid,
 					FilenamePattern:     filenamePattern,
 					Parallelism:         parallel,
+					IgnoreTables:        ignoreTables,
 				}
 				results, err := executor.Dump(tracerCtx, dumpOpts)
 				if err != nil {
@@ -402,6 +408,9 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	cmd.MarkFlagsMutuallyExclusive("cron", "frequency")
 	// retention
 	flags.String("retention", "", "Retention period for backups. Optional. If not specified, no pruning will be done. Can be number of backups or time-based. For time-based, the format is: 1d, 1w, 1m, 1y for days, weeks, months, years, respectively. For number-based, the format is: 1c, 2c, 3c, etc. for the count of backups to keep.")
+
+	// ignore-tables: tables to exclude from the dump (format: database.table)
+	flags.StringSlice("ignore-tables", []string{}, "Tables to exclude from the dump. Format: database.table (e.g. mydb.mytable). Can be specified multiple times or as a comma-separated list.")
 
 	// encryption options
 	flags.String("encryption", "", fmt.Sprintf("Encryption algorithm to use, none if blank. Supported are: %s. Format must match the specific algorithm.", strings.Join(encrypt.All, ", ")))

@@ -116,6 +116,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		MaxAllowedPacket:    maxAllowedPacket,
 		PostDumpDelay:       opts.PostDumpDelay,
 		Parallelism:         parallelism,
+		IgnoreTables:        opts.IgnoreTables,
 	}, dw); err != nil {
 		dbDumpSpan.SetStatus(codes.Error, err.Error())
 		dbDumpSpan.End()

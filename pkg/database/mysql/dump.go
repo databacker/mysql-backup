@@ -400,7 +400,12 @@ func (data *Data) getCharsetCollections() error {
 
 func (data *Data) isIgnoredTable(name string) bool {
 	for _, item := range data.IgnoreTables {
-		if item == name {
+		if strings.Contains(item, ".") {
+			parts := strings.SplitN(item, ".", 2)
+			if parts[0] == data.Schema && parts[1] == name {
+				return true
+			}
+		} else if item == name {
 			return true
 		}
 	}
