@@ -197,6 +197,38 @@ func TestDumpCmd(t *testing.T) {
 			Parallelism:       1,
 		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
 
+		// exclude
+		{"exclude single", []string{"--server", "abc", "--target", "file:///foo/bar", "--exclude", "mydb"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
+			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Routines:         true,
+			Parallelism:      1,
+			Exclude:          []string{"mydb"},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+		{"exclude comma-separated", []string{"--server", "abc", "--target", "file:///foo/bar", "--exclude", "db1,db2"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
+			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Routines:         true,
+			Parallelism:      1,
+			Exclude:          []string{"db1", "db2"},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+		{"exclude multiple flags", []string{"--server", "abc", "--target", "file:///foo/bar", "--exclude", "db1", "--exclude", "db2"}, "", false, core.DumpOptions{
+			Targets:          []storage.Storage{file.New(*fileTargetURL)},
+			MaxAllowedPacket: defaultMaxAllowedPacket,
+			Compressor:       &compression.GzipCompressor{},
+			DBConn:           &database.Connection{Host: "abc", Port: defaultPort},
+			FilenamePattern:  "db_backup_{{ .now }}.{{ .compression }}",
+			Routines:         true,
+			Parallelism:      1,
+			Exclude:          []string{"db1", "db2"},
+		}, core.TimerOptions{Frequency: defaultFrequency, Begin: defaultBegin}, nil},
+
 		// ignore-tables
 		{"ignore-tables single", []string{"--server", "abc", "--target", "file:///foo/bar", "--ignore-tables", "mydb.mytable"}, "", false, core.DumpOptions{
 			Targets:          []storage.Storage{file.New(*fileTargetURL)},
