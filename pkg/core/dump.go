@@ -74,7 +74,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	defer func() { _ = os.RemoveAll(tmpdir) }()
 	// execute pre-backup scripts if any
 	if err := preBackup(ctx, timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PreBackupScripts, logger.Level == log.DebugLevel); err != nil {
-		return results, fmt.Errorf("error running pre-restore: %v", err)
+		return results, fmt.Errorf("error running pre-backup scripts: %v", err)
 	}
 
 	// do the dump(s)
@@ -162,7 +162,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 
 	// execute post-backup scripts if any
 	if err := postBackup(ctx, timepart, path.Join(tmpdir, sourceFilename), tmpdir, opts.PostBackupScripts, logger.Level == log.DebugLevel); err != nil {
-		return results, fmt.Errorf("error running pre-restore: %v", err)
+		return results, fmt.Errorf("error running post-backup scripts: %v", err)
 	}
 
 	// upload to each destination
