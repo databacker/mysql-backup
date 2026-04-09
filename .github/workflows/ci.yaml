@@ -26,7 +26,7 @@ jobs:
     - name: event_name
       run: echo ${{ github.event_name }}
     - name: checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
     - id: fileschanged
@@ -56,10 +56,10 @@ jobs:
     if: needs.report.outputs.non_docs_changed == 'true'
     steps:
     - name: checkout
-      uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
+      uses: actions/checkout@v6
+    - uses: actions/setup-go@v6
       with:
-        go-version: '1.24'
+        go-version-file: 'go.mod'
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
