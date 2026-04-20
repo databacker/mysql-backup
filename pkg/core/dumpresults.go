@@ -10,13 +10,14 @@ type DumpResults struct {
 	Timestamp string
 	DumpStart time.Time
 	DumpEnd   time.Time
+	Bytes     int64
 	Uploads   []UploadResult
 }
 
 // UploadResult lists results of an individual upload
 type UploadResult struct {
-	Target string
+	Target   string
 	Filename string
-	Start time.Time
-	End time.Time
+	Start    time.Time
+	End      time.Time
 }
