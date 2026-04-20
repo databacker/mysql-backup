@@ -136,27 +136,42 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		return results, fmt.Errorf("failed to open output file '%s': %v", outFile, err)
 	}
 	defer func() { _ = f.Close() }()
-	cw, err := compressor.Compress(f)
+	compressedWriter, err := compressor.Compress(f)
 	if err != nil {
 		tarSpan.SetStatus(codes.Error, err.Error())
 		tarSpan.End()
 		return results, fmt.Errorf("failed to create compressor: %v", err)
 	}
+	archiveWriter := compressedWriter
 	if encryptor != nil {
-		cw, err = encryptor.Encrypt(cw)
+		archiveWriter, err = encryptor.Encrypt(compressedWriter)
 		if err != nil {
 			tarSpan.SetStatus(codes.Error, err.Error())
 			tarSpan.End()
 			return results, fmt.Errorf("failed to create encryptor: %v", err)
 		}
 	}
-	if err := archive.Tar(workdir, cw); err != nil {
+	if err := archive.Tar(workdir, archiveWriter); err != nil {
 		tarSpan.SetStatus(codes.Error, err.Error())
 		tarSpan.End()
 		return results, fmt.Errorf("error creating the compressed archive: %v", err)
 	}
-	// we need to close it explicitly before moving ahead
-	defer func() { _ = f.Close() }()
+	if err := archiveWriter.Close(); err != nil {
+		tarSpan.SetStatus(codes.Error, err.Error())
+		tarSpan.End()
+		return results, fmt.Errorf("failed to close archive writer: %v", err)
+	}
+	if archiveWriter != compressedWriter {
+		if err := compressedWriter.Close(); err != nil {
+			tarSpan.SetStatus(codes.Error, err.Error())
+			tarSpan.End()
+			return results, fmt.Errorf("failed to close compressor: %v", err)
+		}
+	}
+	if info, err := os.Stat(outFile); err == nil {
+		results.Bytes = info.Size()
+		tarSpan.SetAttributes(attribute.Int64("bytes", results.Bytes))
+	}
 	tarSpan.SetStatus(codes.Ok, "completed")
 	tarSpan.End()
 

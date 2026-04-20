@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
 	"github.com/databacker/api/go/api"
@@ -252,8 +253,22 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			if err := executor.Timer(timerOpts, func() error {
 				// start a new span for the dump, should not be a child of the startup one
 				tracerCtx, dumpSpan := tracer.Start(ctx, "run")
-				defer dumpSpan.End()
 				uid := uuid.New()
+				bytes := int64(0)
+				exitCode := 0
+				backupStatus := "ok"
+				dumpSpan.SetAttributes(attribute.String("backup.run_id", uid.String()))
+				defer func() {
+					attrs := []attribute.KeyValue{
+						attribute.String("backup.status", backupStatus),
+						attribute.Int("backup.exit_code", exitCode),
+					}
+					if bytes > 0 {
+						attrs = append(attrs, attribute.Int64("backup.bytes", bytes))
+					}
+					dumpSpan.SetAttributes(attrs...)
+					dumpSpan.End()
+				}()
 				dumpOpts := core.DumpOptions{
 					Targets:             targets,
 					Safechars:           safechars,
@@ -274,13 +289,18 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					FilenamePattern:     filenamePattern,
 					Parallelism:         parallel,
 				}
-				_, err := executor.Dump(tracerCtx, dumpOpts)
+				results, err := executor.Dump(tracerCtx, dumpOpts)
 				if err != nil {
+					exitCode = 1
+					backupStatus = "error"
 					dumpSpan.SetStatus(codes.Error, fmt.Sprintf("error running dump: %v", err))
 					return fmt.Errorf("error running dump: %w", err)
 				}
+				bytes = results.Bytes
 				if retention != "" {
 					if err := executor.Prune(tracerCtx, core.PruneOptions{Targets: targets, Retention: retention, Run: uid}); err != nil {
+						exitCode = 1
+						backupStatus = "error"
 						dumpSpan.SetStatus(codes.Error, fmt.Sprintf("error running prune: %v", err))
 						return fmt.Errorf("error running prune: %w", err)
 					}
