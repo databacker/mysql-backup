@@ -257,7 +257,24 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 				bytes := int64(0)
 				exitCode := 0
 				backupStatus := "ok"
-				dumpSpan.SetAttributes(attribute.String("backup.run_id", uid.String()))
+				attrs := []attribute.KeyValue{
+					attribute.String("backup.run_id", uid.String()),
+					attribute.String("db.system", "mysql"),
+				}
+				if cmdConfig.dbconn != nil {
+					transport := "tcp"
+					if strings.HasPrefix(cmdConfig.dbconn.Host, "/") {
+						transport = "unix"
+					}
+					attrs = append(attrs,
+						attribute.String("network.transport", transport),
+						attribute.String("server.address", cmdConfig.dbconn.Host),
+					)
+					if transport == "tcp" && cmdConfig.dbconn.Port > 0 {
+						attrs = append(attrs, attribute.Int("server.port", cmdConfig.dbconn.Port))
+					}
+				}
+				dumpSpan.SetAttributes(attrs...)
 				defer func() {
 					attrs := []attribute.KeyValue{
 						attribute.String("backup.status", backupStatus),
