@@ -19,6 +19,7 @@ type DumpOpts struct {
 	// PostDumpDelay after each dump is complete, while holding connection open. Do not use outside of tests.
 	PostDumpDelay time.Duration
 	Parallelism   int
+	IgnoreTables  []string
 }
 
 func Dump(ctx context.Context, dbconn *Connection, opts DumpOpts, writers []DumpWriter) error {
@@ -63,6 +64,7 @@ func Dump(ctx context.Context, dbconn *Connection, opts DumpOpts, writers []Dump
 					SkipExtendedInsert:  opts.SkipExtendedInsert,
 					MaxAllowedPacket:    opts.MaxAllowedPacket,
 					PostDumpDelay:       opts.PostDumpDelay,
+					IgnoreTables:        opts.IgnoreTables,
 				}
 				// return on any error
 				if err := dumper.Dump(); err != nil {

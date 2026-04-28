@@ -93,6 +93,8 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 			return results, fmt.Errorf("failed to list database schemas: %v", err)
 		}
 	}
+	// filter out excluded databases
+	dbnames = filterExcludedDatabases(dbnames, opts.Exclude)
 	span.SetAttributes(attribute.StringSlice("actual-schemas", dbnames))
 	for _, s := range dbnames {
 		outFile := path.Join(workdir, fmt.Sprintf("%s_%s.sql", s, timepart))
@@ -116,6 +118,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		MaxAllowedPacket:    maxAllowedPacket,
 		PostDumpDelay:       opts.PostDumpDelay,
 		Parallelism:         parallelism,
+		IgnoreTables:        opts.IgnoreTables,
 	}, dw); err != nil {
 		dbDumpSpan.SetStatus(codes.Error, err.Error())
 		dbDumpSpan.End()
@@ -256,4 +259,22 @@ func ProcessFilenamePattern(pattern string, now time.Time, timestamp, ext string
 		return "", fmt.Errorf("failed to execute filename pattern: %v", err)
 	}
 	return buf.String(), nil
+}
+
+// filterExcludedDatabases removes databases in the exclude list from dbnames.
+func filterExcludedDatabases(dbnames, exclude []string) []string {
+	if len(exclude) == 0 {
+		return dbnames
+	}
+	excludeMap := make(map[string]bool, len(exclude))
+	for _, e := range exclude {
+		excludeMap[e] = true
+	}
+	filtered := make([]string, 0, len(dbnames))
+	for _, db := range dbnames {
+		if !excludeMap[db] {
+			filtered = append(filtered, db)
+		}
+	}
+	return filtered
 }

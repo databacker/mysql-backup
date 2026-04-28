@@ -31,5 +31,6 @@ type DumpOptions struct {
 	// PostDumpDelay inafter each dump is complete, while holding connection open. Do not use outside of tests.
 	PostDumpDelay time.Duration
 	// Parallelism how many databases to back up at once, consuming that number of threads
-	Parallelism int
+	Parallelism  int
+	IgnoreTables []string
 }
