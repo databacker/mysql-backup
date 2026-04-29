@@ -255,7 +255,7 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 
 	// debug via CLI or env var or default
 	pflags.IntP("verbose", "v", 0, "set log level, 1 is debug, 2 is trace")
-	pflags.Bool("debug", false, "set log level to debug, equivalent of --verbose=1; if both set, --version always overrides")
+	pflags.Bool("debug", false, "set log level to debug, equivalent of --verbose=1; if both set, --verbose always overrides")
 	pflags.Bool("trace-stderr", false, "trace to stderr, in addition to any configured telemetry")
 
 	// aws options
