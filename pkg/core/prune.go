@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/databacker/api/go/api"
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/util"
 	"github.com/sirupsen/logrus"
@@ -23,7 +24,7 @@ var filenameRE = regexp.MustCompile(`^db_backup_(\d{4})-(\d{2})-(\d{2})T(\d{2})[
 // Prune prune older backups
 func (e *Executor) Prune(ctx context.Context, opts PruneOptions) error {
 	tracer := util.GetTracerFromContext(ctx)
-	tracerCtx, span := tracer.Start(ctx, "prune")
+	tracerCtx, span := tracer.Start(ctx, string(api.BackupSpanPrune))
 	defer span.End()
 	logger := e.Logger.WithField("run", opts.Run.String())
 	logger.Level = e.Logger.Level
@@ -59,7 +60,7 @@ func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Stora
 		pruned                           int
 		candidates, ignored, invalidDate []string
 	)
-	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, fmt.Sprintf("pruneTarget %s", target.URL()))
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, fmt.Sprintf("%s %s", string(api.BackupSpanPruneTarget), target.URL()))
 	defer span.End()
 
 	logger.Debugf("pruning target %s", target.URL())
@@ -138,7 +139,7 @@ func pruneTarget(ctx context.Context, logger *logrus.Entry, target storage.Stora
 	}
 
 	// we have the list, remove them all
-	span.SetAttributes(attribute.StringSlice("candidates", candidates), attribute.StringSlice("ignored", ignored), attribute.StringSlice("invalidDate", invalidDate))
+	span.SetAttributes(attribute.StringSlice(string(api.BackupAttrCandidates), candidates), attribute.StringSlice(string(api.BackupAttrIgnored), ignored), attribute.StringSlice(string(api.BackupAttrInvalidDate), invalidDate))
 	for _, filename := range candidates {
 		if err := target.Remove(ctx, filename, logger); err != nil {
 			return fmt.Errorf("failed to remove file %s: %v", filename, err)

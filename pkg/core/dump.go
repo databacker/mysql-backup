@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 
+	"github.com/databacker/api/go/api"
 	"github.com/databacker/mysql-backup/pkg/archive"
 	"github.com/databacker/mysql-backup/pkg/database"
 	"github.com/databacker/mysql-backup/pkg/util"
@@ -23,7 +24,7 @@ import (
 func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, error) {
 	results := DumpResults{Start: time.Now()}
 	tracer := util.GetTracerFromContext(ctx)
-	ctx, span := tracer.Start(ctx, "dump")
+	ctx, span := tracer.Start(ctx, string(api.BackupSpanDump))
 	defer func() {
 		results.End = time.Now()
 		span.End()
@@ -55,7 +56,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		timepart = strings.ReplaceAll(timepart, ":", "-")
 	}
 	results.Timestamp = timepart
-	span.SetAttributes(attribute.String("timestamp", timepart))
+	span.SetAttributes(attribute.String(string(api.BackupAttrTimestamp), timepart))
 
 	// sourceFilename: file that the uploader looks for when performing the upload
 	// targetFilename: the remote file that is actually uploaded
@@ -64,7 +65,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	if err != nil {
 		return results, fmt.Errorf("failed to process filename pattern: %v", err)
 	}
-	span.SetAttributes(attribute.String("source-filename", sourceFilename), attribute.String("target-filename", targetFilename))
+	span.SetAttributes(attribute.String(string(api.BackupAttrSourceFilename), sourceFilename), attribute.String(string(api.BackupAttrTargetFilename), targetFilename))
 
 	// create a temporary working directory
 	tmpdir, err := os.MkdirTemp("", "databacker_backup")
@@ -87,7 +88,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	dw := make([]database.DumpWriter, 0)
 
 	// do we back up all schemas, or just provided ones
-	span.SetAttributes(attribute.Bool("provided-schemas", len(dbnames) != 0))
+	span.SetAttributes(attribute.Bool(string(api.BackupAttrProvidedSchemas), len(dbnames) != 0))
 	if len(dbnames) == 0 {
 		if dbnames, err = database.GetSchemas(dbconn); err != nil {
 			return results, fmt.Errorf("failed to list database schemas: %v", err)
@@ -95,7 +96,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	}
 	// filter out excluded databases
 	dbnames = filterExcludedDatabases(dbnames, opts.Exclude)
-	span.SetAttributes(attribute.StringSlice("actual-schemas", dbnames))
+	span.SetAttributes(attribute.StringSlice(string(api.BackupAttrActualSchemas), dbnames))
 	for _, s := range dbnames {
 		outFile := path.Join(workdir, fmt.Sprintf("%s_%s.sql", s, timepart))
 		f, err := os.Create(outFile)
@@ -108,7 +109,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 		})
 	}
 	results.DumpStart = time.Now()
-	dbDumpCtx, dbDumpSpan := tracer.Start(ctx, "database_dump")
+	dbDumpCtx, dbDumpSpan := tracer.Start(ctx, string(api.BackupSpanDatabaseDump))
 	if err := database.Dump(dbDumpCtx, dbconn, database.DumpOpts{
 		Compact:             compact,
 		Triggers:            triggers,
@@ -130,7 +131,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 
 	// create my tar writer to archive it all together
 	// WRONG: THIS WILL CAUSE IT TO TRY TO LOOP BACK ON ITSELF
-	_, tarSpan := tracer.Start(ctx, "output_tar")
+	_, tarSpan := tracer.Start(ctx, string(api.BackupSpanOutputTar))
 	outFile := path.Join(tmpdir, sourceFilename)
 	f, err := os.OpenFile(outFile, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -173,7 +174,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	}
 	if info, err := os.Stat(outFile); err == nil {
 		results.Bytes = info.Size()
-		tarSpan.SetAttributes(attribute.Int64("bytes", results.Bytes))
+		tarSpan.SetAttributes(attribute.Int64(string(api.BackupAttrBytes), results.Bytes))
 	}
 	tarSpan.SetStatus(codes.Ok, "completed")
 	tarSpan.End()
@@ -184,18 +185,27 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	}
 
 	// upload to each destination
-	uploadCtx, uploadSpan := tracer.Start(ctx, "upload")
+	uploadCtx, uploadSpan := tracer.Start(ctx, string(api.BackupSpanUpload))
 	for _, t := range targets {
+		targetCtx, targetSpan := tracer.Start(uploadCtx, string(api.BackupSpanUpload))
+		targetSpan.SetAttributes(
+			attribute.String(string(api.BackupAttrTargetType), t.Protocol()),
+			attribute.String(string(api.BackupAttrTargetURL), t.URL()),
+		)
 		uploadResult := UploadResult{Target: t.URL(), Start: time.Now()}
 		targetCleanFilename := t.Clean(targetFilename)
 		logger.Debugf("uploading via protocol %s from %s to %s", t.Protocol(), sourceFilename, targetCleanFilename)
-		copied, err := t.Push(uploadCtx, targetCleanFilename, filepath.Join(tmpdir, sourceFilename), logger)
+		copied, err := t.Push(targetCtx, targetCleanFilename, filepath.Join(tmpdir, sourceFilename), logger)
 		if err != nil {
+			targetSpan.SetStatus(codes.Error, err.Error())
+			targetSpan.End()
 			uploadSpan.SetStatus(codes.Error, err.Error())
 			uploadSpan.End()
 			return results, fmt.Errorf("failed to push file: %v", err)
 		}
 		logger.Debugf("completed copying %d bytes", copied)
+		targetSpan.SetStatus(codes.Ok, "completed")
+		targetSpan.End()
 		uploadResult.Filename = targetCleanFilename
 		uploadResult.End = time.Now()
 		results.Uploads = append(results.Uploads, uploadResult)
@@ -217,7 +227,7 @@ func preBackup(ctx context.Context, timestamp, dumpfile, dumpdir, preBackupDir s
 		"DUMPDIR":  dumpdir,
 		"DB_DEBUG": fmt.Sprintf("%v", debug),
 	}
-	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "pre-backup")
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, string(api.BackupSpanPreBackup))
 	defer span.End()
 	return runScripts(ctx, preBackupDir, env)
 }
@@ -230,7 +240,7 @@ func postBackup(ctx context.Context, timestamp, dumpfile, dumpdir, postBackupDir
 		"DUMPDIR":  dumpdir,
 		"DB_DEBUG": fmt.Sprintf("%v", debug),
 	}
-	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "post-backup")
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, string(api.BackupSpanPostBackup))
 	defer span.End()
 	return runScripts(ctx, postBackupDir, env)
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/databacker/api/go/api"
 	"github.com/databacker/mysql-backup/pkg/archive"
 	"github.com/databacker/mysql-backup/pkg/database"
 	"github.com/databacker/mysql-backup/pkg/util"
@@ -23,17 +24,17 @@ const (
 // Restore restore a specific backup into the database
 func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 	tracer := util.GetTracerFromContext(ctx)
-	ctx, span := tracer.Start(ctx, "restore")
+	ctx, span := tracer.Start(ctx, string(api.BackupSpanRestore))
 	defer span.End()
 	logger := e.Logger.WithField("run", opts.Run.String())
 	logger.Level = e.Logger.Level
 
 	logger.Info("beginning restore")
-	_, pullSpan := tracer.Start(ctx, "pull file")
+	_, pullSpan := tracer.Start(ctx, string(api.BackupSpanPullFile))
 	pullSpan.SetAttributes(
-		attribute.String("target", opts.Target.URL()),
-		attribute.String("targetfile", opts.TargetFile),
-		attribute.String("tmpfile", tmpRestoreFile),
+		attribute.String(string(api.BackupAttrTarget), opts.Target.URL()),
+		attribute.String(string(api.BackupAttrTargetFile), opts.TargetFile),
+		attribute.String(string(api.BackupAttrTmpFile), tmpRestoreFile),
 	)
 	copied, err := opts.Target.Pull(ctx, opts.TargetFile, tmpRestoreFile, logger)
 	if err != nil {
@@ -42,7 +43,7 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 		return fmt.Errorf("failed to pull target %s: %v", opts.Target, err)
 	}
 	pullSpan.SetAttributes(
-		attribute.Int64("copied", copied),
+		attribute.Int64(string(api.BackupAttrCopied), copied),
 	)
 	pullSpan.SetStatus(codes.Ok, "completed")
 	pullSpan.End()
@@ -69,7 +70,7 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 	defer func() { _ = os.Remove(tmpRestoreFile) }()
 
 	// create my tar reader to put the files in the directory
-	_, tarSpan := tracer.Start(ctx, "input_tar")
+	_, tarSpan := tracer.Start(ctx, string(api.BackupSpanInputTar))
 	cr, err := opts.Compressor.Uncompress(f)
 	if err != nil {
 		tarSpan.SetStatus(codes.Error, fmt.Sprintf("unable to create an uncompressor: %v", err))
@@ -85,7 +86,7 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 	tarSpan.End()
 
 	// run through each file and apply it
-	dbRestoreCtx, dbRestoreSpan := tracer.Start(ctx, "database_restore")
+	dbRestoreCtx, dbRestoreSpan := tracer.Start(ctx, string(api.BackupSpanDatabaseRestore))
 	files, err := os.ReadDir(tmpdir)
 	if err != nil {
 		dbRestoreSpan.SetStatus(codes.Error, fmt.Sprintf("failed to find extracted files to restore: %v", err))
@@ -109,7 +110,7 @@ func (e *Executor) Restore(ctx context.Context, opts RestoreOptions) error {
 		readers = append(readers, file)
 		fileNames = append(fileNames, f.Name())
 	}
-	dbRestoreSpan.SetAttributes(attribute.StringSlice("files", fileNames))
+	dbRestoreSpan.SetAttributes(attribute.StringSlice(string(api.BackupAttrFiles), fileNames))
 	if err := database.Restore(dbRestoreCtx, opts.DBConn, opts.DatabasesMap, readers); err != nil {
 		dbRestoreSpan.SetStatus(codes.Error, fmt.Sprintf("failed to restore database: %v", err))
 		dbRestoreSpan.End()
@@ -131,7 +132,7 @@ func preRestore(ctx context.Context, target string) error {
 	env := map[string]string{
 		"DB_RESTORE_TARGET": target,
 	}
-	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "pre-restore")
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, string(api.BackupSpanPreRestore))
 	defer span.End()
 	return runScripts(ctx, preRestoreDir, env)
 }
@@ -141,7 +142,7 @@ func postRestore(ctx context.Context, target string) error {
 	env := map[string]string{
 		"DB_RESTORE_TARGET": target,
 	}
-	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, "post-restore")
+	ctx, span := util.GetTracerFromContext(ctx).Start(ctx, string(api.BackupSpanPostRestore))
 	defer span.End()
 	return runScripts(ctx, postRestoreDir, env)
 }
