@@ -50,7 +50,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			// this is the tracer that we will use throughout the entire run
 			tracer := getTracer("dump")
 			ctx = util.ContextWithTracer(ctx, tracer)
-			_, startupSpan := tracer.Start(ctx, "startup")
+			_, startupSpan := tracer.Start(ctx, string(api.BackupSpanStartup))
 			cmdConfig.logger.Debug("starting dump")
 			defer func() {
 				tp := getTracerProvider()
@@ -257,14 +257,14 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 
 			if err := executor.Timer(timerOpts, func() error {
 				// start a new span for the dump, should not be a child of the startup one
-				tracerCtx, dumpSpan := tracer.Start(ctx, "run")
+				tracerCtx, dumpSpan := tracer.Start(ctx, string(api.BackupSpanRun))
 				uid := uuid.New()
 				bytes := int64(0)
 				exitCode := 0
-				backupStatus := "ok"
+				backupStatus := string(api.BackupStatusOK)
 				attrs := []attribute.KeyValue{
-					attribute.String("backup.run_id", uid.String()),
-					attribute.String("db.system", "mysql"),
+					attribute.String(string(api.BackupAttrRunID), uid.String()),
+					attribute.String(string(api.BackupAttrDBSystem), "mysql"),
 				}
 				if cmdConfig.dbconn != nil {
 					transport := "tcp"
@@ -272,21 +272,21 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 						transport = "unix"
 					}
 					attrs = append(attrs,
-						attribute.String("network.transport", transport),
-						attribute.String("server.address", cmdConfig.dbconn.Host),
+						attribute.String(string(api.BackupAttrNetworkTransport), transport),
+						attribute.String(string(api.BackupAttrServerAddress), cmdConfig.dbconn.Host),
 					)
 					if transport == "tcp" && cmdConfig.dbconn.Port > 0 {
-						attrs = append(attrs, attribute.Int("server.port", cmdConfig.dbconn.Port))
+						attrs = append(attrs, attribute.Int(string(api.BackupAttrServerPort), cmdConfig.dbconn.Port))
 					}
 				}
 				dumpSpan.SetAttributes(attrs...)
 				defer func() {
 					attrs := []attribute.KeyValue{
-						attribute.String("backup.status", backupStatus),
-						attribute.Int("backup.exit_code", exitCode),
+						attribute.String(string(api.BackupAttrStatus), backupStatus),
+						attribute.Int(string(api.BackupAttrExitCode), exitCode),
 					}
 					if bytes > 0 {
-						attrs = append(attrs, attribute.Int64("backup.bytes", bytes))
+						attrs = append(attrs, attribute.Int64(string(api.BackupAttrBytes), bytes))
 					}
 					dumpSpan.SetAttributes(attrs...)
 					dumpSpan.End()
@@ -315,7 +315,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 				results, err := executor.Dump(tracerCtx, dumpOpts)
 				if err != nil {
 					exitCode = 1
-					backupStatus = "error"
+					backupStatus = string(api.BackupStatusError)
 					dumpSpan.SetStatus(codes.Error, fmt.Sprintf("error running dump: %v", err))
 					return fmt.Errorf("error running dump: %w", err)
 				}
@@ -323,7 +323,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 				if retention != "" {
 					if err := executor.Prune(tracerCtx, core.PruneOptions{Targets: targets, Retention: retention, Run: uid}); err != nil {
 						exitCode = 1
-						backupStatus = "error"
+						backupStatus = string(api.BackupStatusError)
 						dumpSpan.SetStatus(codes.Error, fmt.Sprintf("error running prune: %v", err))
 						return fmt.Errorf("error running prune: %w", err)
 					}
