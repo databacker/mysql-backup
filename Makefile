@@ -1,4 +1,4 @@
-.PHONY: build push test
+.PHONY: build push test deps
 
 TAG ?= $(shell git log -n 1 --pretty=format:"%H")
 IMAGE ?= databack/mysql-backup
@@ -10,6 +10,10 @@ DIST ?= dist
 GOOS?=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 GOARCH?=$(shell uname -m)
 BIN ?= $(DIST)/mysql-backup-$(GOOS)-$(GOARCH)
+
+API ?= github.com/databacker/api/go/api
+APITAG ?= latest
+
 
 build-docker:
 	docker buildx build -t $(BUILDIMAGE) --platform $(OCIPLATFORMS) .
@@ -62,3 +66,6 @@ clean-test-remove:
 	@echo
 
 clean-test: clean-test-stop clean-test-remove
+
+deps:
+	go get -u $(API)@$(APITAG)
