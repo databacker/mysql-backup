@@ -97,6 +97,17 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	// filter out excluded databases
 	dbnames = filterExcludedDatabases(dbnames, opts.Exclude)
 	span.SetAttributes(attribute.StringSlice(string(api.BackupAttrActualSchemas), dbnames))
+
+	// emit protected target attributes on the dump span now that the actual
+	// database list is known. The identity is built from the configured include/
+	// exclude lists so it is stable regardless of runtime schema discovery.
+	ptMode := BuildSelectionMode(opts.DBNames, opts.Exclude)
+	ptConfiguredDBs := opts.DBNames // include list for include mode
+	if ptMode == api.BackupProtectedTargetSelectionModeExclude {
+		ptConfiguredDBs = opts.Exclude
+	}
+	SetDumpSpanProtectedTargetAttrs(span, ptMode, opts.ServerUUID, ptConfiguredDBs, dbnames)
+
 	for _, s := range dbnames {
 		outFile := path.Join(workdir, fmt.Sprintf("%s_%s.sql", s, timepart))
 		f, err := os.Create(outFile)
@@ -110,6 +121,7 @@ func (e *Executor) Dump(ctx context.Context, opts DumpOptions) (DumpResults, err
 	}
 	results.DumpStart = time.Now()
 	dbDumpCtx, dbDumpSpan := tracer.Start(ctx, string(api.BackupSpanDatabaseDump))
+	SetDumpSpanProtectedTargetAttrs(dbDumpSpan, ptMode, opts.ServerUUID, ptConfiguredDBs, dbnames)
 	if err := database.Dump(dbDumpCtx, dbconn, database.DumpOpts{
 		Compact:             compact,
 		Triggers:            triggers,

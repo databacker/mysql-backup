@@ -33,4 +33,7 @@ type DumpOptions struct {
 	// Parallelism how many databases to back up at once, consuming that number of threads
 	Parallelism  int
 	IgnoreTables []string
+	// ServerUUID is the MySQL server's @@global.server_uuid, used to build the
+	// protected_target.identity span attribute. May be empty if unavailable.
+	ServerUUID string
 }

@@ -255,6 +255,18 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			// done with the startup
 			startupSpan.End()
 
+			// Fetch the MySQL server UUID once before the timer loop for use in
+			// protected-target identity. This is best-effort: if unavailable the
+			// identity will still be deterministic, just without the server UUID.
+			var serverUUID string
+			if cmdConfig.dbconn != nil {
+				if id, err := cmdConfig.dbconn.ServerUUID(); err == nil {
+					serverUUID = id
+				} else {
+					cmdConfig.logger.WithError(err).Debug("could not retrieve MySQL server_uuid; protected target identity will exclude it")
+				}
+			}
+
 			if err := executor.Timer(timerOpts, func() error {
 				// start a new span for the dump, should not be a child of the startup one
 				tracerCtx, dumpSpan := tracer.Start(ctx, string(api.BackupSpanRun))
@@ -280,6 +292,18 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					}
 				}
 				dumpSpan.SetAttributes(attrs...)
+				// Emit configuration-based protected target attributes on the run span.
+				// selection_mode and configured_databases reflect how the engine was
+				// configured; actual databases are emitted later on the dump spans.
+				ptMode := core.BuildSelectionMode(include, exclude)
+				var ptConfiguredDBs []string
+				switch ptMode {
+				case api.BackupProtectedTargetSelectionModeInclude:
+					ptConfiguredDBs = include
+				case api.BackupProtectedTargetSelectionModeExclude:
+					ptConfiguredDBs = exclude
+				}
+				core.SetRunSpanProtectedTargetAttrs(dumpSpan, ptMode, serverUUID, ptConfiguredDBs)
 				defer func() {
 					attrs := []attribute.KeyValue{
 						attribute.String(string(api.BackupAttrStatus), backupStatus),
@@ -311,6 +335,7 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 					FilenamePattern:     filenamePattern,
 					Parallelism:         parallel,
 					IgnoreTables:        ignoreTables,
+					ServerUUID:          serverUUID,
 				}
 				results, err := executor.Dump(tracerCtx, dumpOpts)
 				if err != nil {
