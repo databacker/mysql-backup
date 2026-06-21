@@ -45,7 +45,7 @@ don't want `mysql-backup` to do the scheduling internally.
 
 You can set a cron schedule via:
 
-* Environment variable: `CRON_SCHEDULE=0 * * * *`
+* Environment variable: `DB_DUMP_CRON=0 * * * *`
 * CLI flag: `dump --cron="0 * * * *"`
 * Config file:
 ```yaml
@@ -56,6 +56,9 @@ dump:
 
 The cron dump schedule option uses standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a
 single line.
+
+When cron is configured, `mysql-backup` waits for the next matching cron time. It does not run an
+immediate startup backup and it ignores the frequency and delayed start options.
 
 If a cron-scheduled backup takes longer than the beginning of the next backup window, it will be skipped. For example, if your cron line is scheduled to backup every hour, and the backup that runs at 13:00 finishes at 14:05, the next backup will not be immediate, but rather at 15:00.
 
@@ -75,8 +78,9 @@ You can obtain your local timezone via `cat /etc/timezone`.
 
 If neither run once nor cron is set, then `mysql-backup` will use the frequency and optional delayed start options.
 
-The value for each is minutes. Thus, you can set backup to run every hour by setting the frequency to `60`.
-Similarly, you can delay start by 2 hours by setting the delayed start to `120`.
+The frequency value is in minutes. Thus, you can set backup to run every hour by setting the frequency to `60`.
+For a relative delayed start, prefix the number of minutes with `+`; for example, `+120` delays the
+first backup by 2 hours.
 
 You can set the frequency start via:
 
@@ -91,11 +95,11 @@ dump:
 
 You can set the delayed start via:
 
-* Environment variable: `DB_DUMP_DELAY=120`
-* CLI flag: `dump --delay=120`
+* Environment variable: `DB_DUMP_BEGIN=+120`
+* CLI flag: `dump --begin=+120`
 * Config file:
 ```yaml
 dump:
     schedule:
-        delay: 120
+        begin: "+120"
 ```
