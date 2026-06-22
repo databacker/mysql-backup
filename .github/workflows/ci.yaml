@@ -2,14 +2,10 @@ name: Continuous Integration
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    paths-ignore:
-      - '**/*.md'
   push:
     branches:
      - master
      - main
-    paths-ignore:
-     - '**/*.md'
 
 env:
   IMAGE_NAME: "databack/mysql-backup"
