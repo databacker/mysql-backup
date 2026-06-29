@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
-	imagetypes "github.com/docker/docker/api/types/image"
+	"github.com/moby/moby/client"
 )
 
 func startDatabase(dc *dockerContext, baseDir, image, name string) (containerPort, error) {
-	resp, err := dc.cli.ImagePull(context.Background(), image, imagetypes.PullOptions{})
+	resp, err := dc.cli.ImagePull(context.Background(), image, client.ImagePullOptions{})
 	if err != nil {
 		return containerPort{}, fmt.Errorf("failed to pull mysql image: %v", err)
 	}
