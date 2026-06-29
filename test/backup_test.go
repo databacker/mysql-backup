@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -28,15 +29,13 @@ import (
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
 	dbutil "github.com/databacker/mysql-backup/pkg/util/database"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/build"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/go-connections/nat"
 	"github.com/johannesboyne/gofakes3"
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	mobyarchive "github.com/moby/go-archive"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -151,24 +150,24 @@ func (t backupTarget) LocalPath() string {
 
 // getDockerContext retrieves a Docker context with a prepared client handle
 func getDockerContext() (*dockerContext, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	cli, err := client.New(client.FromEnv)
 	if err != nil {
 		return nil, err
 	}
 	return &dockerContext{cli}, nil
 }
 
-func (d *dockerContext) execInContainer(ctx context.Context, cid string, cmd []string) (types.HijackedResponse, int, error) {
-	execOptions := container.ExecOptions{
+func (d *dockerContext) execInContainer(ctx context.Context, cid string, cmd []string) (client.ExecAttachResult, int, error) {
+	execOptions := client.ExecCreateOptions{
 		AttachStdout: true,
 		AttachStderr: true,
 		Cmd:          cmd,
 	}
-	execResp, err := d.cli.ContainerExecCreate(ctx, cid, execOptions)
+	execResp, err := d.cli.ExecCreate(ctx, cid, execOptions)
 	if err != nil {
-		return types.HijackedResponse{}, 0, fmt.Errorf("failed to create exec: %w", err)
+		return client.ExecAttachResult{}, 0, fmt.Errorf("failed to create exec: %w", err)
 	}
-	attachResp, err := d.cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	attachResp, err := d.cli.ExecAttach(ctx, execResp.ID, client.ExecAttachOptions{})
 	if err != nil {
 		return attachResp, 0, fmt.Errorf("failed to attach to exec: %w", err)
 	}
@@ -176,10 +175,10 @@ func (d *dockerContext) execInContainer(ctx context.Context, cid string, cmd []s
 		retryMax   = 20
 		retrySleep = 1
 		success    bool
-		inspect    container.ExecInspect
+		inspect    client.ExecInspectResult
 	)
 	for i := 0; i < retryMax; i++ {
-		inspect, err = d.cli.ContainerExecInspect(ctx, execResp.ID)
+		inspect, err = d.cli.ExecInspect(ctx, execResp.ID, client.ExecInspectOptions{})
 		if err != nil {
 			return attachResp, 0, fmt.Errorf("failed to inspect exec: %w", err)
 		}
@@ -257,22 +256,33 @@ func (d *dockerContext) startContainer(image, name, portMap string, binds []stri
 	hostConfig := &container.HostConfig{
 		Binds: binds,
 	}
-	var containerPort nat.Port
+	var containerPort network.Port
 	if portMap != "" {
-		containerPort = nat.Port(portMap)
-		containerConfig.ExposedPorts = nat.PortSet{
+		containerPort, err = network.ParsePort(portMap)
+		if err != nil {
+			return "", 0, fmt.Errorf("invalid container port %q: %w", portMap, err)
+		}
+		containerConfig.ExposedPorts = network.PortSet{
 			containerPort: struct{}{},
 		}
-		hostConfig.PortBindings = nat.PortMap{
-			containerPort: []nat.PortBinding{{HostIP: "0.0.0.0", HostPort: ""}},
+		hostIP, err := netip.ParseAddr("0.0.0.0")
+		if err != nil {
+			return "", 0, fmt.Errorf("invalid host IP: %w", err)
+		}
+		hostConfig.PortBindings = network.PortMap{
+			containerPort: []network.PortBinding{{HostIP: hostIP, HostPort: ""}},
 		}
 	}
-	resp, err := d.cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, name)
+	resp, err := d.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
+		Config:     containerConfig,
+		HostConfig: hostConfig,
+		Name:       name,
+	})
 	if err != nil {
 		return
 	}
 	cid = resp.ID
-	err = d.cli.ContainerStart(ctx, cid, container.StartOptions{})
+	_, err = d.cli.ContainerStart(ctx, cid, client.ContainerStartOptions{})
 	if err != nil {
 		return
 	}
@@ -284,17 +294,17 @@ func (d *dockerContext) startContainer(image, name, portMap string, binds []stri
 	var (
 		maxRetries = 3
 		delay      = 500 * time.Millisecond
-		inspect    container.InspectResponse
+		inspect    client.ContainerInspectResult
 	)
 	for i := 0; i < maxRetries; i++ {
 		// Inspect the container
-		inspect, err = d.cli.ContainerInspect(ctx, cid)
+		inspect, err = d.cli.ContainerInspect(ctx, cid, client.ContainerInspectOptions{})
 		if err != nil {
 			return
 		}
 
 		// Check the desired status
-		if inspect.State.Running && len(inspect.NetworkSettings.Ports[containerPort]) > 0 {
+		if inspect.Container.State.Running && len(inspect.Container.NetworkSettings.Ports[containerPort]) > 0 {
 			break
 		}
 
@@ -302,11 +312,11 @@ func (d *dockerContext) startContainer(image, name, portMap string, binds []stri
 		time.Sleep(delay)
 	}
 
-	if len(inspect.NetworkSettings.Ports[containerPort]) == 0 {
+	if len(inspect.Container.NetworkSettings.Ports[containerPort]) == 0 {
 		err = fmt.Errorf("no port mapping found for container %s %s port %s", cid, name, containerPort)
 		return
 	}
-	portStr := inspect.NetworkSettings.Ports[containerPort][0].HostPort
+	portStr := inspect.Container.NetworkSettings.Ports[containerPort][0].HostPort
 	port, err = strconv.Atoi(portStr)
 
 	return
@@ -316,7 +326,7 @@ func (d *dockerContext) makeSMB(smbImage string) error {
 	ctx := context.Background()
 
 	// Build the smbImage
-	buildSMBImageOpts := build.ImageBuildOptions{
+	buildSMBImageOpts := client.ImageBuildOptions{
 		Context: nil,
 		Tags:    []string{smbImage},
 		Remove:  true,
@@ -459,7 +469,7 @@ DELIMITER ;
 func (d *dockerContext) logContainers(cids ...string) error {
 	ctx := context.Background()
 	for _, cid := range cids {
-		logOptions := container.LogsOptions{
+		logOptions := client.ContainerLogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
 		}
@@ -481,15 +491,17 @@ func (d *dockerContext) logContainers(cids ...string) error {
 func (d *dockerContext) rmContainers(cids ...string) error {
 	ctx := context.Background()
 	for _, cid := range cids {
-		if err := d.cli.ContainerKill(ctx, cid, "SIGKILL"); err != nil {
+		if _, err := d.cli.ContainerKill(ctx, cid, client.ContainerKillOptions{
+			Signal: "SIGKILL",
+		}); err != nil {
 			return fmt.Errorf("failed to kill container %s: %w", cid, err)
 		}
 
-		rmOpts := container.RemoveOptions{
+		rmOpts := client.ContainerRemoveOptions{
 			RemoveVolumes: true,
 			Force:         true,
 		}
-		if err := d.cli.ContainerRemove(ctx, cid, rmOpts); err != nil {
+		if _, err := d.cli.ContainerRemove(ctx, cid, rmOpts); err != nil {
 			return fmt.Errorf("failed to remove container %s: %w", cid, err)
 		}
 	}
