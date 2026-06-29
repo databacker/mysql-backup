@@ -2,6 +2,8 @@ module github.com/databacker/mysql-backup
 
 go 1.25.0
 
+require	github.com/databacker/api v1.7.0
+
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.6
 	github.com/aws/aws-sdk-go-v2/config v1.28.1
@@ -31,7 +33,6 @@ require (
 	filippo.io/age v1.2.1
 	github.com/InfiniteLoopSpace/go_S-MIME v0.0.0-20181221134359-3f58f9a4b2b6
 	github.com/bramvdbogaerde/go-scp v1.5.0
-	github.com/databacker/api/go/api v0.0.0-20260603135428-161b2ee82911
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/google/go-cmp v0.7.0
 	github.com/kevinburke/ssh_config v1.2.0

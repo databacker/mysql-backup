@@ -11,7 +11,7 @@ GOOS?=$(shell uname -s | tr '[:upper:]' '[:lower:]')
 GOARCH?=$(shell uname -m)
 BIN ?= $(DIST)/mysql-backup-$(GOOS)-$(GOARCH)
 
-API ?= github.com/databacker/api/go/api
+API ?= github.com/databacker/api
 APITAG ?= latest
 
 
