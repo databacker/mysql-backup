@@ -49,15 +49,15 @@ To run a backup, launch `mysql-backup` - as a container or as a binary - with th
 For example:
 
 ````bash
-docker run -d --restart=always -e DB_DUMP_FREQUENCY=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/local/file/path -e DB_SERVER=my-db-address -v /local/file/path:/db databack/mysql-backup dump
+docker run -d --restart=always -e DB_DUMP_FREQUENCY=60 -e DB_DUMP_BEGIN=2330Z -e DB_DUMP_TARGET=/local/file/path -e DB_SERVER=my-db-address -v /local/file/path:/db databack/mysql-backup dump
 
 # or
 
-mysql-backup dump --frequency=60 --begin=2330 --target=/local/file/path --server=my-db-address
+mysql-backup dump --frequency=60 --begin=2330Z --target=/local/file/path --server=my-db-address
 
 # or to connect to a local mysqld via the unix domain socket as the current user
 
-mysql-backup dump --frequency=60 --begin=2330 --target=/local/file/path --server=/run/mysqld/mysqld.sock
+mysql-backup dump --frequency=60 --begin=2330Z --target=/local/file/path --server=/run/mysqld/mysqld.sock
 ````
 
 Or `mysql-backup --config-file=/path/to/config/file.yaml` where `/path/to/config/file.yaml` is a file
@@ -71,14 +71,14 @@ dump:
   target: /local/file/path
 ```
 
-The above will run a dump every 60 minutes, beginning at the next 2330 local time, from the database accessible in the container `my-db-address`.
+The command and environment-variable examples run a dump every 60 minutes, beginning at the next 23:30 local time. The config-file example uses the legacy zoneless form, which is interpreted as UTC.
 
 ````bash
-docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQUENCY=60 -e DB_DUMP_BEGIN=2330 -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-address -v /local/file/path:/db databack/mysql-backup dump
+docker run -d --restart=always -e DB_USER=user123 -e DB_PASS=pass123 -e DB_DUMP_FREQUENCY=60 -e DB_DUMP_BEGIN=2330Z -e DB_DUMP_TARGET=/db -e DB_SERVER=my-db-address -v /local/file/path:/db databack/mysql-backup dump
 
 # or
 
-mysql-backup dump --user=user123 --pass=pass123 --frequency=60 --begin=2330 --target=/local/file/path --server=my-db-address --port=3306
+mysql-backup dump --user=user123 --pass=pass123 --frequency=60 --begin=2330Z --target=/local/file/path --server=my-db-address --port=3306
 ````
 
 See [backup](./docs/backup.md) for a more detailed description of performing backups.
