@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -461,20 +462,65 @@ func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) (core.TimerOption
 	if begin != "" && !strings.HasPrefix(begin, "+") {
 		var parsed time.Time
 		var err error
-		if strings.HasSuffix(begin, "@local") {
-			parsed, err = time.Parse("1504", strings.TrimSuffix(begin, "@local"))
-			if err == nil {
-				now := time.Now().In(time.Local)
-				local := time.Date(now.Year(), now.Month(), now.Day(), parsed.Hour(), parsed.Minute(), 0, 0, time.Local)
-				if !local.After(now) {
-					local = local.AddDate(0, 0, 1)
+		clock, zoneName, hasZoneName := strings.Cut(begin, "@")
+		switch {
+		case hasZoneName:
+			parsed, err = func() (time.Time, error) {
+				clockTime, err := time.Parse("1504", clock)
+				if err != nil {
+					return time.Time{}, err
 				}
-				parsed = local
-			}
-		} else if len(begin) == 4 {
+
+				var location *time.Location
+				switch zoneName {
+				case "local":
+					location = time.Local
+				default:
+					location, err = time.LoadLocation(zoneName)
+					if err != nil {
+						return time.Time{}, err
+					}
+				}
+
+				now := time.Now()
+				localNow := now.In(location)
+				requestedHour := clockTime.Hour()
+				requestedMinuteOfHour := clockTime.Minute()
+				requestedMinute := requestedHour*60 + requestedMinuteOfHour
+				currentMinute := localNow.Hour()*60 + localNow.Minute()
+
+				// Search actual instants rather than relying on time.Date so DST
+				// overlaps select the earliest future occurrence, and DST gaps
+				// can be detected rather than silently normalized.
+				findOccurrence := func(year int, month time.Month, day int) (time.Time, bool) {
+					anchor := time.Date(year, month, day, 12, 0, 0, 0, time.UTC)
+					for candidate := anchor.Add(-30 * time.Hour); !candidate.After(anchor.Add(30 * time.Hour)); candidate = candidate.Add(time.Minute) {
+						wall := candidate.In(location)
+						if wall.Year() == year && wall.Month() == month && wall.Day() == day &&
+							wall.Hour() == requestedHour && wall.Minute() == requestedMinuteOfHour && candidate.After(now) {
+							return candidate, true
+						}
+					}
+					return time.Time{}, false
+				}
+
+				if occurrence, found := findOccurrence(localNow.Year(), localNow.Month(), localNow.Day()); found {
+					return occurrence, nil
+				}
+				if requestedMinute > currentMinute {
+					return time.Time{}, fmt.Errorf("time %s does not exist today in timezone %s", clock, zoneName)
+				}
+
+				tomorrow := localNow.AddDate(0, 0, 1)
+				if occurrence, found := findOccurrence(tomorrow.Year(), tomorrow.Month(), tomorrow.Day()); found {
+					return occurrence, nil
+				}
+				return time.Time{}, fmt.Errorf("time %s does not exist tomorrow in timezone %s", clock, zoneName)
+			}()
+		case len(begin) == 4:
 			// Preserve the legacy behavior: an absolute time without a zone is UTC.
 			parsed, err = time.Parse("1504", begin)
-		} else {
+		default:
 			parsed, err = time.Parse("1504Z07:00", begin)
 		}
 		if err != nil {

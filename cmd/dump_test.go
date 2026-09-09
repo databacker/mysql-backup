@@ -33,6 +33,7 @@ func TestParseTimerOptionsBegin(t *testing.T) {
 		{name: "invalid hour", begin: "2500Z", wantError: true},
 		{name: "invalid offset", begin: "0400+25:00", wantError: true},
 		{name: "invalid local time", begin: "2500@local", wantError: true},
+		{name: "unknown timezone", begin: "0400@Not/A_Real_Zone", wantError: true},
 		{name: "invalid suffix", begin: "0400UTC", wantError: true},
 	}
 
@@ -75,6 +76,34 @@ func TestParseTimerOptionsLocalBegin(t *testing.T) {
 	}
 	if expected := local.UTC().Format("1504"); options.Begin != expected {
 		t.Errorf("parseTimerOptions() Begin = %q, want %q", options.Begin, expected)
+	}
+}
+
+func TestParseTimerOptionsNamedTimezoneBegin(t *testing.T) {
+	t.Parallel()
+
+	for _, zoneName := range []string{"America/New_York", "Asia/Jerusalem", "Asia/Kathmandu", "Pacific/Kiritimati"} {
+		t.Run(zoneName, func(t *testing.T) {
+			location, err := time.LoadLocation(zoneName)
+			if err != nil {
+				t.Fatalf("time.LoadLocation(%q) error = %v", zoneName, err)
+			}
+			now := time.Now().In(location)
+			local := time.Date(now.Year(), now.Month(), now.Day(), 4, 0, 0, 0, location)
+			if !local.After(now) {
+				local = local.AddDate(0, 0, 1)
+			}
+
+			v := viper.New()
+			v.Set("begin", "0400@"+zoneName)
+			options, err := parseTimerOptions(v, nil)
+			if err != nil {
+				t.Fatalf("parseTimerOptions() error = %v", err)
+			}
+			if expected := local.UTC().Format("1504"); options.Begin != expected {
+				t.Errorf("parseTimerOptions() Begin = %q, want %q", options.Begin, expected)
+			}
+		})
 	}
 }
 
