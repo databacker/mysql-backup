@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -240,7 +241,10 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			}
 
 			// timer options
-			timerOpts := parseTimerOptions(v, cmdConfig.configuration)
+			timerOpts, err := parseTimerOptions(v, cmdConfig.configuration)
+			if err != nil {
+				return err
+			}
 
 			var executor execs
 			executor = &core.Executor{}
@@ -391,7 +395,7 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	flags.Int("frequency", defaultFrequency, "how often to run backups, in minutes")
 
 	// begin
-	flags.String("begin", defaultBegin, "What time to do the first dump. Must be in one of two formats: Absolute: HHMM, e.g. `2330` or `0415`; or Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half")
+	flags.String("begin", defaultBegin, "What time to do the first dump. Absolute times may be UTC (`0400` or `0400Z`) or include a UTC offset (`0400+08:00`). A zoneless time is interpreted as UTC. Relative times use +MM, i.e. minutes after starting the container, such as `+0`, `+10`, or `+90`")
 
 	// cron
 	flags.String("cron", "", "Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.")
@@ -444,7 +448,7 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	return cmd, nil
 }
 
-func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) core.TimerOptions {
+func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) (core.TimerOptions, error) {
 	var scheduleConfig *api.Schedule
 	if config != nil {
 		dumpConfig := config.Dump
@@ -464,6 +468,20 @@ func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) core.TimerOptions
 	if begin == "" && scheduleConfig != nil && scheduleConfig.Begin != nil {
 		begin = fmt.Sprintf("%d", *scheduleConfig.Begin)
 	}
+	if begin != "" && !strings.HasPrefix(begin, "+") {
+		var parsed time.Time
+		var err error
+		if len(begin) == 4 {
+			// Preserve the legacy behavior: an absolute time without a zone is UTC.
+			parsed, err = time.Parse("1504", begin)
+		} else {
+			parsed, err = time.Parse("1504Z07:00", begin)
+		}
+		if err != nil {
+			return core.TimerOptions{}, fmt.Errorf("invalid begin option %q: %w", begin, err)
+		}
+		begin = parsed.UTC().Format("1504")
+	}
 	frequency := v.GetInt("frequency")
 	if frequency == 0 && scheduleConfig != nil && scheduleConfig.Frequency != nil {
 		frequency = *scheduleConfig.Frequency
@@ -473,7 +491,7 @@ func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) core.TimerOptions
 		Cron:      cron,
 		Begin:     begin,
 		Frequency: frequency,
-	}
+	}, nil
 
 }
 

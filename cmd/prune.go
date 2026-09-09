@@ -59,7 +59,10 @@ func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, e
 			}
 
 			// timer options
-			timerOpts := parseTimerOptions(v, cmdConfig.configuration)
+			timerOpts, err := parseTimerOptions(v, cmdConfig.configuration)
+			if err != nil {
+				return err
+			}
 
 			var executor execs
 			executor = &core.Executor{}
@@ -96,7 +99,7 @@ func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, e
 	flags.Int("frequency", defaultFrequency, "how often to run prunes, in minutes")
 
 	// begin
-	flags.String("begin", defaultBegin, "What time to do the first prune. Must be in one of two formats: Absolute: HHMM, e.g. `2330` or `0415`; or Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half")
+	flags.String("begin", defaultBegin, "What time to do the first prune. Absolute times may be UTC (`0400` or `0400Z`) or include a UTC offset (`0400+08:00`). A zoneless time is interpreted as UTC. Relative times use +MM, i.e. minutes after starting the container, such as `+0`, `+10`, or `+90`")
 
 	// cron
 	flags.String("cron", "", "Set the prune schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.")

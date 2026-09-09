@@ -11,8 +11,50 @@ import (
 	"github.com/databacker/mysql-backup/pkg/storage"
 	"github.com/databacker/mysql-backup/pkg/storage/file"
 	"github.com/go-test/deep"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
 )
+
+func TestParseTimerOptionsBegin(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		begin     string
+		expected  string
+		wantError bool
+	}{
+		{name: "relative time", begin: "+25", expected: "+25"},
+		{name: "legacy implicit UTC", begin: "0400", expected: "0400"},
+		{name: "explicit UTC", begin: "0400Z", expected: "0400"},
+		{name: "positive offset crossing midnight", begin: "0400+08:00", expected: "2000"},
+		{name: "negative offset", begin: "0400-05:30", expected: "0930"},
+		{name: "invalid hour", begin: "2500Z", wantError: true},
+		{name: "invalid offset", begin: "0400+25:00", wantError: true},
+		{name: "invalid suffix", begin: "0400UTC", wantError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v := viper.New()
+			v.Set("begin", tt.begin)
+
+			options, err := parseTimerOptions(v, nil)
+			if tt.wantError {
+				if err == nil {
+					t.Fatalf("parseTimerOptions() error = nil, want an error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseTimerOptions() error = %v", err)
+			}
+			if options.Begin != tt.expected {
+				t.Errorf("parseTimerOptions() Begin = %q, want %q", options.Begin, tt.expected)
+			}
+		})
+	}
+}
 
 func TestDumpCmd(t *testing.T) {
 	t.Parallel()
