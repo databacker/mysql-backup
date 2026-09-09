@@ -95,17 +95,7 @@ func pruneCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, e
 	// retention
 	flags.String("retention", "", "Retention period for backups. REQUIRED. Can be number of backups or time-based. For time-based, the format is: 1d, 1w, 1m, 1y for days, weeks, months, years, respectively. For number-based, the format is: 1c, 2c, 3c, etc. for the count of backups to keep.")
 
-	// frequency
-	flags.Int("frequency", defaultFrequency, "how often to run prunes, in minutes")
-
-	// begin
-	flags.String("begin", defaultBegin, "What time to do the first prune. Absolute times may be UTC (`0400` or `0400Z`) or include a UTC offset (`0400+08:00`). A zoneless time is interpreted as UTC. Relative times use +MM, i.e. minutes after starting the container, such as `+0`, `+10`, or `+90`")
-
-	// cron
-	flags.String("cron", "", "Set the prune schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.")
-
-	// once
-	flags.Bool("once", false, "Override all other settings and run the prune once immediately and exit. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally.")
+	addTimerFlags(flags)
 
 	return cmd, nil
 }
