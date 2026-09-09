@@ -7,7 +7,7 @@ func addTimerFlags(flags *pflag.FlagSet) {
 	flags.Int("frequency", defaultFrequency, "how often to run, in minutes")
 
 	// begin
-	flags.String("begin", defaultBegin, "What time to do the first run, as absolute or relative time. Absolute times may be UTC (`0400Z`) or include a UTC offset (`0400+08:00`). Relative times use +MM, i.e. minutes after starting the container, such as `+0`, `+10`, or `+90`. A zoneless time (`0400`) is legacy and should not be used, but is interpreted as UTC.")
+	flags.String("begin", defaultBegin, "What time to do the first run, as absolute or relative time. Absolute times may be UTC (`0400Z`), include a UTC offset (`0400+08:00`), or use the platform's local timezone (`0400@local`). Relative times use +MM, i.e. minutes after starting the run, such as `+0`, `+10`, or `+90`. A zoneless time (`0400`) is legacy and should not be used, but is interpreted as UTC.")
 
 	// cron
 	flags.String("cron", "", "Set the run schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.")

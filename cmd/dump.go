@@ -461,7 +461,17 @@ func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) (core.TimerOption
 	if begin != "" && !strings.HasPrefix(begin, "+") {
 		var parsed time.Time
 		var err error
-		if len(begin) == 4 {
+		if strings.HasSuffix(begin, "@local") {
+			parsed, err = time.Parse("1504", strings.TrimSuffix(begin, "@local"))
+			if err == nil {
+				now := time.Now().In(time.Local)
+				local := time.Date(now.Year(), now.Month(), now.Day(), parsed.Hour(), parsed.Minute(), 0, 0, time.Local)
+				if !local.After(now) {
+					local = local.AddDate(0, 0, 1)
+				}
+				parsed = local
+			}
+		} else if len(begin) == 4 {
 			// Preserve the legacy behavior: an absolute time without a zone is UTC.
 			parsed, err = time.Parse("1504", begin)
 		} else {
