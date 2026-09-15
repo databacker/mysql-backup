@@ -82,6 +82,17 @@ The frequency value is in minutes. Thus, you can set backup to run every hour by
 For a relative delayed start, prefix the number of minutes with `+`; for example, `+120` delays the
 first backup by 2 hours.
 
+An absolute delayed start uses a four-digit 24-hour time followed by its timezone:
+
+* `0400Z` means 04:00 UTC.
+* `0400+08:00` means 04:00 at a fixed UTC+08:00 offset.
+* `0400@local` means 04:00 in the timezone of the computer or container. The local timezone is
+  obtained from the `TZ` environment variable or the platform timezone configuration.
+* `0400@America/New_York` means 04:00 in the named IANA timezone, including daylight-saving rules.
+
+A zoneless value such as `0400` continues to mean UTC for compatibility with existing deployments,
+but is considered legacy. Prefer an explicit `Z`, offset, `@local`, or IANA timezone.
+
 You can set the frequency start via:
 
 * Environment variable: `DB_DUMP_FREQUENCY=60`
@@ -103,3 +114,13 @@ dump:
     schedule:
         begin: "+120"
 ```
+
+For example, to begin at the next 04:00 in New York:
+
+```bash
+mysql-backup dump --frequency=1440 --begin=0400@America/New_York
+```
+
+`begin` determines the first run. Later runs use the configured frequency as an elapsed number of
+minutes. Consequently, a frequency of 1440 may shift by one local hour after a daylight-saving
+transition; use a timezone-aware cron schedule when every run must remain at the same local time.

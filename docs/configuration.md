@@ -75,7 +75,7 @@ The following are the environment variables, CLI flags and configuration file op
 | Replace single long INSERT statement per table with one INSERT statement per line | B | `skip-extended-insert` | `DB_DUMP_SKIP_EXTENDED_INSERT` | `dump.skipExtendedInsert` | `false` |
 | restore to a specific database | R | `restore --database` | `RESTORE_DATABASE` | `restore.database` |  |
 | how often to do a dump or prune, in minutes | BP | `dump --frequency` | `DB_DUMP_FREQUENCY` | `dump.schedule.frequency` | `1440` (in minutes), i.e. once per day |
-| what time to do the first dump or prune | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `0`, i.e. immediately |
+| what time to do the first dump or prune; see [scheduling](./scheduling.md#frequency-and-delayed-start) | BP | `dump --begin` | `DB_DUMP_BEGIN` | `dump.schedule.begin` | `+0`, i.e. immediately |
 | cron schedule for dumps or prunes | BP | `dump --cron` | `DB_DUMP_CRON` | `dump.schedule.cron` |  |
 | run the backup or prune a single time and exit | BP | `dump --once` | `DB_DUMP_ONCE` | `dump.schedule.once` | `false` |
 | enable debug logging | BRP | `debug` | `DB_DEBUG` | `logging` | `false` |
@@ -135,7 +135,7 @@ for details of each.
   * `noDatabaseName`: boolean, remove `USE <database>` from dumpfile
   * `schedule`: the schedule configuration
     * `frequency`: int, the frequency of the schedule in minutes
-    * `begin`: int, the time to begin the schedule in minutes from start of process
+    * `begin`: int, the time to begin the schedule in minutes from start of process. The CLI flag and environment variable also accept the absolute-time formats described in [scheduling](./scheduling.md#frequency-and-delayed-start).
     * `cron`: string, the cron schedule
     * `once`: boolean, run once and exit
   * `compression`: string, the compression to use

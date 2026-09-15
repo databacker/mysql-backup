@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
+	_ "time/tzdata"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -240,7 +242,10 @@ func dumpCmd(passedExecs execs, cmdConfig *cmdConfiguration) (*cobra.Command, er
 			}
 
 			// timer options
-			timerOpts := parseTimerOptions(v, cmdConfig.configuration)
+			timerOpts, err := parseTimerOptions(v, cmdConfig.configuration)
+			if err != nil {
+				return err
+			}
 
 			var executor execs
 			executor = &core.Executor{}
@@ -387,17 +392,7 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	// skip extended insert in dump; instead, one INSERT per record in each table
 	flags.Bool("skip-extended-insert", false, "Skip extended insert in dump; instead, one INSERT per record in each table.")
 
-	// frequency
-	flags.Int("frequency", defaultFrequency, "how often to run backups, in minutes")
-
-	// begin
-	flags.String("begin", defaultBegin, "What time to do the first dump. Must be in one of two formats: Absolute: HHMM, e.g. `2330` or `0415`; or Relative: +MM, i.e. how many minutes after starting the container, e.g. `+0` (immediate), `+10` (in 10 minutes), or `+90` in an hour and a half")
-
-	// cron
-	flags.String("cron", "", "Set the dump schedule using standard [crontab syntax](https://en.wikipedia.org/wiki/Cron), a single line.")
-
-	// once
-	flags.Bool("once", false, "Override all other settings and run the dump once immediately and exit. Useful if you use an external scheduler (e.g. as part of an orchestration solution like Cattle or Docker Swarm or [kubernetes cron jobs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)) and don't want the container to do the scheduling internally.")
+	addTimerFlags(flags)
 
 	// parallelism - how many databases (and therefore connections) to back up at once
 	flags.Int("parallelism", 1, "How many databases to back up in parallel.")
@@ -444,7 +439,7 @@ S3: If it is a URL of the format s3://bucketname/path then it will connect via S
 	return cmd, nil
 }
 
-func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) core.TimerOptions {
+func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) (core.TimerOptions, error) {
 	var scheduleConfig *api.Schedule
 	if config != nil {
 		dumpConfig := config.Dump
@@ -464,6 +459,75 @@ func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) core.TimerOptions
 	if begin == "" && scheduleConfig != nil && scheduleConfig.Begin != nil {
 		begin = fmt.Sprintf("%d", *scheduleConfig.Begin)
 	}
+	if begin != "" && !strings.HasPrefix(begin, "+") {
+		var parsed time.Time
+		var err error
+		clock, zoneName, hasZoneName := strings.Cut(begin, "@")
+		switch {
+		case hasZoneName:
+			parsed, err = func() (time.Time, error) {
+				clockTime, err := time.Parse("1504", clock)
+				if err != nil {
+					return time.Time{}, err
+				}
+
+				var location *time.Location
+				switch zoneName {
+				case "local":
+					location = time.Local
+				default:
+					location, err = time.LoadLocation(zoneName)
+					if err != nil {
+						return time.Time{}, err
+					}
+				}
+
+				now := time.Now()
+				localNow := now.In(location)
+				requestedHour := clockTime.Hour()
+				requestedMinuteOfHour := clockTime.Minute()
+				requestedMinute := requestedHour*60 + requestedMinuteOfHour
+				currentMinute := localNow.Hour()*60 + localNow.Minute()
+
+				// Search actual instants rather than relying on time.Date so DST
+				// overlaps select the earliest future occurrence, and DST gaps
+				// can be detected rather than silently normalized.
+				findOccurrence := func(year int, month time.Month, day int) (time.Time, bool) {
+					anchor := time.Date(year, month, day, 12, 0, 0, 0, time.UTC)
+					for candidate := anchor.Add(-30 * time.Hour); !candidate.After(anchor.Add(30 * time.Hour)); candidate = candidate.Add(time.Minute) {
+						wall := candidate.In(location)
+						if wall.Year() == year && wall.Month() == month && wall.Day() == day &&
+							wall.Hour() == requestedHour && wall.Minute() == requestedMinuteOfHour && candidate.After(now) {
+							return candidate, true
+						}
+					}
+					return time.Time{}, false
+				}
+
+				if occurrence, found := findOccurrence(localNow.Year(), localNow.Month(), localNow.Day()); found {
+					return occurrence, nil
+				}
+				if requestedMinute > currentMinute {
+					return time.Time{}, fmt.Errorf("time %s does not exist today in timezone %s", clock, zoneName)
+				}
+
+				tomorrow := localNow.AddDate(0, 0, 1)
+				if occurrence, found := findOccurrence(tomorrow.Year(), tomorrow.Month(), tomorrow.Day()); found {
+					return occurrence, nil
+				}
+				return time.Time{}, fmt.Errorf("time %s does not exist tomorrow in timezone %s", clock, zoneName)
+			}()
+		case len(begin) == 4:
+			// Preserve the legacy behavior: an absolute time without a zone is UTC.
+			parsed, err = time.Parse("1504", begin)
+		default:
+			parsed, err = time.Parse("1504Z07:00", begin)
+		}
+		if err != nil {
+			return core.TimerOptions{}, fmt.Errorf("invalid begin option %q: %w", begin, err)
+		}
+		begin = parsed.UTC().Format("1504")
+	}
 	frequency := v.GetInt("frequency")
 	if frequency == 0 && scheduleConfig != nil && scheduleConfig.Frequency != nil {
 		frequency = *scheduleConfig.Frequency
@@ -473,7 +537,7 @@ func parseTimerOptions(v *viper.Viper, config *api.ConfigSpec) core.TimerOptions
 		Cron:      cron,
 		Begin:     begin,
 		Frequency: frequency,
-	}
+	}, nil
 
 }
 
