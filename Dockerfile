@@ -1,5 +1,8 @@
+ARG GOVERSION=1.26.4
+ARG GOBASE=alpine3.23
+
 # mysql backup image
-FROM golang:1.25.0-alpine3.21 AS build
+FROM golang:${GOVERSION}-${GOBASE} AS build
 
 COPY . /src/mysql-backup
 WORKDIR /src/mysql-backup

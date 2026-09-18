@@ -54,12 +54,14 @@ jobs:
     - name: checkout
       uses: actions/checkout@v6
     - uses: actions/setup-go@v6
+      id: setup-go
       with:
         go-version-file: 'go.mod'
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
+      uses: golangci/golangci-lint-action@v9
       with:
-        version: v2.6.0
+        version: v2.13.2
+        args: --verbose
     - name: Build
       run: go build -o dist/mysql-backup -v .
     - name: vet
@@ -78,5 +80,7 @@ jobs:
       with:
         push: false
         platforms: linux/amd64,linux/arm64
+        build-args: |
+          GOVERSION=${{ steps.setup-go.outputs.go-version }}
         tags: |
           ${{env.IMAGE_NAME}}:${{github.sha}}
