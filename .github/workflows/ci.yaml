@@ -58,9 +58,10 @@ jobs:
       with:
         go-version-file: 'go.mod'
     - name: golangci-lint
-      uses: golangci/golangci-lint-action@v8
+      uses: golangci/golangci-lint-action@v9
       with:
-        version: v2.6.0
+        version: v2.13.2
+        args: --verbose
     - name: Build
       run: go build -o dist/mysql-backup -v .
     - name: vet
