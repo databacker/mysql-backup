@@ -133,6 +133,16 @@ func (i *Identity) ConfigurationKeyID(generation uint64) (string, error) {
 	return keyID("config", configurationIDDomain, generation, key.PublicKey().Bytes()), nil
 }
 
+// ConfigurationPublicKey returns a copy of the requested active or retained
+// raw X25519 public key.
+func (i *Identity) ConfigurationPublicKey(generation uint64) ([]byte, error) {
+	key, err := i.ConfigurationPrivateKey(generation)
+	if err != nil {
+		return nil, err
+	}
+	return append([]byte(nil), key.PublicKey().Bytes()...), nil
+}
+
 func (i *Identity) authenticationPrivateKey() ed25519.PrivateKey {
 	seed, err := i.derive(authenticationInfo, i.authenticationGen)
 	if err != nil {
