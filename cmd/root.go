@@ -35,7 +35,7 @@ type execs interface {
 
 type subCommand func(execs, *cmdConfiguration) (*cobra.Command, error)
 
-var subCommands = []subCommand{dumpCmd, restoreCmd, pruneCmd}
+var subCommands = []subCommand{dumpCmd, restoreCmd, pruneCmd, configCmd}
 
 type cmdConfiguration struct {
 	dbconn        *database.Connection

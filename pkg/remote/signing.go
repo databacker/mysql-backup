@@ -19,9 +19,10 @@ import (
 )
 
 const (
-	signatureLabel = "databacker-engine"
-	signatureTag   = "databacker-engine-v1"
-	defaultMaxBody = 8 << 20
+	signatureLabel  = "databacker-engine"
+	signatureTag    = "databacker-engine-v1"
+	registrationTag = "databacker-engine-registration-v1"
+	defaultMaxBody  = 8 << 20
 )
 
 // EngineRoute is a self-only southbound API route. The authenticated signing
@@ -121,19 +122,75 @@ func (transport *SigningTransport) RoundTrip(request *http.Request) (*http.Respo
 		signed.Header.Set("Content-Digest", "sha-256=:"+base64.StdEncoding.EncodeToString(digest[:])+":")
 	}
 
-	now := time.Now
-	if transport.Now != nil {
-		now = transport.Now
+	now := transport.Now
+	if now == nil {
+		now = time.Now
 	}
-	random := io.Reader(rand.Reader)
-	if transport.Random != nil {
-		random = transport.Random
+	random := transport.Random
+	if random == nil {
+		random = rand.Reader
 	}
+	if err := applySignature(signed, transport.Identity, hasBody, signatureTag, now(), random); err != nil {
+		return nil, err
+	}
+
+	return transport.Base.RoundTrip(signed)
+}
+
+// SignRegistrationRequest applies the registration proof profile to a POST or
+// PATCH request. The caller must transmit the same request body and headers.
+func SignRegistrationRequest(request *http.Request, engineIdentity *identity.Identity) error {
+	return signRegistrationRequest(request, engineIdentity, time.Now(), rand.Reader)
+}
+
+func signRegistrationRequest(request *http.Request, engineIdentity *identity.Identity, now time.Time, random io.Reader) error {
+	if request == nil || request.URL == nil || request.URL.Host == "" || request.URL.Scheme != "http" && request.URL.Scheme != "https" {
+		return errors.New("registration proof requires an absolute HTTP or HTTPS URL")
+	}
+	if engineIdentity == nil {
+		return errors.New("registration proof requires an engine identity")
+	}
+	if request.Method != http.MethodPost && request.Method != http.MethodPatch {
+		return errors.New("registration proof requires POST or PATCH")
+	}
+	if request.Body == nil || request.Body == http.NoBody {
+		return errors.New("registration proof requires a request body")
+	}
+	if len(request.Header.Values("Content-Type")) != 1 || request.Header.Get("Content-Type") != "application/json" {
+		return errors.New("registration proof requires Content-Type application/json")
+	}
+	if values := request.Header.Values("Content-Encoding"); len(values) > 1 || len(values) == 1 && !strings.EqualFold(values[0], "identity") {
+		return errors.New("registration proof uses unsupported content encoding")
+	}
+	idempotencyKeys := request.Header.Values("Idempotency-Key")
+	if len(idempotencyKeys) != 1 {
+		return errors.New("registration proof requires one Idempotency-Key")
+	}
+	if parsed, err := uuid.Parse(idempotencyKeys[0]); err != nil || parsed.String() != idempotencyKeys[0] {
+		return errors.New("registration proof requires a canonical UUID Idempotency-Key")
+	}
+	body, err := io.ReadAll(io.LimitReader(request.Body, defaultMaxBody+1))
+	if err != nil {
+		return errors.New("failed to read registration request body")
+	}
+	if len(body) > defaultMaxBody {
+		return errors.New("registration request body exceeds signing limit")
+	}
+	_ = request.Body.Close()
+	request.Body = io.NopCloser(bytes.NewReader(body))
+	request.ContentLength = int64(len(body))
+	request.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	digest := sha256.Sum256(body)
+	request.Header.Set("Content-Digest", "sha-256=:"+base64.StdEncoding.EncodeToString(digest[:])+":")
+	return applySignature(request, engineIdentity, true, registrationTag, now, random)
+}
+
+func applySignature(request *http.Request, engineIdentity *identity.Identity, hasBody bool, tag string, now time.Time, random io.Reader) error {
 	nonceBytes := make([]byte, 16)
 	if _, err := io.ReadFull(random, nonceBytes); err != nil {
-		return nil, errors.New("failed to generate signature nonce")
+		return errors.New("failed to generate signature nonce")
 	}
-	created := now().Unix()
+	created := now.Unix()
 	expires := created + 300
 	nonce := base64.RawURLEncoding.EncodeToString(nonceBytes)
 
@@ -141,13 +198,12 @@ func (transport *SigningTransport) RoundTrip(request *http.Request) (*http.Respo
 	if hasBody {
 		components += ` "content-digest";sf "content-type" "idempotency-key"`
 	}
-	params := fmt.Sprintf(`(%s);created=%d;expires=%d;keyid=%q;nonce=%q;tag=%q`, components, created, expires, transport.Identity.AuthenticationKeyID(), nonce, signatureTag)
-	signatureBase := buildSignatureBase(signed, hasBody, params)
-	signature := transport.Identity.Sign([]byte(signatureBase))
-	signed.Header.Set("Signature-Input", signatureLabel+"="+params)
-	signed.Header.Set("Signature", signatureLabel+"=:"+base64.StdEncoding.EncodeToString(signature)+":")
-
-	return transport.Base.RoundTrip(signed)
+	params := fmt.Sprintf(`(%s);created=%d;expires=%d;keyid=%q;nonce=%q;tag=%q`, components, created, expires, engineIdentity.AuthenticationKeyID(), nonce, tag)
+	signatureBase := buildSignatureBase(request, hasBody, params)
+	signature := engineIdentity.Sign([]byte(signatureBase))
+	request.Header.Set("Signature-Input", signatureLabel+"="+params)
+	request.Header.Set("Signature", signatureLabel+"=:"+base64.StdEncoding.EncodeToString(signature)+":")
+	return nil
 }
 
 func buildSignatureBase(request *http.Request, hasBody bool, params string) string {

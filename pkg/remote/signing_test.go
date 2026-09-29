@@ -81,6 +81,28 @@ func TestSigningFixtureBody(t *testing.T) {
 	}
 }
 
+func TestRegistrationSigningFixture(t *testing.T) {
+	body := `{"name":"fixture-engine","description":"Fixture registration","publicKeys":{"authentication":{"algorithm":"ed25519","generation":1,"publicKey":"bCfocojhXze28IS3hlHnttC+OO469HweOvPruf3q8wY="},"configurationEncryption":{"algorithm":"x25519","generation":1,"publicKey":"XwG2fwzzSPppHov/SmmQ2SlsfbgAqscGd+UztjrLOEo="}}}`
+	request, _ := http.NewRequest(http.MethodPost, "https://cloud.example/admin/accounts/account-123/engines", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Idempotency-Key", "550e8400-e29b-41d4-a716-446655440000")
+	nonce := bytes.NewReader([]byte{0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf})
+	if err := signRegistrationRequest(request, signingIdentity(t), time.Unix(1700000000, 0), nonce); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := request.Header.Get("Content-Digest"), "sha-256=:Dbgi/FOEu12LsF3Mu/XvGHSSIgqrx/lxp8i0QpuFF6Y=:"; got != want {
+		t.Fatalf("Content-Digest = %q, want %q", got, want)
+	}
+	wantInput := `databacker-engine=("@method" "@authority" "@path" "@query" "content-digest";sf "content-type" "idempotency-key");created=1700000000;expires=1700000300;keyid="auth:10ae5b498547bbbb760358b0f2ee659ccbf17e8858263eff0c06225c6ebbaf3e";nonce="oKGio6SlpqeoqaqrrK2urw";tag="databacker-engine-registration-v1"`
+	if got := request.Header.Get("Signature-Input"); got != wantInput {
+		t.Fatalf("Signature-Input:\n got %s\nwant %s", got, wantInput)
+	}
+	wantSignature := "databacker-engine=:dUmpW++ljDtcSfLr1BojHFEdmqFazPjPVqgq4qumF0k2K+dMiiQZWKnhwiHETlLXHeRf/y6pH0PPqMYVy8wIAw==:"
+	if got := request.Header.Get("Signature"); got != wantSignature {
+		t.Fatalf("Signature = %q, want %q", got, wantSignature)
+	}
+}
+
 func TestSigningRejectsUnsupportedRouteAndEncoding(t *testing.T) {
 	transport, _ := NewSigningTransport(&captureTransport{}, signingIdentity(t))
 	request, _ := http.NewRequest(http.MethodGet, "https://engine.example/engines/config/other", nil)

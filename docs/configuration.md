@@ -57,6 +57,43 @@ There is **no** default configuration file. To use a configuration file, you **m
 
 Various sample configuration files are available in the [examples/configs](../examples/configs/) directory.
 
+## Engine credential commands
+
+The `config` command group manages interacting with configuration, including the seed-based credentials used for remote
+configuration and telemetry authentication. These commands do not start the
+backup runtime or connect to a database.
+
+Generate a new credential file with restrictive permissions:
+
+```shell
+mysql-backup config credentials generate --output credentials.yaml
+```
+
+Display the corresponding public keys and deterministic key IDs:
+
+```shell
+mysql-backup config public-info --credentials-file credentials.yaml
+```
+
+Create an immediate proof-of-possession bundle for engine registration:
+
+```shell
+mysql-backup config registration-bundle \
+  --credentials-file credentials.yaml \
+  --url https://cloud.example/admin/accounts/ACCOUNT_ID/engines \
+  --name ENGINE_NAME
+```
+
+The JSON output contains the exact request body and headers to submit alongside
+ordinary user authentication. The body string must be transmitted byte-for-byte
+as emitted because its digest and signature cover those bytes.
+
+`config rotate-authentication` and `config rotate-configuration-key` take the
+same Cloud URL/name inputs, write proposed credentials to the required
+`--output` file, and emit a signed `PATCH` request bundle. They never overwrite
+the input credentials. Configuration-key rotation retains the previous
+generation so existing envelopes remain decryptable until they are re-encrypted.
+
 ## Configuration Options
 
 The following are the environment variables, CLI flags and configuration file options for: backup(B), restore (R), prune (P).

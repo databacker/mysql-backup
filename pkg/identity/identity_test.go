@@ -36,6 +36,13 @@ func TestFixtureDerivation(t *testing.T) {
 	if got := base64.StdEncoding.EncodeToString(privateKey.PublicKey().Bytes()); got != "XwG2fwzzSPppHov/SmmQ2SlsfbgAqscGd+UztjrLOEo=" {
 		t.Fatalf("configuration public key = %q", got)
 	}
+	publicKey, err := identity.ConfigurationPublicKey(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := base64.StdEncoding.EncodeToString(publicKey); got != "XwG2fwzzSPppHov/SmmQ2SlsfbgAqscGd+UztjrLOEo=" {
+		t.Fatalf("configuration public key method = %q", got)
+	}
 	if got, err := identity.ConfigurationKeyID(1); err != nil || got != "config:5be9cbe48dcffda73ffc1befe2993e080f19c3af4cececba34016079e948c45a" {
 		t.Fatalf("configuration key ID = %q, err=%v", got, err)
 	}
