@@ -1,237 +1,294 @@
 package config
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
+	"bytes"
+	"context"
 	"crypto/ecdh"
-	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"mime"
+	"net/http"
+	"time"
 
 	"github.com/databacker/api/go/api"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
-	"golang.org/x/crypto/nacl/box"
 	"gopkg.in/yaml.v3"
 
+	"github.com/databacker/mysql-backup/pkg/identity"
 	"github.com/databacker/mysql-backup/pkg/remote"
 )
 
-// ProcessConfig reads the configuration from a stream and returns the parsed configuration.
-// If the configuration is of type remote, it will retrieve the remote configuration.
-// Continues to process remotes until it gets a final valid ConfigSpec or fails.
-func ProcessConfig(r io.Reader) (actualConfig *api.ConfigSpec, err error) {
-	var (
-		conf        api.Config
-		credentials []string
-	)
-	decoder := yaml.NewDecoder(r)
-	if err := decoder.Decode(&conf); err != nil {
+const (
+	maxConfigBytes = 4 << 20
+	maxChainDepth  = 8
+	fetchTimeout   = 30 * time.Second
+)
+
+// Result contains the final operational configuration and the validated
+// identity state used to retrieve it. Rollback state is intentionally omitted
+// until rollback protection is implemented.
+type Result struct {
+	Config   *api.ConfigSpec
+	Identity *identity.Identity
+}
+
+// ClientFactory allows tests to inject an HTTP client. Production callers use
+// the signed HTTP client constructed by the loader.
+type ClientFactory func(api.RemoteSpec, *identity.Identity) (*http.Client, error)
+
+// Loader traverses composable Config documents.
+type Loader struct {
+	ClientFactory ClientFactory
+}
+
+// ProcessConfig reads and resolves a local configuration document.
+func ProcessConfig(reader io.Reader) (*api.ConfigSpec, error) {
+	result, err := (Loader{}).Process(reader)
+	if err != nil {
+		return nil, err
+	}
+	return result.Config, nil
+}
+
+// Process resolves local, remote, and encrypted documents until it reaches a
+// local ConfigSpec.
+func (loader Loader) Process(reader io.Reader) (*Result, error) {
+	document, err := io.ReadAll(io.LimitReader(reader, maxConfigBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("fatal error reading config file: %w", err)
+	}
+	if len(document) > maxConfigBytes {
+		return nil, errors.New("config file exceeds size limit")
+	}
+	var current api.Config
+	decoder := yaml.NewDecoder(bytes.NewReader(document))
+	if err := decoder.Decode(&current); err != nil {
 		return nil, fmt.Errorf("fatal error reading config file: %w", err)
 	}
 
-	// check that the version is something we recognize
-	if conf.Version != api.ConfigDatabackIoV1 {
-		return nil, fmt.Errorf("unknown config version: %s", conf.Version)
-	}
-	specBytes, err := yaml.Marshal(conf.Spec)
-	if err != nil {
-		return nil, fmt.Errorf("error marshalling spec part of configuration: %w", err)
-	}
-	// if the config type is remote, retrieve our remote configuration
-	// repeat until we end up with a configuration that is of type local
-	for {
-		switch conf.Kind {
+	result := &Result{}
+	seenURLs := make(map[string]struct{})
+	for depth := 0; depth < maxChainDepth; depth++ {
+		if current.Version != api.ConfigDatabackIoV1 {
+			return nil, fmt.Errorf("unknown config version: %s", current.Version)
+		}
+		switch current.Kind {
 		case api.Local:
 			var spec api.ConfigSpec
-			// there is a problem that api.ConfigSpec has json tags but not yaml tags.
-			// This is because github.com/databacker/api uses oapi-codegen to generate the api
-			// which creates json tags and not yaml tags. There is a PR to get them in.
-			// http://github.com/oapi-codegen/oapi-codegen/pull/1798
-			// Once that is in, and databacker/api uses them, this will work directly with yaml.
-			// For now, because there are no yaml tags, it defaults to just lowercasing the
-			// field. That means anything camelcase will be lowercased, which does not always
-			// parse properly. For example, `thisField` will expect `thisfield` in the yaml, which
-			// is incorrect.
-			// We fix this by converting the spec part of the config into json,
-			// as yaml is a valid subset of json, and then unmarshalling that.
-			if err := yaml.Unmarshal(specBytes, &spec); err != nil {
-				return nil, fmt.Errorf("parsed yaml had kind local, but spec invalid")
+			if err := decodeSpec(current.Spec, &spec); err != nil {
+				return nil, errors.New("config kind local has an invalid spec")
 			}
-			actualConfig = &spec
+			result.Config = &spec
+			return result, nil
+
 		case api.Remote:
 			var spec api.RemoteSpec
-			if err := yaml.Unmarshal(specBytes, &spec); err != nil {
-				return nil, fmt.Errorf("parsed yaml had kind remote, but spec invalid")
+			if err := decodeSpec(current.Spec, &spec); err != nil {
+				return nil, errors.New("config kind remote has an invalid spec")
 			}
-			remoteConfig, err := getRemoteConfig(spec)
+			endpoint, err := remote.ResolveEngineEndpoint(spec.URL, remote.ConfigRoute)
 			if err != nil {
-				return nil, fmt.Errorf("error parsing remote config: %w", err)
+				return nil, fmt.Errorf("invalid remote configuration URL: %w", err)
 			}
-			conf = remoteConfig
-			// save encryption key for later
-			if spec.Credentials != nil {
-				credentials = append(credentials, *spec.Credentials)
+			if _, exists := seenURLs[endpoint.String()]; exists {
+				return nil, errors.New("remote configuration cycle detected")
 			}
+			seenURLs[endpoint.String()] = struct{}{}
+
+			engineIdentity, err := identity.New(spec.Credentials)
+			if err != nil {
+				return nil, fmt.Errorf("invalid remote engine credentials: %w", err)
+			}
+			clientFactory := loader.ClientFactory
+			if clientFactory == nil {
+				clientFactory = signedClient
+			}
+			client, err := clientFactory(spec, engineIdentity)
+			if err != nil {
+				return nil, fmt.Errorf("unable to construct remote client: %w", err)
+			}
+			current, err = fetchRemote(client, endpoint.String())
+			if err != nil {
+				return nil, fmt.Errorf("unable to retrieve remote config: %w", err)
+			}
+			result.Identity = engineIdentity
+
 		case api.Encrypted:
+			if result.Identity == nil {
+				return nil, errors.New("encrypted configuration has no local engine identity")
+			}
 			var spec api.EncryptedSpec
-			if err := yaml.Unmarshal(specBytes, &spec); err != nil {
-				return nil, fmt.Errorf("parsed yaml had kind encrypted, but spec invalid")
+			if err := decodeSpec(current.Spec, &spec); err != nil {
+				return nil, errors.New("config kind encrypted has an invalid spec")
 			}
-			// now try to decrypt it
-			conf, err = decryptConfig(spec, credentials)
+			decrypted, err := decryptConfig(spec, result.Identity)
 			if err != nil {
-				return nil, fmt.Errorf("error decrypting config: %w", err)
+				return nil, fmt.Errorf("unable to decrypt config: %w", err)
 			}
+			current = decrypted
+
 		default:
-			return nil, fmt.Errorf("unknown config type: %s", conf.Kind)
-		}
-		if actualConfig != nil {
-			break
+			return nil, fmt.Errorf("unknown config type: %s", current.Kind)
 		}
 	}
-	return actualConfig, nil
+	return nil, errors.New("configuration chain exceeds maximum depth")
 }
 
-// getRemoteConfig given a RemoteSpec for a config, retrieve the config from the remote
-// and parse it into a Config struct.
-func getRemoteConfig(spec api.RemoteSpec) (conf api.Config, err error) {
-	if spec.URL == nil || spec.Certificates == nil || spec.Credentials == nil {
-		return conf, errors.New("empty fields for components")
+func signedClient(spec api.RemoteSpec, engineIdentity *identity.Identity) (*http.Client, error) {
+	pins := []string(nil)
+	if spec.Certificates != nil {
+		pins = append(pins, (*spec.Certificates)...)
 	}
-	resp, err := remote.OpenConnection(*spec.URL, *spec.Certificates, *spec.Credentials)
-	if err != nil {
-		return conf, fmt.Errorf("error getting reader: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	// Read the body of the response and convert to a config.Config struct
-	var baseConf api.Config
-	decoder := yaml.NewDecoder(resp.Body)
-	if err := decoder.Decode(&baseConf); err != nil {
-		return conf, fmt.Errorf("invalid config file retrieved from server: %w", err)
-	}
-
-	return baseConf, nil
+	return remote.NewSignedClient(pins, engineIdentity)
 }
 
-// decryptConfig decrypt an EncryptedSpec given an EncryptedSpec and a list of credentials.
-// Returns the decrypted Config struct.
-func decryptConfig(spec api.EncryptedSpec, credentials []string) (api.Config, error) {
-	var plainConfig api.Config
-	if spec.Algorithm == nil {
-		return plainConfig, errors.New("empty algorithm")
-	}
-	if spec.RecipientPublicKey == nil {
-		return plainConfig, errors.New("empty recipient public key")
-	}
-	if spec.SenderPublicKey == nil {
-		return plainConfig, errors.New("empty sender public key")
-	}
-	if spec.Data == nil {
-		return plainConfig, errors.New("empty data")
-	}
-	// make sure we have the key matching the public key
-	var (
-		privateKey *ecdh.PrivateKey
-		curve      = ecdh.X25519()
-	)
-
-	for _, cred := range credentials {
-		// get our curve25519 private key
-		keyBytes, err := base64.StdEncoding.DecodeString(cred)
-		if err != nil {
-			return plainConfig, fmt.Errorf("error decoding credentials: %w", err)
-		}
-		if len(keyBytes) != ed25519.SeedSize {
-			return plainConfig, fmt.Errorf("invalid key size %d, must be %d", len(keyBytes), ed25519.SeedSize)
-		}
-		candidatePrivateKey, err := curve.NewPrivateKey(keyBytes)
-		if err != nil {
-			return plainConfig, fmt.Errorf("error creating private key: %w", err)
-		}
-		// get the public key from the private key
-		candidatePublicKey := candidatePrivateKey.PublicKey()
-		// check if the public key matches the one we have, if so, break
-		pubKeyBase64 := base64.StdEncoding.EncodeToString(candidatePublicKey.Bytes())
-		if pubKeyBase64 == *spec.RecipientPublicKey {
-			privateKey = candidatePrivateKey
-			break
-		}
-	}
-	// if we didn't find a matching key, return an error
-	if privateKey == nil {
-		return plainConfig, fmt.Errorf("no private key found that matches public key %s", *spec.RecipientPublicKey)
-	}
-	senderPublicKeyBytes, err := base64.StdEncoding.DecodeString(*spec.SenderPublicKey)
+func fetchRemote(client *http.Client, endpoint string) (api.Config, error) {
+	var config api.Config
+	ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return plainConfig, fmt.Errorf("failed to decode sender public key: %w", err)
+		return config, errors.New("invalid remote request")
 	}
-
-	// Derive the shared secret using the sender's public key and receiver's private key
-	var senderPublicKey, receiverPrivateKey, sharedSecret [32]byte
-	copy(senderPublicKey[:], senderPublicKeyBytes)
-	copy(receiverPrivateKey[:], privateKey.Bytes()) // Use the seed to get the private scalar
-	box.Precompute(&sharedSecret, &senderPublicKey, &receiverPrivateKey)
-
-	// Derive a symmetric key using HKDF with the shared secret
-	hkdfReader := hkdf.New(sha256.New, sharedSecret[:], nil, []byte(api.SymmetricKey))
-	var symmetricKeySize int
-	switch *spec.Algorithm {
-	case api.EncryptedSpecAlgorithmAes256Gcm:
-		symmetricKeySize = 32
-	case api.EncryptedSpecAlgorithmChacha20Poly1305:
-		symmetricKeySize = 32
-	default:
-		return plainConfig, fmt.Errorf("unsupported algorithm: %s", *spec.Algorithm)
-	}
-	symmetricKey := make([]byte, symmetricKeySize)
-	if _, err := hkdfReader.Read(symmetricKey); err != nil {
-		return plainConfig, fmt.Errorf("failed to derive symmetric key: %w", err)
-	}
-
-	var (
-		plaintext []byte
-		aead      cipher.AEAD
-	)
-	encryptedData, err := base64.StdEncoding.DecodeString(*spec.Data)
+	request.Header.Set("Accept", "application/json")
+	response, err := client.Do(request)
 	if err != nil {
-		return plainConfig, fmt.Errorf("failed to decode encrypted data: %w", err)
+		return config, err
 	}
-	switch *spec.Algorithm {
-	case api.EncryptedSpecAlgorithmAes256Gcm:
-		// Decrypt with AES-GCM
-		block, err := aes.NewCipher(symmetricKey)
-		if err != nil {
-			return plainConfig, fmt.Errorf("failed to initialize AES cipher: %w", err)
-		}
-		aead, err = cipher.NewGCM(block)
-		if err != nil {
-			return plainConfig, fmt.Errorf("failed to initialize AES-GCM: %w", err)
-		}
-	case api.EncryptedSpecAlgorithmChacha20Poly1305:
-		// Decrypt with ChaCha20Poly1305
-		aead, err = chacha20poly1305.New(symmetricKey)
-		if err != nil {
-			return plainConfig, fmt.Errorf("failed to initialize ChaCha20Poly1305: %w", err)
-		}
-	default:
-		return plainConfig, fmt.Errorf("unsupported algorithm: %s", *spec.Algorithm)
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4096))
+		return config, fmt.Errorf("remote returned HTTP status %d", response.StatusCode)
 	}
-	if len(encryptedData) < aead.NonceSize() {
-		return plainConfig, errors.New("invalid encrypted data length")
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		return config, errors.New("remote returned an unsupported content type")
 	}
-	dataNonce := encryptedData[:aead.NonceSize()]
-	ciphertext := encryptedData[aead.NonceSize():]
-	plaintext, err = aead.Open(nil, dataNonce, ciphertext, nil)
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxConfigBytes+1))
 	if err != nil {
-		return plainConfig, fmt.Errorf("failed to decrypt data: %w", err)
+		return config, errors.New("failed to read remote config")
 	}
-	if err := yaml.Unmarshal(plaintext, &plainConfig); err != nil {
-		return plainConfig, fmt.Errorf("parsed yaml had kind remote, but spec invalid")
+	if len(body) > maxConfigBytes {
+		return config, errors.New("remote config exceeds size limit")
 	}
-	return plainConfig, nil
+	if err := decodeJSONDocument(body, &config); err != nil {
+		return config, errors.New("remote returned an invalid config document")
+	}
+	return config, nil
+}
+
+func decodeSpec(spec map[string]interface{}, target any) error {
+	encoded, err := yaml.Marshal(spec)
+	if err != nil {
+		return err
+	}
+	return yaml.Unmarshal(encoded, target)
+}
+
+func decodeJSONDocument(document []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(document))
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return errors.New("document contains trailing data")
+	}
+	return nil
+}
+
+func decryptConfig(spec api.EncryptedSpec, engineIdentity *identity.Identity) (api.Config, error) {
+	var config api.Config
+	if spec.Version != api.DatabackerEncryptedConfigV2 ||
+		spec.KeyAgreement != api.X25519 ||
+		spec.KeyDerivation != api.HkdfSha256 ||
+		spec.Encryption != api.EncryptedSpecEncryptionChacha20Poly1305 ||
+		spec.PlaintextMediaType != api.ApplicationJSON {
+		return config, errors.New("unsupported encrypted configuration profile")
+	}
+	if spec.ConfigurationVersion == 0 || spec.RecipientGeneration == 0 {
+		return config, errors.New("invalid encrypted configuration version")
+	}
+	privateKey, err := engineIdentity.ConfigurationPrivateKey(spec.RecipientGeneration)
+	if err != nil {
+		return config, errors.New("encrypted configuration targets an unavailable key generation")
+	}
+	wantedKeyID, err := engineIdentity.ConfigurationKeyID(spec.RecipientGeneration)
+	if err != nil || wantedKeyID != spec.RecipientKeyID {
+		return config, errors.New("encrypted configuration targets a different recipient key")
+	}
+	senderPublicBytes, err := decodeStrictBase64(spec.SenderPublicKey, 32)
+	if err != nil {
+		return config, errors.New("invalid encrypted configuration sender key")
+	}
+	nonce, err := decodeStrictBase64(spec.Nonce, chacha20poly1305.NonceSize)
+	if err != nil {
+		return config, errors.New("invalid encrypted configuration nonce")
+	}
+	ciphertext, err := base64.StdEncoding.Strict().DecodeString(spec.Ciphertext)
+	if err != nil || base64.StdEncoding.EncodeToString(ciphertext) != spec.Ciphertext || len(ciphertext) < chacha20poly1305.Overhead || len(ciphertext) > maxConfigBytes+chacha20poly1305.Overhead {
+		return config, errors.New("invalid encrypted configuration ciphertext")
+	}
+	senderPublicKey, err := ecdh.X25519().NewPublicKey(senderPublicBytes)
+	if err != nil {
+		return config, errors.New("invalid encrypted configuration sender key")
+	}
+	sharedSecret, err := privateKey.ECDH(senderPublicKey)
+	if err != nil {
+		return config, errors.New("encrypted configuration key agreement failed")
+	}
+	aad := envelopeAAD(spec, senderPublicBytes, nonce)
+	prk := hkdf.Extract(sha256.New, sharedSecret, []byte("databacker configuration encryption v2"))
+	keyReader := hkdf.Expand(sha256.New, prk, append([]byte("databacker/configuration-aead-key/chacha20-poly1305/v2\x00"), aad...))
+	aeadKey := make([]byte, chacha20poly1305.KeySize)
+	if _, err := io.ReadFull(keyReader, aeadKey); err != nil {
+		return config, errors.New("encrypted configuration key derivation failed")
+	}
+	aead, err := chacha20poly1305.New(aeadKey)
+	if err != nil {
+		return config, errors.New("encrypted configuration cipher initialization failed")
+	}
+	plaintext, err := aead.Open(nil, nonce, ciphertext, aad)
+	if err != nil {
+		return config, errors.New("encrypted configuration authentication failed")
+	}
+	if len(plaintext) > maxConfigBytes || decodeJSONDocument(plaintext, &config) != nil {
+		return api.Config{}, errors.New("encrypted configuration plaintext is invalid")
+	}
+	return config, nil
+}
+
+func decodeStrictBase64(encoded string, length int) ([]byte, error) {
+	decoded, err := base64.StdEncoding.Strict().DecodeString(encoded)
+	if err != nil || len(decoded) != length || base64.StdEncoding.EncodeToString(decoded) != encoded {
+		return nil, errors.New("invalid base64 value")
+	}
+	return decoded, nil
+}
+
+func envelopeAAD(spec api.EncryptedSpec, senderPublicKey, nonce []byte) []byte {
+	var aad bytes.Buffer
+	writeOpaque(&aad, []byte("databacker/configuration-envelope-aad/v2"))
+	writeOpaque(&aad, []byte(spec.Version))
+	_ = binary.Write(&aad, binary.BigEndian, spec.ConfigurationVersion)
+	writeOpaque(&aad, []byte(spec.RecipientKeyID))
+	_ = binary.Write(&aad, binary.BigEndian, spec.RecipientGeneration)
+	writeOpaque(&aad, []byte(spec.KeyAgreement))
+	writeOpaque(&aad, []byte(spec.KeyDerivation))
+	writeOpaque(&aad, []byte(spec.Encryption))
+	writeOpaque(&aad, []byte(spec.PlaintextMediaType))
+	writeOpaque(&aad, senderPublicKey)
+	writeOpaque(&aad, nonce)
+	return aad.Bytes()
+}
+
+func writeOpaque(writer io.Writer, value []byte) {
+	_ = binary.Write(writer, binary.BigEndian, uint32(len(value)))
+	_, _ = writer.Write(value)
 }

@@ -2,7 +2,7 @@ module github.com/databacker/mysql-backup
 
 go 1.26.0
 
-require github.com/databacker/api v1.7.0
+require github.com/databacker/api v1.10.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.6
@@ -33,7 +33,6 @@ require (
 	github.com/InfiniteLoopSpace/go_S-MIME v0.0.0-20181221134359-3f58f9a4b2b6
 	github.com/bramvdbogaerde/go-scp v1.5.0
 	github.com/gliderlabs/ssh v0.3.8
-	github.com/google/go-cmp v0.7.0
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/moby/go-archive v0.3.0
 	github.com/moby/moby/api v1.55.0

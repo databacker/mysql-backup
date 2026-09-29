@@ -1,126 +1,63 @@
 package remote
 
 import (
-	"crypto/ed25519"
-	cryptorand "crypto/rand"
-	"crypto/x509"
-	"encoding/base64"
-	"io"
+	"crypto/sha256"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
-
-	utilremote "github.com/databacker/mysql-backup/pkg/internal/remote"
-	utiltest "github.com/databacker/mysql-backup/pkg/internal/test"
 )
 
-func TestSelfSignedCertFromPrivateKey(t *testing.T) {
-	// Generate a new private key
-	publicKey, privateKey, err := ed25519.GenerateKey(nil)
+func TestPinnedTLSFallbackSendsNoClientCertificate(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if len(request.TLS.PeerCertificates) != 0 {
+			t.Error("client sent a certificate")
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	digest := sha256.Sum256(server.Certificate().Raw)
+	transport, err := NewTransport([]string{fmt.Sprintf("sha256:%x", digest)})
 	if err != nil {
-		t.Fatalf("failed to generate private key: %v", err)
+		t.Fatal(err)
 	}
-
-	tests := []struct {
-		name        string
-		privateKey  ed25519.PrivateKey
-		expectError bool
-	}{
-		{
-			name:        "valid private key",
-			privateKey:  privateKey,
-			expectError: false,
-		},
-		{
-			name:        "nil private key",
-			privateKey:  nil,
-			expectError: true,
-		},
+	response, err := (&http.Client{Transport: transport}).Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Call the function with the private key
-			cert, err := utilremote.SelfSignedCertFromPrivateKey(test.privateKey, "")
-			if (err != nil) != test.expectError {
-				t.Fatalf("selfSignedCertFromPrivateKey returned an error: %v", err)
-			}
-
-			if !test.expectError {
-				// Check if the returned certificate is not nil
-				if cert == nil {
-					t.Fatalf("selfSignedCertFromPrivateKey returned a nil certificate")
-				}
-
-				// Parse the certificate
-				parsedCert, err := x509.ParseCertificate(cert.Certificate[0])
-				if err != nil {
-					t.Fatalf("failed to parse certificate: %v", err)
-				}
-
-				// Check if the certificate's public key matches the private key's public key
-				if !publicKey.Equal(parsedCert.PublicKey.(ed25519.PublicKey)) {
-					t.Fatalf("public key in certificate does not match private key's public key")
-				}
-			}
-		})
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d", response.StatusCode)
 	}
 }
 
-func TestOpenConnection(t *testing.T) {
-	// Generate a private key that is not in the list of known keys
-	clientSeedUnknown := make([]byte, ed25519.SeedSize)
-	if _, err := io.ReadFull(cryptorand.Reader, clientSeedUnknown); err != nil {
-		t.Fatalf("failed to generate random seed: %v", err)
-	}
-	server, fingerprint, clientKeys, err := utiltest.StartServer(1, nil)
-	if err != nil {
-		t.Fatalf("failed to start server: %v", err)
-	}
+func TestTLSRejectsUntrustedAndMalformedPins(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	defer server.Close()
-
-	tests := []struct {
-		name             string
-		clientPrivateKey []byte
-		certs            []string
-		expectError      bool
-		expectedStatus   int
-	}{
-		{
-			name:             "client key in list",
-			clientPrivateKey: clientKeys[0],
-			certs:            []string{fingerprint},
-			expectError:      false,
-			expectedStatus:   http.StatusOK,
-		},
-		{
-			name:             "client key not in list",
-			clientPrivateKey: clientSeedUnknown,
-			certs:            []string{fingerprint},
-			expectError:      false,
-			expectedStatus:   http.StatusForbidden,
-		},
-		{
-			name:             "no certs",
-			clientPrivateKey: clientKeys[0],
-			certs:            []string{},
-			expectError:      true,
-			expectedStatus:   http.StatusForbidden,
-		},
+	transport, err := NewTransport(nil)
+	if err != nil {
+		t.Fatal(err)
 	}
+	if _, err := (&http.Client{Transport: transport}).Get(server.URL); err == nil {
+		t.Fatal("expected system verification to reject self-signed server")
+	}
+	for _, pin := range []string{"", "md5:00", "sha256:not-hex", "sha256:00"} {
+		if _, err := NewTransport([]string{pin}); err == nil {
+			t.Fatalf("expected malformed pin %q to fail", pin)
+		}
+	}
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Call openConnection
-			b64EncodedClientKey := base64.StdEncoding.EncodeToString(tt.clientPrivateKey)
-			resp, err := OpenConnection(server.URL, tt.certs, b64EncodedClientKey)
-			switch {
-			case err != nil && !tt.expectError:
-				t.Errorf("openConnection returned an unexpected error: %v", err)
-			case err == nil && tt.expectError:
-				t.Errorf("openConnection did not return an expected error: %v", err)
-			case err == nil && resp.StatusCode != tt.expectedStatus:
-				t.Errorf("openConnection returned an unexpected status code: %d", resp.StatusCode)
-			}
-		})
+func TestPinnedTLSStillChecksHostname(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+	digest := sha256.Sum256(server.Certificate().Raw)
+	transport, err := NewTransport([]string{fmt.Sprintf("sha256:%x", digest)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport.TLSClientConfig.ServerName = "wrong.example"
+	if _, err := (&http.Client{Transport: transport}).Get(server.URL); err == nil {
+		t.Fatal("expected matching pin with wrong hostname to fail")
 	}
 }

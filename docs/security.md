@@ -34,10 +34,27 @@ sees your unencrypted data.
 
 The data is decrypted by `mysql-backup` locally on your machine, when you retrieve the configuration.
 
-Your access token to the remote service, stored in your local configuration file, is a
-[Curve25519 private key](https://en.wikipedia.org/wiki/Curve25519), which authenticates
-you to the remote service. The remote service never sees this key, only the public key, which is used to verify your identity.
+An engine credential contains one 32-byte random seed. HKDF derives
+separate purpose-specific keys from it: Ed25519 signs each HTTP request, and
+X25519 decrypts configuration envelopes. Neither the seed nor a derived
+private key is sent to the remote service. The service stores only deterministic
+public-key fingerprints and public keys.
 
-This key is then used to decrypt the configuration blob, which is used to configure `mysql-backup`.
+HTTP signatures cover the exact method, authority, escaped path, and query. For
+telemetry they also cover the content digest, content type, and idempotency key.
+The configured remote and telemetry URLs are service base URLs. The engine
+derives the self-only `/engines/config` and `/engines/telemetry/traces` routes;
+the verified signature key identifies the engine, so no database-assigned
+engine ID is sent in either route.
+HTTPS is strongly recommended because it authenticates the server, protects
+request metadata and telemetry confidentiality, and protects plaintext remote
+configuration responses. Plain HTTP remains available when the deployment has
+other transport protections or explicitly accepts those risks. When HTTPS is
+used, a configured certificate fingerprint is only a fallback for a private or
+pinned deployment; hostname, validity, and server-usage checks remain mandatory.
 
-In configuration files, the key is stored base64-encoded.
+Encrypted configuration uses X25519, HKDF-SHA-256, and ChaCha20-Poly1305 with
+authenticated envelope metadata. The engine accepts only the active or an
+explicitly retained positive configuration-key generation. Rollback-state
+persistence is not yet implemented, so operators must not treat the current
+client as enforcing monotonic configuration versions across process restarts.

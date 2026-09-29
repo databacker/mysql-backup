@@ -176,22 +176,23 @@ for details of each.
       * `password`: string, the password
 * `logging`: string, the log level, one of: error,warning,info,debug,trace; default is info
 * `telemetry`: configuration for sending telemetry data (optional)
-  * `url`: string, URL to telemetry service
-  * `certificate`: string, the certificate for the telemetry server or a CA that signed the server's TLS certificate. Not required if telemetry server does not use TLS, or if the system's certificate store already contains the server's cert or CA.
-  * `credentials`: string, unique token provided by the remote service as credentials, base64-encoded
+  * `url`: string, absolute HTTP or HTTPS service base URL. The engine appends `/engines/telemetry/traces`. A URL already ending in that route is also accepted.
+  * `certificates`: optional list of `sha256:` certificate fingerprints. Normal system-root and hostname verification is tried first; pins are a fallback for private deployments.
+  * `credentials`: versioned engine credential containing a base64-encoded 32-byte random seed, positive authentication/configuration generations, and optional retained configuration generations
 
 #### Remote Configuration
 
 For remote configuration, the `spec` is composed of the following:
 
-* `url`: the URL of the remote configuration; required
-* `certificate`: the certificate for the server or a CA that signed the server's TLS certificate. Not required if remote server does not use TLS, or if the system's certificate store already contains the server's cert or CA.
-* `credentials`: unique token provided by the remote service as credentials, base64-encoded
+* `url`: the absolute HTTP or HTTPS remote-service base URL; required. The engine appends the self-only `/engines/config` route. A URL already ending in that route is also accepted. No engine ID is configured or placed in the route: the verified HTTP signature identifies the engine.
+* `certificates`: optional list of `sha256:` certificate fingerprints. Normal Web PKI and hostname verification is used when possible; matching a pin never disables hostname, validity, or server-usage checks.
+* `credentials`: a `databacker-credentials/v2` object. `seed` is exactly 32 random bytes in strict padded standard base64; both generations start at 1. Authentication uses a derived Ed25519 key, while encrypted configuration uses a separately derived X25519 key.
 
 The configuration file retrieved from a remote **always** has the same structure as any config file. It even can be
 saved locally and used as a local configuration. This means it also can
-reference another remote configuration, just like a local one. That can in turn reference another
-and so on, ad infinitum. In practice, remote service will avoid this.
+reference another remote configuration, just like a local one. The engine bounds
+the traversal depth and rejects repeated remote URLs so malformed chains cannot
+loop indefinitely.
 
 ### Multiple Configurations
 
