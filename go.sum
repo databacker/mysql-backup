@@ -86,8 +86,6 @@ github.com/coreos/go-semver v0.2.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3Ee
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
-github.com/databacker/api v1.9.0 h1:zAmGTGM+J4FVPtAbNP1CZeg8C1i7lmOe5ug5eDVxLQ8=
-github.com/databacker/api v1.9.0/go.mod h1:r6PURrVPQLvq0lwoVHXl3mJAi7Y23URb9X5cFlLwOko=
 github.com/databacker/api v1.10.0 h1:fzMJ8vX7puh8LmdD04psVY4CF5XEpgnaMDb3GWwxAZ8=
 github.com/databacker/api v1.10.0/go.mod h1:r6PURrVPQLvq0lwoVHXl3mJAi7Y23URb9X5cFlLwOko=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

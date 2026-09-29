@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 
@@ -20,6 +19,7 @@ import (
 	"github.com/databacker/mysql-backup/pkg/config"
 	"github.com/databacker/mysql-backup/pkg/core"
 	"github.com/databacker/mysql-backup/pkg/database"
+	"github.com/databacker/mysql-backup/pkg/identity"
 	"github.com/databacker/mysql-backup/pkg/remote"
 	"github.com/databacker/mysql-backup/pkg/storage/credentials"
 )
@@ -134,29 +134,46 @@ func rootCmd(execs execs) (*cobra.Command, error) {
 				}
 				cmdConfig.configuration = actualConfig
 
-				if actualConfig.Telemetry != nil && actualConfig.Telemetry.URL != nil && *actualConfig.Telemetry.URL != "" {
+				if actualConfig.Telemetry != nil && actualConfig.Telemetry.URL != "" {
 
 					// set up telemetry with tracing
-					u, err := url.Parse(*actualConfig.Telemetry.URL)
+					// get the full URL for telemetry endpoint, based on the base URL in the config, and the fixed telemetry traces subpath.
+					// Especially needed in case the endpoint already includes the path.
+					u, err := remote.ResolveEngineEndpoint(actualConfig.Telemetry.URL, remote.TelemetryTracesRoute)
 					if err != nil {
 						return fmt.Errorf("invalid telemetry URL: %w", err)
 					}
-					tlsConfig, err := remote.GetTLSConfig(u.Hostname(), *actualConfig.Telemetry.Certificates, *actualConfig.Telemetry.Credentials)
+					// get the signing identity used to sign requests (for authentication to the telemetry service) based on
+					// the credentials in the config.
+					telemetryIdentity, err := identity.New(actualConfig.Telemetry.Credentials)
 					if err != nil {
-						return fmt.Errorf("unable to set up telemetry: %w", err)
+						return fmt.Errorf("invalid telemetry credentials: %w", err)
+					}
+					// if any specific service certificate fingerprints were provided in the config file,
+					// be sure to include those when creating the http client.
+					pins := []string(nil)
+					if actualConfig.Telemetry.Certificates != nil {
+						pins = append(pins, (*actualConfig.Telemetry.Certificates)...)
+					}
+					// create the HTTP client that accepts the additional server certificate fingerprints,
+					// and signs requests using our identity.
+					httpClient, err := remote.NewSignedClient(pins, telemetryIdentity)
+					if err != nil {
+						return fmt.Errorf("unable to set up telemetry HTTP client: %w", err)
 					}
 					opts := []otlptracehttp.Option{
 						// WithEndpoint expects ONLY the host (e.g., "otelep.foo.com" or "localhost:4318")
 						otlptracehttp.WithEndpoint(u.Host),
-						otlptracehttp.WithTLSClientConfig(tlsConfig),
+						// configure oltptrace to use our specially set up http client
+						otlptracehttp.WithHTTPClient(httpClient),
+					}
+					if u.Scheme == "http" {
+						opts = append(opts, otlptracehttp.WithInsecure())
 					}
 					if u.Path != "" {
 						opts = append(opts, otlptracehttp.WithURLPath(u.Path))
 					}
 
-					if u.Scheme == "http" {
-						opts = append(opts, otlptracehttp.WithInsecure())
-					}
 					tracerExporter, err := otlptracehttp.New(ctx, opts...)
 					if err != nil {
 						return fmt.Errorf("unable to set up telemetry: %w", err)

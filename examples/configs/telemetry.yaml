@@ -19,11 +19,15 @@ spec:
     # sha256 fingerprint of certificate for the telemetry server, or one of the certificates in the signing chain; unneeded if the server is using a certificate signed by a well-known CA
     # this is a sample fingerprint only
     # DO NOT USE THIS FINGERPRINT; GET THE ACTUAL ONE FROM YOUR REMOTE SERVER!
-    certificates: sha256:69729b8e15a86efc177a57afb7171dfc64add28c2fca8cf1507e34453ccb1470
-    # base64-encoded Curve25519 private key for authentication to the telemetry server
-    # this is a sample key only
-    # DO NOT USE THIS KEY; GENERATE YOUR OWN!
-    credentials: BwMqVfr1myxqX8tikIPYCyNtpHgMLIg/2nUE+pLQnTE=
+    certificates:
+      - sha256:69729b8e15a86efc177a57afb7171dfc64add28c2fca8cf1507e34453ccb1470
+    # This is test data only. Generate a new 32-byte random seed for production.
+    credentials:
+      version: databacker-credentials/v2
+      seed: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+      authenticationGeneration: 1
+      configurationEncryptionGeneration: 1
+      retainedConfigurationEncryptionGenerations: []
     # only needed if required by endpoint
 
   # dump, or backup, configuration
