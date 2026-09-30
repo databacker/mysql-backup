@@ -88,6 +88,8 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfc
 github.com/cpuguy83/go-md2man/v2 v2.0.3/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/databacker/api v1.10.0 h1:fzMJ8vX7puh8LmdD04psVY4CF5XEpgnaMDb3GWwxAZ8=
 github.com/databacker/api v1.10.0/go.mod h1:r6PURrVPQLvq0lwoVHXl3mJAi7Y23URb9X5cFlLwOko=
+github.com/databacker/api v1.10.1 h1:u3zw38Xz4UoaM0Fr42GvWH/99EOFWP5uH49oekxt8xY=
+github.com/databacker/api v1.10.1/go.mod h1:r6PURrVPQLvq0lwoVHXl3mJAi7Y23URb9X5cFlLwOko=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
