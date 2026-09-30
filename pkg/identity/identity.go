@@ -22,8 +22,8 @@ const (
 	credentialSalt         = "databacker engine credential v2"
 	authenticationInfo     = "databacker/authentication/ed25519/v1/generation/"
 	configurationInfo      = "databacker/configuration-encryption/x25519/v1/generation/"
-	authenticationIDDomain = "databacker/engine-key-id/authentication/ed25519/v1\x00"
-	configurationIDDomain  = "databacker/engine-key-id/configuration-encryption/x25519/v1\x00"
+	authenticationIDDomain = string(api.AuthenticationDomain)
+	configurationIDDomain  = string(api.ConfigurationDomain)
 )
 
 // Identity contains validated credential state. Its secret material is
@@ -178,6 +178,7 @@ func (i *Identity) hasConfigurationGeneration(generation uint64) bool {
 func keyID(prefix, domain string, generation uint64, publicKey []byte) string {
 	hash := sha256.New()
 	_, _ = hash.Write([]byte(domain))
+	_, _ = hash.Write([]byte{0})
 	var encodedGeneration [8]byte
 	binary.BigEndian.PutUint64(encodedGeneration[:], generation)
 	_, _ = hash.Write(encodedGeneration[:])
