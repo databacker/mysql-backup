@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -124,6 +125,9 @@ func (s *S3) Push(ctx context.Context, target, source string, logger *log.Entry)
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 		Body:   countingReader,
+		// S3 requires a checksum on every part uploaded to a bucket with
+		// Object Lock. The uploader adds one per part only when asked.
+		ChecksumAlgorithm: types.ChecksumAlgorithmCrc32,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to upload file, %v", err)
