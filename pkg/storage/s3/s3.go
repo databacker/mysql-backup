@@ -75,6 +75,8 @@ func (s *S3) Pull(ctx context.Context, source, target string, logger *log.Entry)
 
 	bucket, path := s.url.Hostname(), path.Join(s.url.Path, source)
 
+	path = strings.TrimPrefix(path, "/")
+
 	// Create a downloader with the session and default options
 	downloader := manager.NewDownloader(client)
 
