@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -250,9 +251,9 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 		case *uint64:
 			fmt.Fprintf(&b, "%d", *s)
 		case *float32:
-			fmt.Fprintf(&b, "%f", *s)
+			b.WriteString(strconv.FormatFloat(float64(*s), 'g', -1, 32))
 		case *float64:
-			fmt.Fprintf(&b, "%f", *s)
+			b.WriteString(strconv.FormatFloat(*s, 'g', -1, 64))
 		case *bool:
 			if *s {
 				b.WriteString("1")
@@ -273,7 +274,7 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 			}
 		case *sql.NullFloat64:
 			if s.Valid {
-				fmt.Fprintf(&b, "%f", s.Float64)
+				b.WriteString(strconv.FormatFloat(s.Float64, 'g', -1, 64))
 			} else {
 				b.WriteString(nullType)
 			}
@@ -291,7 +292,7 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 			}
 		case *sql.NullTime:
 			if s.Valid {
-				fmt.Fprintf(&b, "'%s'", sanitize(s.Time.Format("2006-01-02 15:04:05")))
+				fmt.Fprintf(&b, "'%s'", sanitize(s.Time.Format("2006-01-02 15:04:05.999999")))
 			} else {
 				b.WriteString(nullType)
 			}
