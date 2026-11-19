@@ -260,6 +260,13 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 			} else {
 				b.WriteString("0")
 			}
+		case *[]byte:
+			// VARBINARY and BIT columns scan into []byte
+			if *s == nil {
+				b.WriteString(nullType)
+			} else {
+				fmt.Fprintf(&b, "_binary '%s'", sanitize(string(*s)))
+			}
 		case *sql.NullString:
 			if s.Valid {
 				fmt.Fprintf(&b, "'%s'", sanitize(s.String))
