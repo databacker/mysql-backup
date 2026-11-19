@@ -286,7 +286,8 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 				b.WriteString(nullType)
 			}
 		case *sql.RawBytes:
-			if len(*s) == 0 {
+			// NULL scans as nil; an empty BLOB is a non-nil empty value.
+			if *s == nil {
 				b.WriteString(nullType)
 			} else {
 				fmt.Fprintf(&b, "_binary '%s'", sanitize(string(*s)))
