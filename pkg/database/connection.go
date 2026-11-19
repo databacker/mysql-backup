@@ -35,6 +35,8 @@ func (c *Connection) MySQL() (*sql.DB, error) {
 			config.Addr = fmt.Sprintf("%s:%d", c.Host, c.Port)
 		}
 		config.ParseTime = true
+		// read TIMESTAMPs in UTC, which is the time zone the dump restores them in
+		config.Params = map[string]string{"time_zone": "'+00:00'"}
 		config.TLSConfig = "preferred"
 		config.MultiStatements = c.MultiStatements
 		if c.MaxAllowedPacket != 0 {
