@@ -395,6 +395,17 @@ END;
 //
 DELIMITER ;
 
+-- Trigger: fill a missing name before insert into t1
+DELIMITER //
+CREATE TRIGGER trg_t1_default_name
+BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+    SET NEW.name = COALESCE(NEW.name, 'unknown');
+END;
+//
+DELIMITER ;
+
 -- Stored Procedure: insert a new person
 DELIMITER //
 CREATE PROCEDURE add_person(

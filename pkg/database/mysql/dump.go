@@ -453,7 +453,7 @@ func (data *Data) dumpTriggers() (map[string][]string, error) {
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-`+fmt.Sprintf("/*!50003 CREATE*/ /*!50017 DEFINER=`%s`@`%s`*/ /*!50003 TRIGGER `%s` AFTER %s ON `%s` FOR EACH ROW %s */;;", definerUser, definerHost, triggerName.String, event.String, table.String, statement.String)+`
+`+fmt.Sprintf("/*!50003 CREATE*/ /*!50017 DEFINER=`%s`@`%s`*/ /*!50003 TRIGGER `%s` %s %s ON `%s` FOR EACH ROW %s */;;", definerUser, definerHost, triggerName.String, timing.String, event.String, table.String, statement.String)+`
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
