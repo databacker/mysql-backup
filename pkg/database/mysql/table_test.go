@@ -19,3 +19,14 @@ func TestRowBufferKeepsPrecision(t *testing.T) {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
+
+func TestRowBufferUnsignedBigint(t *testing.T) {
+	big := sql.Null[uint64]{V: 18446744073709551615, Valid: true}
+	null := sql.Null[uint64]{}
+	table := baseTable{values: []any{&big, &null}}
+
+	want := `(18446744073709551615,NULL)`
+	if got := table.RowValues(); got != want {
+		t.Errorf("got %s, want %s", got, want)
+	}
+}

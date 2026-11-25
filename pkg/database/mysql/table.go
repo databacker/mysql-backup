@@ -188,12 +188,15 @@ func (table *baseTable) Next() bool {
 	if table.rows.Next() {
 		if err := table.rows.Scan(table.values...); err != nil {
 			table.err = err
+			_ = table.rows.Close()
+			table.rows = nil
 			return false
 		} else if err := table.rows.Err(); err != nil {
 			table.err = err
 			return false
 		}
 	} else {
+		table.err = table.rows.Err()
 		_ = table.rows.Close()
 		table.rows = nil
 		return false
@@ -276,6 +279,12 @@ func (table *baseTable) RowBuffer() *bytes.Buffer {
 		case *sql.NullInt64:
 			if s.Valid {
 				fmt.Fprintf(&b, "%d", s.Int64)
+			} else {
+				b.WriteString(nullType)
+			}
+		case *sql.Null[uint64]:
+			if s.Valid {
+				fmt.Fprintf(&b, "%d", s.V)
 			} else {
 				b.WriteString(nullType)
 			}
@@ -368,7 +377,10 @@ func (table *baseTable) Execute(out io.Writer, compact bool, part int) error {
 	if compact {
 		tmpl = tableCompactTemplate
 	}
-	return tmpl.Execute(out, table)
+	if err := tmpl.Execute(out, table); err != nil {
+		return err
+	}
+	return table.Err()
 }
 
 func reflectColumnType(tp *sql.ColumnType) reflect.Type {
@@ -390,6 +402,9 @@ func reflectColumnType(tp *sql.ColumnType) reflect.Type {
 		return reflect.TypeOf(sql.NullString{})
 	case "BIGINT", "TINYINT", "INT":
 		return reflect.TypeOf(sql.NullInt64{})
+	case "UNSIGNED BIGINT":
+		// the driver reports a nullable one as NullInt64, which cannot hold values above 2^63-1
+		return reflect.TypeOf(sql.Null[uint64]{})
 	case "DOUBLE":
 		return reflect.TypeOf(sql.NullFloat64{})
 	case "TIMESTAMP", "DATETIME":
