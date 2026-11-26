@@ -19,3 +19,20 @@ func TestRowBufferKeepsPrecision(t *testing.T) {
 		t.Errorf("got %s, want %s", got, want)
 	}
 }
+
+func TestIsGeneratedColumn(t *testing.T) {
+	tests := map[string]bool{
+		"":                  false,
+		"auto_increment":    false,
+		"DEFAULT_GENERATED": false,
+		"DEFAULT_GENERATED on update CURRENT_TIMESTAMP": false,
+		"VIRTUAL GENERATED":                             true,
+		"STORED GENERATED":                              true,
+		"PERSISTENT GENERATED":                          true,
+	}
+	for extra, want := range tests {
+		if got := isGeneratedColumn(extra); got != want {
+			t.Errorf("isGeneratedColumn(%q) = %v, want %v", extra, got, want)
+		}
+	}
+}
