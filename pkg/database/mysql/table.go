@@ -131,14 +131,22 @@ func (table *baseTable) initColumnData() error {
 		}
 
 		// Ignore the virtual columns and generated columns
-		// if there is an Extra column and it is a valid string, then only include this column if
-		// the column is not marked as VIRTUAL or GENERATED
-		if !info[extraIndex].Valid || (!strings.Contains(info[extraIndex].String, "VIRTUAL") && !strings.Contains(info[extraIndex].String, "GENERATED")) {
+		if !info[extraIndex].Valid || !isGeneratedColumn(info[extraIndex].String) {
 			result = append(result, info[fieldIndex].String)
 		}
 	}
 	table.cols = result
 	return nil
+}
+
+// isGeneratedColumn reports whether a SHOW COLUMNS Extra value marks a
+// generated column, whose value cannot be inserted. MySQL 8 also marks a
+// column with an expression default (DEFAULT CURRENT_TIMESTAMP) as
+// DEFAULT_GENERATED; that one holds real data and must be dumped.
+func isGeneratedColumn(extra string) bool {
+	return strings.Contains(extra, "VIRTUAL") ||
+		strings.Contains(extra, "STORED GENERATED") ||
+		strings.Contains(extra, "PERSISTENT")
 }
 
 func (table *baseTable) columnsList() string {
