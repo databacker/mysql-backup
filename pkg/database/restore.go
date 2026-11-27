@@ -39,7 +39,9 @@ func Restore(ctx context.Context, dbconn *Connection, databasesMap map[string]st
 			}
 			// strip CRLF/newline
 			line = strings.TrimRight(line, "\r\n")
-			if line == "" {
+			// skip blank lines, and comment lines between statements (the dump header
+			// comments before CREATE DATABASE would stop the database rename below)
+			if line == "" || (current == "" && strings.HasPrefix(line, "--")) {
 				if err == io.EOF {
 					break
 				}
